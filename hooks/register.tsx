@@ -4,7 +4,7 @@ import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, orderTree, reduce } from '../src/core/reducer'
 import { billingEvent, listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
 import { appendBounded } from '../src/mod/event-batch'
-import { openArgsFor } from '../src/mod/open-args'
+import { openArgsFor, type OpenPresentation } from '../src/mod/open-args'
 import { buildPaneView, roomFor } from '../src/mod/pane-view'
 import { graphColumnsFor, panColumn, panToInclude } from '../src/mod/graph-pane'
 import { decideClose, nextWindow, stepId, type CloseDecision } from '../src/mod/pane-keys'
@@ -46,9 +46,13 @@ const REDRAW_WRAP = 1000
 /** Events kept while flushes fail; the oldest are dropped past this. */
 const MAX_QUEUED_EVENTS = 1000
 const DEFAULT_PANE_ROWS = 24
+const PANE_OPEN_FLAGS = { id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true } as const
 
 /** Agent rows that fit in the pane as last drawn; the focus hook has no viewport, so render leaves it here. */
 let latestRoom = roomFor(DEFAULT_PANE_ROWS)
+/** Placement of the pane as last drawn, and the presentation it was opened with; a mode switch re-opens with them. */
+let latestPlacement: 'dock' | 'inline' | undefined
+let latestPresentation: OpenPresentation | undefined
 
 /** Wheres already logged in this load; each is logged once so a hot hook cannot flood the transcript. */
 const logged = new Set<string>()
@@ -231,10 +235,8 @@ export const register: Register = (on, options) => {
         ...current, open: true, view: 'tree', selId: 'main', mode: current.mode ?? 'tree', graphCol: 0, win: undefined,
       }))
       const agentCount = Object.keys((await read($, session))?.agents ?? {}).length
-      await $.ui.open({
-        id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true,
-        ...openArgsFor(e.presentation, agentCount),
-      })
+      latestPresentation = e.presentation
+      await $.ui.open({ ...PANE_OPEN_FLAGS, ...openArgsFor(e.presentation, agentCount, 'tree') })
     } catch (err) {
       logOnce($, 'command.run', err)
       return { text: 'agentview could not open' }
@@ -303,12 +305,14 @@ export const register: Register = (on, options) => {
     if (!current) return <Text dimColor>agentview: waiting for the session to start</Text>
     const now = await $.clock.now()
     const columns = e.props.bodyColumns
-    const rows = e.viewport?.rows ?? DEFAULT_PANE_ROWS
+    // The rows the surface gave the body, not the terminal: content taller than that is scrolled to the focused Button.
+    const rows = e.props.scroll?.bodyRows ?? e.viewport?.rows ?? DEFAULT_PANE_ROWS
+    latestPlacement = e.props.placement
     const view = buildPaneView({
       session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol, spin: state.spin,
       now, columns, rows, ascii: isAscii, win: state.win,
     })
-    latestRoom = roomFor(e.viewport?.rows ?? DEFAULT_PANE_ROWS, view.isToggleBeside ? 0 : 1)
+    latestRoom = roomFor(rows, view.isToggleBeside ? 0 : 1)
     const label = (text: string): string => (isAscii ? toPlainAscii(text) : text)
     const step = (offset: number) => async (): Promise<void> => {
       const target = stepId(view.order, state.selId, offset)
@@ -332,6 +336,14 @@ export const register: Register = (on, options) => {
           ? panToInclude(view.outline, latest.selId, latest.graphCol, columns.visible)
           : latest.graphCol,
       }))
+      // The graph wants more rows than the tree; re-opening an open id only re-sizes it.
+      if (latestPlacement === 'inline' || !latestPresentation?.isFullscreen) {
+        try {
+          await $.ui.open({ ...PANE_OPEN_FLAGS, ...openArgsFor(latestPresentation, view.order.length, mode) })
+        } catch (err) {
+          logOnce($, 'setMode resize', err)
+        }
+      }
     }
     const pan = (offset: number) => async (): Promise<void> => {
       const columns = view.hiddenColumns

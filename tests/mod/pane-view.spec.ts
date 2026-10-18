@@ -343,3 +343,31 @@ test('detail view hides the cost line and the header cost on a subscription, and
   assert.doesNotMatch(screen({ ...detail, session: withTokens(subscription) }), /~\$|cost/)
   assert.match(screen({ ...detail, session: withTokens(twoAgents) }), /~\$.*\n[\s\S]*cost +~\$/)
 })
+
+/** Lines the Pane draws for a view: its own lines plus the toggle row (when not beside the header) and the Button row. */
+const drawnLines = (view: ReturnType<typeof buildPaneView>, kind: 'tree' | 'graph' | 'detail'): number => {
+  const own = view.head.length + view.agentLines.length + view.tail.length
+  if (kind === 'detail') return own + 1
+  return own + (view.isToggleBeside ? 0 : 1) + (kind === 'graph' ? 1 : 0)
+}
+
+const manyAgents = ['a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8', 'a9'].reduce(
+  (session, id) => reduce(session, { kind: 'agent.start', id, parentId: 'main', type: 'worker', description: id, at: NOW }),
+  withTodos,
+)
+
+test('the pane fits a small body in tree, graph and detail modes', () => {
+  const SMALL_ROWS = 14
+  for (const columns of [60, 100, 140]) {
+    for (const session of [twoAgents, withTodos, manyAgents]) {
+      for (const [kind, mode, view, selId] of [
+        ['tree', 'tree', 'tree', 'main'], ['graph', 'graph', 'tree', 'main'], ['graph', 'graph', 'tree', 'a2'],
+        ['detail', 'tree', 'detail', 'a1'],
+      ] as const) {
+        const built = buildPaneView({ ...base, columns, rows: SMALL_ROWS, session, mode, view, selId })
+        const total = drawnLines(built, kind)
+        assert.ok(total <= SMALL_ROWS, `${kind} ${columns} cols ${Object.keys(session.agents).length} agents: ${total} lines`)
+      }
+    }
+  }
+})

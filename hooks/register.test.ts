@@ -621,3 +621,16 @@ test('billing reaches the session only when it changes', async ($, on) => {
   expect(kinds.filter((kind, index) => index > 0 && kind !== kinds[index - 1]).length).toBeLessThanOrEqual(1)
   expect(writes.sessions.at(-1)?.billing?.kind).toBe('subscription')
 })
+
+test('at a small bodyRows the first drawn line is the header', async ($, on) => {
+  useClock(on)
+  on('tool.call', readTool)
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+  await settle()
+  const pane = await $.ui.mount({
+    plugin: 'agentview', surface: 'terminal', component: 'Pane', requestId: 'agentview',
+    props: { title: 'agentview', isFocused: true, bodyColumns: 90, placement: 'inline', scroll: { bodyRows: 14 } },
+  })
+  expect(await pane.find({ type: 'Text', text: /^agentview · session/ })).toBeDefined()
+  await pane.unmount()
+})

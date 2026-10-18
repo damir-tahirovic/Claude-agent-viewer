@@ -69,6 +69,9 @@ export const roomFor = (paneRows: number, extraRows = 0): number =>
 export const paneRowsFor = (agentCount: number): number =>
   CHROME_ROWS + 1 + Math.max(MIN_AGENT_ROWS, agentCount)
 
+/** Fewest detail lines kept when the pane is tiny. */
+const MIN_DETAIL_ROWS = 4
+
 /** Width of the `tree` and `graph` toggle Buttons side by side. */
 const TOGGLE_WIDTH = 14
 const TOGGLE_GAP = 2
@@ -99,7 +102,12 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
       spin, ascii: opts.ascii, frame: false, hints: DETAIL_HINTS, billing: session.billing,
     })
     // Below 90 columns the detail is cut, not reflowed; a narrow detail layout is not designed yet.
-    const body = [header, ...lines].map(line => finish(clipLine(line, opts.columns)))
+    const all = [header, ...lines].map(line => finish(clipLine(line, opts.columns)))
+    // One row is left for the Button row below; a taller detail keeps its top and says how much is cut.
+    const room = Math.max(MIN_DETAIL_ROWS, opts.rows - 1)
+    const body = all.length <= room
+      ? all
+      : [...all.slice(0, room - 1), finish(clipLine(dim(`  … ${all.length - room + 1} more lines`), opts.columns))]
     return { order, outline, isToggleBeside: true, head: body, agentLines: [], tail: [] }
   }
 

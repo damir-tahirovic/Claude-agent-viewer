@@ -15,3 +15,11 @@ test('the main screen asks for only what a few agents need', () => {
   assert.ok(args.rows !== undefined && args.rows < 30 && args.rows >= 10)
   assert.equal(args.columns, undefined)
 })
+
+test('graph mode asks for the most inline rows, however few agents there are', () => {
+  assert.deepEqual(openArgsFor({ isFullscreen: false, columns: 120 }, 2, 'graph'), { rows: 40 })
+})
+
+test('tree mode keeps the agent-count sizing', () => {
+  assert.deepEqual(openArgsFor({ isFullscreen: false, columns: 120 }, 40, 'tree'), { rows: 30 })
+})
