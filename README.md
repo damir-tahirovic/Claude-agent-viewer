@@ -114,7 +114,7 @@ The mockups show the design. In the plugin the footer hints are the ones listed 
 - Agent detail: task, recent actions, token breakdown and the agent's todo list.
 - A status line under the prompt that names what needs attention first.
 - Tokens and estimated cost (`~$`) per agent and for the whole session; on a subscription, the plan usage limits instead.
-- Plan progress in percent, taken from the todo list.
+- Plan progress in percent, taken from the todo list; per-agent progress from each subagent's own list.
 - Markers for agents that are stuck (`!`), expensive (`▲`) or `unknown`.
 - ASCII mode for terminals without box-drawing characters.
 - Layouts for narrow terminals.
@@ -204,18 +204,27 @@ In fullscreen, Claude Code docks plugin panes beside the transcript. agentview a
 - **Billing.** Cost (`~$`) and `▲` are shown only when the session is billed per token through an API key. On a subscription (Claude Pro or Max) tokens are not billed one by one, so agentview hides all cost and shows the plan's usage limits in the header instead, for example `5h 71% · 7d 21%` (the five-hour and seven-day windows, as Claude Code reports them). The data comes from `$.session.usage()`, read once at session start and once after each main turn; a session with no limit readings after its first completed turn is treated as API billing. Until then billing is unknown, cost is hidden and the header shows `—` in its place.
 - **`!`** after the time marks an agent that has been on the same action for more than 3 minutes.
 - **`unknown`** means a subagent has sent no signal for more than 60 seconds and has no tool in flight. It becomes `running` again on its next signal. The main agent is never `unknown`.
-- **Plan %** comes only from the main agent's todo list (done divided by total). Without a todo list it shows `—`. Subagent todo lists are not used for it.
+- **Plan %** comes only from the main agent's todo list (done divided by total). Without a todo list it shows `—`. Subagents have their own progress; see [Progress](#progress).
 - **Main** shows `done` between turns, and `running` again when the next turn starts.
+
+## Progress
+
+agentview shows a percentage or a count only when it comes from a real todo list. It never estimates progress from time, tokens or tool calls.
+
+- **Plan %** in the header and the plan bar comes from the main agent's own todo list (`TodoWrite`, or `TaskCreate` and `TaskUpdate`): done items divided by all items.
+- **Subagent progress** comes from that subagent's own todo list, from the same tools. It appears as a `PLAN` column in the tree (for example `3/5`), as ` · 3/5` on the agent's card in the graph, and as `progress 3/5 (60%)` in the detail header. The `PLAN` column shows only when at least one subagent has a list, and only from 100 columns up; main's cell is always `—` because main's plan has its own bar.
+- **It is `—`** (or simply not shown) when the agent has no todo list. A subagent that never writes one stays without progress; there is no fallback guess. A finished agent keeps the last list it wrote.
+- **`trackProgress`** (default off) asks subagents to keep such a list. When it is on, agentview appends one short sentence to every subagent prompt: `Track your steps with the TodoWrite tool: write the list first, then mark each item in_progress and completed as you go.` The trade-off: it changes subagent behaviour slightly and costs a few tokens per subagent. The engine does not tell agentview which agent types have `TodoWrite`, so the sentence is added to all of them; an agent without the tool ignores it. Resumed agents and workflow agents are left alone.
 
 ## Configuration
 
-One option, `ascii` (default `false`). When it is on, the dialog is drawn with ASCII characters only. Set it from the plugin's configuration in Claude Code, or from your shell:
+Two options. `ascii` (default `false`): when it is on, the dialog is drawn with ASCII characters only. `trackProgress` (default `false`): asks subagents to keep a todo list, see [Progress](#progress). Set them from the plugin's configuration in Claude Code, or from your shell:
 
 ```bash
 claude plugin configure agentview
 ```
 
-`claude plugin configure` shows the options and which are unset; add `--values-stdin` to save values from a JSON object on stdin. You can also set it with `--config ascii=true` on `claude plugin install`, or under `pluginConfigs` in your Claude Code settings. Restart Claude Code after changing it.
+`claude plugin configure` shows the options and which are unset; add `--values-stdin` to save values from a JSON object on stdin. You can also set them with `--config ascii=true` (or `trackProgress=true`) on `claude plugin install`, or under `pluginConfigs` in your Claude Code settings. Restart Claude Code after changing it.
 
 ## How it works
 

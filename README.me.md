@@ -114,7 +114,7 @@ Mockupi prikazuju dizajn. U pluginu su savjeti u podnožju oni navedeni u odjelj
 - Detalji agenta: zadatak, nedavne radnje, raspodjela tokena i agentova lista zadataka.
 - Statusna linija ispod prompta koja prva navodi ono što traži pažnju.
 - Tokeni i procijenjeni trošak (`~$`) po agentu i za cijelu sesiju; na pretplati umjesto toga ograničenja korišćenja plana.
-- Napredak plana u procentima, uzet iz liste zadataka.
+- Napredak plana u procentima, uzet iz liste zadataka; napredak svakog agenta iz njegove vlastite liste.
 - Oznake za agente koji su zaglavljeni (`!`), skupi (`▲`) ili `unknown`.
 - ASCII režim za terminale bez znakova za crtanje okvira.
 - Rasporedi za uske terminale.
@@ -204,18 +204,27 @@ U fullscreen prikazu Claude Code kači plugin panele pored transkripta. agentvie
 - **Naplata.** Trošak (`~$`) i `▲` prikazuju se samo kada se sesija naplaćuje po tokenu preko API ključa. Na pretplati (Claude Pro ili Max) tokeni se ne naplaćuju pojedinačno, pa agentview sakriva sav trošak i u zaglavlju prikazuje ograničenja korišćenja plana, na primjer `5h 71% · 7d 21%` (petosatni i sedmodnevni prozor, kako ih javlja Claude Code). Podaci dolaze iz `$.session.usage()`, očitanog jednom pri startu sesije i jednom poslije svakog glavnog turna; sesija bez očitanja ograničenja poslije prvog završenog turna smatra se API naplatom. Do tada naplata nije poznata, trošak je skriven, a zaglavlje umjesto njega prikazuje `—`.
 - **`!`** poslije vremena označava agenta koji je duže od 3 minuta na istoj radnji.
 - **`unknown`** znači da subagent nije poslao signal duže od 60 sekundi i da nema alata u toku. Na sljedeći signal ponovo postaje `running`. Glavni agent nikad nije `unknown`.
-- **Plan %** dolazi samo iz liste zadataka glavnog agenta (završeno podijeljeno sa ukupno). Bez liste zadataka prikazuje `—`. Liste zadataka subagenata se za to ne koriste.
+- **Plan %** dolazi samo iz liste zadataka glavnog agenta (završeno podijeljeno sa ukupno). Bez liste zadataka prikazuje `—`. Subagenti imaju vlastiti napredak; vidi [Napredak](#napredak).
 - **Main** prikazuje `done` između dva kruga (turn-a), a čim počne sljedeći ponovo je `running`.
+
+## Napredak
+
+agentview prikazuje procenat ili broj samo kada dolazi iz prave liste zadataka. Napredak nikad ne procjenjuje iz vremena, tokena ili broja poziva alata.
+
+- **Plan %** u zaglavlju i traka plana dolaze iz liste zadataka glavnog agenta (`TodoWrite`, ili `TaskCreate` i `TaskUpdate`): završene stavke podijeljene sa svim stavkama.
+- **Napredak subagenta** dolazi iz njegove vlastite liste zadataka, preko istih alata. Prikazuje se kao kolona `PLAN` u stablu (na primjer `3/5`), kao ` · 3/5` na kartici agenta u grafu i kao `progress 3/5 (60%)` u zaglavlju detalja. Kolona `PLAN` se vidi samo kad bar jedan subagent ima listu, i to od 100 kolona naviše; ćelija glavnog agenta je uvijek `—` jer glavni plan ima svoju traku.
+- **Prikazuje se `—`** (ili se ništa ne prikazuje) kad agent nema listu zadataka. Subagent koji je nikad ne napiše ostaje bez napretka; nema rezervne procjene. Završeni agent zadržava posljednju listu koju je napisao.
+- **`trackProgress`** (podrazumijevano isključeno) traži od subagenata da vode takvu listu. Kad je uključeno, agentview svakom promptu subagenta dodaje jednu kratku rečenicu: `Track your steps with the TodoWrite tool: write the list first, then mark each item in_progress and completed as you go.` Cijena: blago mijenja ponašanje subagenata i košta nekoliko tokena po subagentu. Engine ne kaže agentview-u koji tipovi agenata imaju `TodoWrite`, pa se rečenica dodaje svima; agent bez tog alata je ignoriše. Nastavljeni (resumed) agenti i workflow agenti se ne diraju.
 
 ## Podešavanje
 
-Jedna opcija, `ascii` (podrazumijevano `false`). Kad je uključena, dijalog se crta samo ASCII znakovima. Podesite je u konfiguraciji plugina u Claude Code-u ili iz shella:
+Dvije opcije. `ascii` (podrazumijevano `false`): kad je uključena, dijalog se crta samo ASCII znakovima. `trackProgress` (podrazumijevano `false`): traži od subagenata da vode listu zadataka, vidi [Napredak](#napredak). Podesite ih u konfiguraciji plugina u Claude Code-u ili iz shella:
 
 ```bash
 claude plugin configure agentview
 ```
 
-`claude plugin configure` prikazuje opcije i koje nisu postavljene; dodajte `--values-stdin` da sačuvate vrijednosti iz JSON objekta sa standardnog ulaza. Možete je postaviti i sa `--config ascii=true` pri `claude plugin install`, ili pod `pluginConfigs` u podešavanjima Claude Code-a. Poslije promjene ponovo pokrenite Claude Code.
+`claude plugin configure` prikazuje opcije i koje nisu postavljene; dodajte `--values-stdin` da sačuvate vrijednosti iz JSON objekta sa standardnog ulaza. Možete ih postaviti i sa `--config ascii=true` (ili `trackProgress=true`) pri `claude plugin install`, ili pod `pluginConfigs` u podešavanjima Claude Code-a. Poslije promjene ponovo pokrenite Claude Code.
 
 ## Kako radi
 

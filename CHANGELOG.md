@@ -3,6 +3,13 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-10-19
+
+### Added
+- Per-agent progress from the agent's own todo list (`TodoWrite`, `TaskCreate`, `TaskUpdate`): a `PLAN` column in the tree (shown only when a subagent has a list), ` · 3/5` on graph cards and `progress 3/5 (60%)` in the detail header. No list means `—`; progress is never estimated.
+- Option `trackProgress` (default off): asks subagents to keep a todo list by appending one sentence to their prompt.
+- README section "Progress", in English and Montenegrin.
+
 ## [0.2.3] - 2026-10-19
 
 ### Fixed
