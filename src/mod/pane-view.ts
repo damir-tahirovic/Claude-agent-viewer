@@ -21,6 +21,8 @@ export type PaneViewOpts = {
 
 /** A pane split into lines around the selectable agent rows. */
 export type PaneView = {
+  /** Agent ids in the visible tree order, for prev/next. */
+  readonly order: ReadonlyArray<string>
   readonly head: ReadonlyArray<string>
   readonly agentLines: ReadonlyArray<{ readonly id: string; readonly line: string }>
   readonly tail: ReadonlyArray<string>
@@ -40,6 +42,7 @@ const clockOf = (ms: number): string => new Date(ms).toISOString().slice(11, 19)
 export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const { session, selId, now } = opts
   const rows = buildRows(session, now)
+  const order = rows.map(row => row.id)
   const spin = SPIN[opts.spin % SPIN.length]
   const sessionCost = rows.reduce((sum, row) => sum + row.cost, 0)
   const sessionTokens = rows.reduce((sum, row) => sum + row.i + row.o, 0)
@@ -55,7 +58,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
       todos: session.todos[agent.id], now, clock: clockOf, cost: rows[selected].cost, sessionCost,
       spin, ascii: opts.ascii, frame: false,
     })
-    return { head: [header, ...lines], agentLines: [], tail: [] }
+    return { order, head: [header, ...lines], agentLines: [], tail: [] }
   }
 
   const plan = planOf(session.todos.main)
@@ -73,6 +76,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const header = colorize('B', 'agentview') + dim(` · session ${session.sessionId.slice(0, 8)} · ` +
     `${fmtK(sessionTokens)} tok · ${fmtCost(sessionCost)} · plan `) + colorize('B', percent)
   return {
+    order,
     head: [header, ...lines.slice(0, firstRowLine)],
     agentLines: rows.slice(first, last).map((row, offset) => ({ id: row.id, line: lines[firstRowLine + offset] })),
     tail: lines.slice(firstRowLine + (last - first)),

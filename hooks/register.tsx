@@ -4,6 +4,7 @@ import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, reduce } from '../src/core/reducer'
 import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete } from '../src/mod/adapter'
 import { buildPaneView } from '../src/mod/pane-view'
+import { decideClose, stepId } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
 import type { AgentviewSession, AgentviewUi } from '../types'
 
@@ -82,11 +83,19 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'agentview' }, async $ => {
     await update($, ui, current => ({ ...current, open: true, view: 'tree', selId: 'main' }))
-    stopSpinner()
-    spinner = $.clock.every(SPIN_MS, () => {
-      void update($, ui, current => ({ ...current, spin: (current.spin + 1) % SPIN_FRAMES })).catch(() => undefined)
-    })
     await $.ui.open({ id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true })
+    // Started only once the pane is open; it ends itself when the pane is no longer open.
+    stopSpinner()
+    const timer = $.clock.every(SPIN_MS, async () => {
+      try {
+        const state = await read($, ui)
+        if (!state.open) timer.cancel()
+        else await update($, ui, current => ({ ...current, spin: (current.spin + 1) % SPIN_FRAMES }))
+      } catch {
+        // A missed frame is harmless.
+      }
+    })
+    spinner = timer
     return { text: 'agentview opened' }
   })
 
@@ -100,16 +109,21 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => next(e))
 
   on('ui.close', async ($, e, next) => {
-    const state = await read($, ui)
-    if (e.id !== PANE_ID) return next(e)
-    if (e.origin.kind === 'person' && state.view === 'detail') {
-      await update($, ui, current => ({ ...current, view: 'tree' }))
-      return { deny: 'back' }
+    let decision = decideClose('tree', e.id === PANE_ID, e.origin.kind === 'person')
+    if (decision === 'pass') return next(e)
+    try {
+      decision = decideClose((await read($, ui)).view, true, e.origin.kind === 'person')
+      if (decision === 'back') {
+        await update($, ui, current => ({ ...current, view: 'tree' }))
+        return { deny: 'back' }
+      }
+      await update($, ui, current => ({ ...current, open: false }))
+    } catch {
+      // Our state failing must never keep a pane open.
     }
     stopSpinner()
-    await update($, ui, current => ({ ...current, open: false }))
     return next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: 'agentview close failed' }))
+  }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -136,10 +150,8 @@ export const register: Register = (on, options) => {
       session: current, view: state.view, selId: state.selId, spin: state.spin,
       now: await $.clock.now(), columns: e.props.bodyColumns, rows: e.viewport?.rows ?? 24, ascii: isAscii,
     })
-    const ids = Object.keys(current.agents)
     const step = (offset: number) => async (): Promise<void> => {
-      const at = ids.indexOf(state.selId)
-      const target = ids[(Math.max(0, at) + offset + ids.length) % ids.length]
+      const target = stepId(view.order, state.selId, offset)
       await update($, ui, latest => ({ ...latest, selId: target }))
     }
     return (
