@@ -1,7 +1,8 @@
 // Graph view entry point. A typed port of `graph` and `asc` in docs/design/graph-generator.js.
+import type { Row } from '../rows'
 import type { Plan } from '../../core/progress'
 import { frameGraph, graphTotals } from './frame'
-import { flattenGraph, layoutWide } from './layout'
+import { flattenGraph, layoutNarrow, layoutWide } from './layout'
 import type { GraphNode } from './layout'
 
 export type GraphOpts = {
@@ -45,5 +46,16 @@ export const renderGraph = (opts: GraphOpts): string[] => {
       sessionCost: graphTotals(rows).cost,
       isRich,
     }))
+  return opts.ascii ? lines.map(graphAscii) : lines
+}
+
+export type NarrowGraphOpts = Omit<GraphOpts, 'tree' | 'columns' | 'firstColumn' | 'middle'> & {
+  readonly rows: ReadonlyArray<Row>
+}
+
+/** Renders the folded graph for narrow terminals: a tree list with the selected row as a card. (graph spec `compact`) */
+export const renderGraphNarrow = (opts: NarrowGraphOpts): string[] => {
+  const lines = frameGraph(opts.width, opts, canvas =>
+    layoutNarrow(canvas, opts.rows, { ...opts, sessionCost: graphTotals(opts.rows).cost }))
   return opts.ascii ? lines.map(graphAscii) : lines
 }

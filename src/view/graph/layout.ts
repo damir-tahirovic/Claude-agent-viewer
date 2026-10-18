@@ -1,9 +1,11 @@
 // Graph body layout. A typed port of `layoutH` in docs/design/graph-generator.js.
 import type { Plan } from '../../core/progress'
+import { fitNoPad, SPIN } from '../lines'
+import { fmtT } from '../../core/format'
 import type { Row } from '../rows'
 import type { Canvas } from './canvas'
 import { drawCard, drawChip } from './card'
-import { EDGE_CODE, EDGE_JOINT, EDGE_VERTICAL } from './style'
+import { EDGE_CODE, EDGE_JOINT, EDGE_VERTICAL, ACTION_CODE, STATUS_CODE } from './style'
 
 export type GraphNode = {
   readonly row: Row
@@ -116,4 +118,88 @@ export const layoutWide = (canvas: Canvas, root: GraphNode, opts: WideLayoutOpts
     })
   })
   return lastY
+}
+
+type TreePrefix = {
+  /** Branch drawing in front of the row, e.g. `│  ├─ `. */
+  readonly text: string
+  /** Per ancestor level: whether that level's trunk continues below this row. */
+  readonly continues: ReadonlyArray<boolean>
+  /** Whether this row has a later sibling. */
+  readonly hasNextSibling: boolean
+}
+
+/** Whether row `index` has a later sibling before its parent's subtree ends. (graph spec `nxt`) */
+const hasNextSibling = (rows: ReadonlyArray<Row>, index: number): boolean => {
+  for (let j = index + 1; j < rows.length; j++) {
+    if (rows[j].d < rows[index].d) return false
+    if (rows[j].d === rows[index].d) return true
+  }
+  return false
+}
+
+/** Tree branch prefixes for rows in depth-first order. (graph spec `pre2`) */
+const treePrefixes = (rows: ReadonlyArray<Row>): TreePrefix[] =>
+  rows.map((row, index) => {
+    if (!row.d) return { text: '', continues: [], hasNextSibling: false }
+    const continues: boolean[] = []
+    for (let depth = row.d - 1; depth >= 1; depth--) {
+      let ancestor = index - 1
+      while (rows[ancestor].d !== depth) ancestor--
+      continues.unshift(hasNextSibling(rows, ancestor))
+    }
+    const trunks = continues.map(isOpen => (isOpen ? '│  ' : '   ')).join('')
+    const isNext = hasNextSibling(rows, index)
+    return { text: trunks + (isNext ? '├─ ' : '└─ '), continues, hasNextSibling: isNext }
+  })
+
+export type NarrowLayoutOpts = {
+  readonly selectedId?: string
+  readonly sessionCost: number
+  readonly spin?: string
+}
+
+/** Draws the folded tree list with the selected row expanded as a card; returns the last row used. (graph spec `layoutV`) */
+export const layoutNarrow = (canvas: Canvas, rows: ReadonlyArray<Row>, opts: NarrowLayoutOpts): number => {
+  const width = canvas.width
+  const spin = opts.spin ?? SPIN[0]
+  const prefixes = treePrefixes(rows)
+  const glyphs = { running: spin, waiting: '◔', done: '✓', failed: '✗', unknown: '?' }
+  let y = 2
+  rows.forEach((row, index) => {
+    const prefix = prefixes[index]
+    const prefixLength = [...prefix.text].length
+    const left = 2
+    const isSelected = opts.selectedId === row.id
+    canvas.text(left, y, prefix.text, 'd')
+    const startX = left + prefixLength
+    const flex = width - 4 - prefixLength - 21
+    const taskWidth = Math.floor(flex * 0.45)
+    const actionWidth = flex - taskWidth
+    const isStuck = !!row.stuck && row.st === 'running'
+    const time = fmtT(row.secs) + (isStuck ? '!' : '')
+    const statusCode = STATUS_CODE[row.st] === 'd' ? 'g' : STATUS_CODE[row.st]
+    canvas.runs(startX, y, [
+      [glyphs[row.st] + ' ', isSelected ? 'IB' : statusCode],
+      [fitNoPad(row.name, 8).padEnd(9), isSelected ? 'IB' : row.d ? '' : 'B'],
+      [fitNoPad(row.task, taskWidth).padEnd(taskWidth + 1), isSelected ? 'IB' : row.st === 'done' ? 'd' : ''],
+      [fitNoPad(row.act, actionWidth).padEnd(actionWidth + 1), isSelected ? 'IB' : ACTION_CODE[row.st]],
+      [time.padStart(6), isSelected ? 'IB' : isStuck ? 'y' : 'd'],
+    ])
+    prefix.continues.forEach((isOpen, level) => {
+      if (isOpen) canvas.put(left + 3 * level, y, '│', 'd')
+    })
+    y++
+    if (!isSelected) return
+    const cardWidth = width - 2 - startX - 1
+    prefix.continues.forEach((isOpen, level) => {
+      if (isOpen) for (let r = 0; r < 6; r++) canvas.put(left + 3 * level, y + r, '│', 'd')
+    })
+    if (prefix.hasNextSibling) for (let r = 0; r < 6; r++) canvas.put(left + 3 * (row.d - 1), y + r, '│', 'd')
+    drawCard(canvas, startX, y, cardWidth, row, {
+      isSelected: true, sessionCost: opts.sessionCost, isRich: true, spin: opts.spin, error: row.err,
+    })
+    y += 6
+  })
+  return y - 1
 }
