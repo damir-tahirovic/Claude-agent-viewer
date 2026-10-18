@@ -1,4 +1,4 @@
-import { MAIN, RECENT_MAX, UNKNOWN_AFTER_MS, ZERO, type AgentEvent, type AgentNode, type SessionState } from './model'
+import { MAIN, RECENT_MAX, UNKNOWN_AFTER_MS, ZERO, type AgentEvent, type AgentNode, type SessionState, type ToolCall } from './model'
 import { summarize } from './summary'
 
 const node = (id: string, at: number, overrides: Partial<AgentNode> = {}): AgentNode => ({
@@ -24,11 +24,10 @@ export const initialState = (sessionId: string, at: number): SessionState => ({
 })
 
 /** Records a signal from an agent; a waiting or unknown agent is running again. */
-const alive = (agent: AgentNode, at: number): AgentNode => ({
-  ...agent,
-  lastSignal: at,
-  status: agent.status === 'unknown' || agent.status === 'waiting' ? 'running' : agent.status,
-})
+const alive = (agent: AgentNode, at: number): AgentNode => {
+  const isRevived = agent.status === 'unknown' || agent.status === 'waiting'
+  return { ...agent, lastSignal: at, status: isRevived ? 'running' : agent.status }
+}
 
 const withAgent = (
   state: SessionState,
@@ -40,9 +39,18 @@ const withAgent = (
   return { ...state, agents: { ...state.agents, [id]: update(agent) } }
 }
 
-/** A running subagent that has been silent too long is unknown; main never is. */
+const hasOpenCalls = (agent: AgentNode): boolean => Object.keys(agent.open ?? {}).length > 0
+
+/** A running subagent silent too long, with no tool in flight, is unknown; main never is. */
 const isStale = (id: string, agent: AgentNode, at: number): boolean =>
-  id !== MAIN && agent.status === 'running' && at - agent.lastSignal > UNKNOWN_AFTER_MS
+  id !== MAIN && agent.status === 'running' && !hasOpenCalls(agent) && at - agent.lastSignal > UNKNOWN_AFTER_MS
+
+/** The most recently started call among the open ones; a later insertion wins a tie. */
+const latestCall = (open: Readonly<Record<string, ToolCall>>): ToolCall | undefined =>
+  Object.values(open).reduce<ToolCall | undefined>(
+    (best, call) => (best === undefined || call.since >= best.since ? call : best),
+    undefined,
+  )
 
 /** Applies one event and returns the next state; the input is never mutated. */
 export const reduce = (state: SessionState, event: AgentEvent): SessionState => {
@@ -53,34 +61,45 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
         type: event.type,
         description: event.description,
         model: event.model ?? agent.model,
-        parentId: event.parentId ?? MAIN,
+        // Main never has a parent, and an agent cannot be its own parent.
+        parentId: event.id === MAIN ? undefined : event.parentId && event.parentId !== event.id ? event.parentId : MAIN,
         status: 'running',
         startedAt: event.at,
+        endedAt: undefined,
         lastSignal: event.at,
       }))
     case 'agent.end':
       return withAgent(state, event.id, event.at, agent => ({
         ...agent,
-        status: event.ok ? 'done' : 'failed',
-        endedAt: event.at,
+        // A failure reported later still wins over done; a later success never undoes a failure.
+        status: !event.ok || agent.status === 'failed' ? 'failed' : 'done',
+        endedAt: agent.endedAt ?? event.at,
         current: undefined,
+        open: undefined,
         lastSignal: event.at,
       }))
     case 'tool.start':
-      return withAgent(state, event.agentId, event.at, agent => ({
-        ...alive(agent, event.at),
-        status: 'running',
-        toolCount: agent.toolCount + 1,
-        current: {
+      return withAgent(state, event.agentId, event.at, agent => {
+        const call: ToolCall = {
           toolUseId: event.toolUseId,
           tool: event.tool,
           summary: summarize(event.tool, event.input),
           since: event.at,
-        },
-      }))
+        }
+        return {
+          ...alive(agent, event.at),
+          status: 'running',
+          endedAt: undefined,
+          toolCount: agent.toolCount + 1,
+          current: call,
+          open: { ...agent.open, [event.toolUseId]: call },
+        }
+      })
     case 'tool.end':
       return withAgent(state, event.agentId, event.at, agent => {
-        const finished = agent.current?.toolUseId === event.toolUseId ? agent.current : undefined
+        const finished = agent.open?.[event.toolUseId] ??
+          (agent.current?.toolUseId === event.toolUseId ? agent.current : undefined)
+        const { [event.toolUseId]: _closed, ...stillOpen } = agent.open ?? {}
         const action = {
           tool: finished?.tool ?? '?',
           summary: finished?.summary ?? '',
@@ -90,7 +109,8 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
         }
         return {
           ...alive(agent, event.at),
-          current: finished ? undefined : agent.current,
+          current: finished ? latestCall(stillOpen) : agent.current,
+          open: stillOpen,
           recent: [...agent.recent, action].slice(-RECENT_MAX),
         }
       })
@@ -113,6 +133,16 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
         status: 'waiting',
         lastSignal: event.at,
       }))
+    case 'heartbeat': {
+      // The engine's own list says this agent runs: refresh it, but never invent an unseen agent.
+      if (!state.agents[event.agentId]) return state
+      return withAgent(state, event.agentId, event.at, agent => alive(agent, event.at))
+    }
+    case 'turn':
+      return withAgent(state, event.agentId, event.at, agent =>
+        event.phase === 'start'
+          ? { ...agent, status: 'running', endedAt: undefined, lastSignal: event.at }
+          : { ...agent, status: 'done', endedAt: event.at, current: undefined, open: undefined, lastSignal: event.at })
     case 'tick': {
       const entries = Object.entries(state.agents)
       if (!entries.some(([id, agent]) => isStale(id, agent, event.at))) return state
@@ -129,21 +159,29 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
   }
 }
 
-/** Agent ids in tree order: depth-first, children sorted by start time. */
-export const orderTree = (state: SessionState): string[] => {
+/** One agent in tree order with its depth (main is 0). */
+export type TreeEntry = { readonly id: string; readonly depth: number }
+
+/**
+ * Agents in tree order: depth-first, children sorted by start time. An agent whose parent is
+ * unknown or unreachable (an orphan or a cycle) hangs under main at depth 1; each agent appears once.
+ */
+export const orderTree = (state: SessionState): ReadonlyArray<TreeEntry> => {
   const childrenByParent: Record<string, string[]> = {}
   for (const agent of Object.values(state.agents)) {
-    if (agent.parentId) (childrenByParent[agent.parentId] ??= []).push(agent.id)
+    if (agent.id !== MAIN && agent.parentId) (childrenByParent[agent.parentId] ??= []).push(agent.id)
   }
-  for (const children of Object.values(childrenByParent)) {
-    children.sort((a, b) => state.agents[a].startedAt - state.agents[b].startedAt)
+  const byStart = (a: string, b: string): number => state.agents[a].startedAt - state.agents[b].startedAt
+  for (const children of Object.values(childrenByParent)) children.sort(byStart)
+  const order: TreeEntry[] = []
+  const visited = new Set<string>()
+  const visit = (id: string, depth: number): void => {
+    if (visited.has(id)) return
+    visited.add(id)
+    order.push({ id, depth })
+    for (const childId of childrenByParent[id] ?? []) visit(childId, depth + 1)
   }
-  const order: string[] = []
-  const visit = (id: string): void => {
-    order.push(id)
-    const children = childrenByParent[id] ?? []
-    children.forEach(childId => visit(childId))
-  }
-  visit(MAIN)
+  if (state.agents[MAIN]) visit(MAIN, 0)
+  Object.keys(state.agents).filter(id => !visited.has(id)).sort(byStart).forEach(id => visit(id, 1))
   return order
 }

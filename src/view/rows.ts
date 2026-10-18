@@ -25,21 +25,17 @@ export type Row = {
   readonly calls: number
   readonly secs: number
   readonly cost: number
+  /** Seconds on the current action; absent when no tool is running. */
+  readonly actionSecs?: number
   readonly stuck?: 1
 }
 
 /** A running agent on the same action for longer than this is flagged as stuck, in ms. */
 export const STUCK_AFTER_MS = 180_000
 
-/** Depth of an agent in the tree: the main agent is 0, its children 1, and so on. */
-const depthOf = (state: SessionState, id: string): number => {
-  const parentId = state.agents[id].parentId
-  return parentId && state.agents[parentId] ? 1 + depthOf(state, parentId) : 0
-}
-
 /** Spec rows for every agent in tree order. `now` is the clock used for live elapsed time. */
 export const buildRows = (state: SessionState, now: number): Row[] =>
-  orderTree(state).map(id => {
+  orderTree(state).map(({ id, depth }) => {
     const agent = state.agents[id]
     const lastAction = agent.recent[agent.recent.length - 1]
     const endedAt = agent.endedAt ?? now
@@ -47,7 +43,7 @@ export const buildRows = (state: SessionState, now: number): Row[] =>
       agent.status === 'running' && agent.current !== undefined && now - agent.current.since > STUCK_AFTER_MS
     return {
       id,
-      d: depthOf(state, id),
+      d: depth,
       name: agent.type,
       task: agent.description,
       model: shortModel(agent.model),
@@ -60,6 +56,7 @@ export const buildRows = (state: SessionState, now: number): Row[] =>
       calls: agent.toolCount,
       secs: Math.max(0, Math.round((endedAt - agent.startedAt) / 1000)),
       cost: costOf(agent.model, agent.tokens),
+      ...(agent.current ? { actionSecs: Math.max(0, Math.round((now - agent.current.since) / 1000)) } : {}),
       ...(isStuck ? { stuck: 1 as const } : {}),
     }
   })

@@ -9,6 +9,14 @@ export type AgentviewTokens = {
   readonly cacheWrite: number
 }
 
+/** One tool call that has started and not yet ended. */
+export type AgentviewToolCall = {
+  readonly toolUseId: string
+  readonly tool: string
+  readonly summary: string
+  readonly since: number
+}
+
 /** One agent of the session snapshot (mirrors AgentNode in src/core/model.ts). */
 export type AgentviewAgent = {
   readonly id: string
@@ -20,12 +28,8 @@ export type AgentviewAgent = {
   readonly startedAt: number
   readonly endedAt?: number
   readonly lastSignal: number
-  readonly current?: {
-    readonly toolUseId: string
-    readonly tool: string
-    readonly summary: string
-    readonly since: number
-  }
+  readonly current?: AgentviewToolCall
+  readonly open?: Readonly<Record<string, AgentviewToolCall>>
   readonly recent: ReadonlyArray<{
     readonly tool: string
     readonly summary: string

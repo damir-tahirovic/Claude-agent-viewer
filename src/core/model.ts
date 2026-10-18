@@ -24,6 +24,14 @@ export type Todo = {
   readonly status: 'pending' | 'in_progress' | 'completed'
 }
 
+/** One tool call that has started and not yet ended. */
+export type ToolCall = {
+  readonly toolUseId: string
+  readonly tool: string
+  readonly summary: string
+  readonly since: number
+}
+
 /** One agent (the main session or a subagent) with its live state. */
 export type AgentNode = {
   readonly id: string
@@ -35,12 +43,10 @@ export type AgentNode = {
   readonly startedAt: number
   readonly endedAt?: number
   readonly lastSignal: number
-  readonly current?: {
-    readonly toolUseId: string
-    readonly tool: string
-    readonly summary: string
-    readonly since: number
-  }
+  /** The most recently started call that is still open. */
+  readonly current?: ToolCall
+  /** Every open call by tool use id; parallel tools overlap here. */
+  readonly open?: Readonly<Record<string, ToolCall>>
   readonly recent: ReadonlyArray<Action>
   readonly toolCount: number
   readonly tokens: Tokens
@@ -90,6 +96,8 @@ export type AgentEvent =
     }
   | { readonly kind: 'todos'; readonly at: number; readonly agentId: string; readonly todos: ReadonlyArray<Todo> }
   | { readonly kind: 'waiting'; readonly at: number; readonly agentId: string }
+  | { readonly kind: 'heartbeat'; readonly at: number; readonly agentId: string }
+  | { readonly kind: 'turn'; readonly at: number; readonly agentId: typeof MAIN; readonly phase: 'start' | 'end' }
   | { readonly kind: 'tick'; readonly at: number }
 
 /** Id of the main session agent. */

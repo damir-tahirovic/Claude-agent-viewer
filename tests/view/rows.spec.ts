@@ -70,3 +70,8 @@ test('finished agent shows its last action and frozen time', () => {
   assert.equal(worker.act, 'Edit src/login.ts')
   assert.equal(worker.secs, 3)
 })
+
+test('actionSecs counts seconds on the current action', () => {
+  assert.equal(buildRows(state, 2000 + 200_000)[1].actionSecs, 200)
+  assert.equal(buildRows(state, 5000)[0].actionSecs, undefined)
+})

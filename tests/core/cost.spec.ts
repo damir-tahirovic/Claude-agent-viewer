@@ -12,3 +12,8 @@ test('cost uses per-MTok prices for every token bucket', () => {
 test('an unknown model costs nothing', () => {
   assert.equal(costOf('mystery', { input: 1e6, output: 0, cacheRead: 0, cacheWrite: 0 }), 0)
 })
+
+test('a dated model id matches its short id by prefix', () => {
+  const tokens = { input: 1_000_000, output: 0, cacheRead: 0, cacheWrite: 0 }
+  assert.equal(costOf('claude-sonnet-5-5-20261001', tokens), 2)
+})

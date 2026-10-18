@@ -94,7 +94,7 @@ test('orderTree is DFS with children by start time', () => {
     { kind: 'agent.start', at: 2, id: 'w2', type: 'worker', description: '' },
     { kind: 'agent.start', at: 3, id: 's1', parentId: 'w1', type: 'scout', description: '' },
   ])
-  assert.deepEqual(orderTree(s), ['main', 'w1', 's1', 'w2'])
+  assert.deepEqual(orderTree(s).map(entry => entry.id), ['main', 'w1', 's1', 'w2'])
 })
 
 test('reduce never mutates the input state', () => {
@@ -102,4 +102,148 @@ test('reduce never mutates the input state', () => {
   const frozen = JSON.stringify(s)
   reduce(s, { kind: 'agent.start', at: 1, id: 'a', type: 'x', description: '' })
   assert.equal(JSON.stringify(s), frozen)
+})
+
+const TOOL = (at: number, id: string, agentId = 'main'): AgentEvent =>
+  ({ kind: 'tool.start', at, agentId, toolUseId: id, tool: 'Bash', input: { command: id } })
+const TOOL_END = (at: number, id: string, agentId = 'main', ok = true): AgentEvent =>
+  ({ kind: 'tool.end', at, agentId, toolUseId: id, ok })
+
+test('agent.start for main does not give main a parent', () => {
+  const s = run([{ kind: 'agent.start', at: 1, id: 'main', parentId: 'main', type: 'x', description: '' }])
+  assert.equal(s.agents.main.parentId, undefined)
+  assert.deepEqual(orderTree(s), [{ id: 'main', depth: 0 }])
+})
+
+test('a parentId equal to the agent id is ignored', () => {
+  const s = run([{ kind: 'agent.start', at: 1, id: 'a', parentId: 'a', type: 'x', description: '' }])
+  assert.equal(s.agents.a.parentId, 'main')
+})
+
+test('orderTree survives a two-agent cycle and lists each agent once', () => {
+  const s = run([
+    { kind: 'agent.start', at: 1, id: 'a', parentId: 'b', type: 'x', description: '' },
+    { kind: 'agent.start', at: 2, id: 'b', parentId: 'a', type: 'x', description: '' },
+  ])
+  const ids = orderTree(s).map(entry => entry.id)
+  assert.deepEqual([...ids].sort(), ['a', 'b', 'main'])
+})
+
+test('an orphan appears under main at depth 1', () => {
+  const s = run([{ kind: 'agent.start', at: 1, id: 'o', parentId: 'nobody', type: 'x', description: '' }])
+  assert.deepEqual(orderTree(s), [{ id: 'main', depth: 0 }, { id: 'o', depth: 1 }])
+})
+
+test('orderTree returns depth per agent', () => {
+  const s = run([
+    { kind: 'agent.start', at: 1, id: 'w1', type: 'worker', description: '' },
+    { kind: 'agent.start', at: 3, id: 's1', parentId: 'w1', type: 'scout', description: '' },
+  ])
+  assert.deepEqual(orderTree(s).map(entry => entry.depth), [0, 1, 2])
+})
+
+test('repeated agent.end keeps the first endedAt', () => {
+  const s = run([
+    { kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' },
+    { kind: 'agent.end', at: 10, id: 'a', ok: true },
+    { kind: 'agent.end', at: 20, id: 'a', ok: true },
+    { kind: 'agent.end', at: 30, id: 'a', ok: true },
+  ])
+  assert.equal(s.agents.a.endedAt, 10)
+  assert.equal(s.agents.a.status, 'done')
+})
+
+test('a later failed end turns done into failed but keeps endedAt', () => {
+  const s = run([
+    { kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' },
+    { kind: 'agent.end', at: 10, id: 'a', ok: true },
+    { kind: 'agent.end', at: 20, id: 'a', ok: false },
+    { kind: 'agent.end', at: 30, id: 'a', ok: true },
+  ])
+  assert.equal(s.agents.a.status, 'failed')
+  assert.equal(s.agents.a.endedAt, 10)
+})
+
+test('an agent running a tool for 120 s stays running', () => {
+  const s = run([
+    { kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' },
+    TOOL(1, 't1', 'a'),
+    { kind: 'tick', at: 120_000 },
+  ])
+  assert.equal(s.agents.a.status, 'running')
+})
+
+test('heartbeats keep a silent agent running and revive an unknown one', () => {
+  const kept = run([
+    { kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' },
+    { kind: 'heartbeat', at: 50_000, agentId: 'a' },
+    { kind: 'tick', at: 100_000 },
+  ])
+  assert.equal(kept.agents.a.status, 'running')
+  const revived = [
+    { kind: 'tick', at: 200_000 } as AgentEvent,
+    { kind: 'heartbeat', at: 200_001, agentId: 'a' } as AgentEvent,
+  ].reduce(reduce, kept)
+  assert.equal(revived.agents.a.status, 'running')
+})
+
+test('silence with no tool in flight turns unknown', () => {
+  const s = run([
+    { kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' },
+    TOOL(1, 't1', 'a'),
+    TOOL_END(2, 't1', 'a'),
+    { kind: 'tick', at: 70_000 },
+  ])
+  assert.equal(s.agents.a.status, 'unknown')
+})
+
+test('a heartbeat does not create an unseen agent', () => {
+  const s = run([{ kind: 'heartbeat', at: 1, agentId: 'ghost' }])
+  assert.equal(s.agents.ghost, undefined)
+})
+
+for (const order of [['t1', 't2'], ['t2', 't1']]) {
+  test(`overlapping calls ended as ${order.join(',')} keep their own recent entries`, () => {
+    let s = run([TOOL(10, 't1'), TOOL(20, 't2')])
+    assert.equal(s.agents.main.current?.toolUseId, 't2')
+    s = reduce(s, TOOL_END(30, order[0]))
+    const remaining = order[0] === 't1' ? 't2' : 't1'
+    assert.equal(s.agents.main.current?.toolUseId, remaining)
+    s = reduce(s, TOOL_END(40, order[1]))
+    assert.equal(s.agents.main.current, undefined)
+    const byTool = Object.fromEntries(s.agents.main.recent.map(action => [action.summary, action]))
+    assert.equal(byTool['Bash: t1'].tool, 'Bash')
+    assert.equal(byTool['Bash: t1'].ms, order[0] === 't1' ? 20 : 30)
+    assert.equal(byTool['Bash: t2'].ms, order[0] === 't2' ? 10 : 20)
+    assert.ok(s.agents.main.recent.every(action => action.tool !== '?'))
+  })
+}
+
+test('tool.start revives a finished agent and clears endedAt', () => {
+  const s = run([
+    { kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' },
+    { kind: 'agent.end', at: 5, id: 'a', ok: true },
+    TOOL(6, 't1', 'a'),
+  ])
+  assert.equal(s.agents.a.status, 'running')
+  assert.equal(s.agents.a.endedAt, undefined)
+})
+
+test('agent.start again clears endedAt', () => {
+  const s = run([
+    { kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' },
+    { kind: 'agent.end', at: 5, id: 'a', ok: false },
+    { kind: 'agent.start', at: 6, id: 'a', type: 'x', description: '' },
+  ])
+  assert.equal(s.agents.a.endedAt, undefined)
+  assert.equal(s.agents.a.status, 'running')
+})
+
+test('main is done between turns and running again on the next turn', () => {
+  const ended = run([{ kind: 'turn', at: 50, agentId: 'main', phase: 'end' }])
+  assert.equal(ended.agents.main.status, 'done')
+  assert.equal(ended.agents.main.endedAt, 50)
+  const started = reduce(ended, { kind: 'turn', at: 60, agentId: 'main', phase: 'start' })
+  assert.equal(started.agents.main.status, 'running')
+  assert.equal(started.agents.main.endedAt, undefined)
 })
