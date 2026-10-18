@@ -113,7 +113,7 @@ Mockupi prikazuju dizajn. U pluginu su savjeti u podnožju oni navedeni u odjelj
 - Prikaz stabla i prikaz grafa agenata, a mijenjaju se tasterima `t` i `g`.
 - Detalji agenta: zadatak, nedavne radnje, raspodjela tokena i agentova lista zadataka.
 - Statusna linija ispod prompta koja prva navodi ono što traži pažnju.
-- Tokeni i procijenjeni trošak (`~$`) po agentu i za cijelu sesiju.
+- Tokeni i procijenjeni trošak (`~$`) po agentu i za cijelu sesiju; na pretplati umjesto toga ograničenja korišćenja plana.
 - Napredak plana u procentima, uzet iz liste zadataka.
 - Oznake za agente koji su zaglavljeni (`!`), skupi (`▲`) ili `unknown`.
 - ASCII režim za terminale bez znakova za crtanje okvira.
