@@ -2,7 +2,7 @@
 
 Every change in this repository follows these rules. They apply to code written by the main session and by every subagent. When a rule conflicts with a plan step, the rule wins: adapt the step and say so in the commit message.
 
-Project tracker (Bosnian): `../AGENTVIEW.md`. Current plan: `docs/superpowers/plans/`.
+Project tracker (Bosnian): the maintainer's local tracker, outside the repository. Current plan: `docs/superpowers/plans/`.
 
 ## Language and toolchain
 
@@ -53,10 +53,10 @@ tests/      mirrors src/: tests/core, tests/view, tests/mod, tests/fixtures.
 ## Comments and docs
 
 - Comments say why, not what. Every exported function gets a one-line doc comment.
-- UI text, code, comments, commits and the README are in English. Notes in `../AGENTVIEW.md` are in Bosnian.
+- UI text, code, comments, commits and the README are in English. Notes in the maintainer's local tracker are in Bosnian.
 
 ## Git
 
 - Small commits, one task or one fix each. Conventional Commits: `feat(core): …`, `fix(view): …`, `test: …`, `docs: …`, `chore: …`.
 - End every commit message with a `Co-Authored-By:` line naming the model that actually wrote the commit (e.g. `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`).
-- After finishing a plan task, check it off in `../AGENTVIEW.md` §4 with a one-line note, and add a line to §7.
+- After finishing a plan task, check it off in the maintainer's local tracker (§4) with a one-line note, and add a line to §7.
