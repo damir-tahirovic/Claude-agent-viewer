@@ -163,3 +163,41 @@ test('the dialog with unknown billing drops cost and shows a dash in the header'
   assert.ok(!text.includes('COST') && !text.includes('~$'))
   assert.ok(text.includes('tok · — · plan'))
 })
+
+const progRows = (): Row[] => specRows().map(r => (r.id === 'r3' ? { ...r, prog: { done: 3, total: 5 } } : r))
+const planLines = (agents: Row[], W: number): string[] => renderDialog({ W, agents, sel: 0, plan }).map(stripCodes)
+
+test('a PLAN column shows 3/5 for the agent with a list and a dash for the others', () => {
+  const lines = planLines(progRows(), 120)
+  assert.ok(lines.some(line => line.includes('PLAN')))
+  const r3 = lines.find(line => line.includes('Edit src/auth.ts'))
+  const r1 = lines.find(line => line.includes('Edit src/login.ts'))
+  assert.ok(r3?.includes('3/5'))
+  assert.doesNotMatch(r1 ?? '', /\d+\/\d+/)
+  assert.match(r1 ?? '', / — /)
+})
+
+test('main shows a dash in the PLAN column even when it has a plan', () => {
+  const main = planLines(progRows(), 120).find(line => line.includes('refactor auth'))
+  assert.match(main ?? '', / — /)
+  assert.doesNotMatch(main ?? '', /\d+\/\d+/)
+})
+
+test('without any subagent list there is no PLAN column at any width', () => {
+  for (const W of [60, 80, 100, 120, 160]) {
+    assert.ok(!planLines(specRows(), W).some(line => line.includes('PLAN')), `W=${W}`)
+  }
+})
+
+test('the PLAN column keeps every line the same width, framed or not', () => {
+  for (const W of [100, 120, 160]) {
+    for (const frame of [true, false]) {
+      const lines = renderDialog({ W, agents: progRows(), sel: 0, plan, frame }).map(stripCodes)
+      lines.forEach(line => assert.equal([...line].length, frame ? W : W - 2))
+    }
+  }
+})
+
+test('below the medium tier the PLAN column is left out to keep the other columns', () => {
+  assert.ok(!planLines(progRows(), 80).some(line => line.includes('PLAN')))
+})

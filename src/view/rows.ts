@@ -1,7 +1,8 @@
 import { costOf } from '../core/cost'
 import { shortModel } from '../core/format'
+import { progressOf, type Progress } from '../core/progress'
 import { orderTree } from '../core/reducer'
-import type { SessionState } from '../core/model'
+import { MAIN, type SessionState } from '../core/model'
 
 /** Lifecycle state shown in the status column. */
 export type RowStatus = 'running' | 'waiting' | 'done' | 'failed' | 'unknown'
@@ -28,6 +29,8 @@ export type Row = {
   /** Seconds on the current action; absent when no tool is running. */
   readonly actionSecs?: number
   readonly stuck?: 1
+  /** Done and total of the agent's own todo list; only subagents with a list carry it. */
+  readonly prog?: Progress
   /** Error text of a failed agent; the graph card shows it, and falls back to `exit 1` when absent (the live view sets `error`). */
   readonly err?: string
 }
@@ -43,6 +46,8 @@ export const buildRows = (state: SessionState, now: number): Row[] =>
     const endedAt = agent.endedAt ?? now
     const isStuck =
       agent.status === 'running' && agent.current !== undefined && now - agent.current.since > STUCK_AFTER_MS
+    // Main keeps its session plan in the plan bar, so only subagents get a per-row progress.
+    const progress = id === MAIN ? null : progressOf(state.todos[id])
     return {
       id,
       d: depth,
@@ -60,6 +65,7 @@ export const buildRows = (state: SessionState, now: number): Row[] =>
       cost: costOf(agent.model, agent.tokens),
       ...(agent.current ? { actionSecs: Math.max(0, Math.round((now - agent.current.since) / 1000)) } : {}),
       ...(isStuck ? { stuck: 1 as const } : {}),
+      ...(progress ? { prog: progress } : {}),
       // The engine reports no exit code, so a failed agent gets a plain word instead of an invented one.
       ...(agent.status === 'failed' ? { err: 'error' } : {}),
     }

@@ -2,7 +2,7 @@
 import { costSlot, showsCost } from '../core/billing'
 import { fmtCost, fmtK } from '../core/format'
 import type { SessionState } from '../core/model'
-import { planOf } from '../core/progress'
+import { planOf, progressOf, progressPercent } from '../core/progress'
 import { renderDetail, statusBadge } from '../view/detail'
 import { renderDialog, windowFor } from '../view/dialog'
 import { clipLine, colorize, dim, fitText, SPIN, toPlainAscii, visibleLength } from '../view/lines'
@@ -94,8 +94,10 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   if (opts.view === 'detail' && agent) {
     const parent = agent.parentId ? session.agents[agent.parentId] : undefined
     const costPart = showsCost(session.billing) ? fmtCost(rows[selected].cost) + ' · ' : ''
+    const progress = progressOf(session.todos[agent.id])
+    const progressPart = progress ? `progress ${progress.done}/${progress.total} (${progressPercent(progress)}%) · ` : ''
     const header = colorize('B', 'agentview') + dim(' › ') + colorize('B', agent.type) +
-      dim(' · ' + costPart) + colorize(...statusBadge(agent.status, spin))
+      dim(' · ' + costPart + progressPart) + colorize(...statusBadge(agent.status, spin))
     const lines = renderDetail({
       W: Math.max(opts.columns, MIN_DETAIL_COLUMNS), agent, parentName: parent?.type ?? '—',
       todos: session.todos[agent.id], now, clock: clockOf, cost: rows[selected].cost, sessionCost,

@@ -51,3 +51,27 @@ test('a card off API billing leaves out the cost segment and the mark', () => {
     assert.ok(text.includes(' tok · 24 calls'))
   }
 })
+
+const progressCardText = (prog: { done: number; total: number } | undefined, isMain = false): string => {
+  const canvas = new Canvas(60, 8)
+  drawCard(canvas, 0, 0, 50, { ...graphBaseRows()[3], st: 'running', ...(prog ? { prog } : {}) }, { sessionCost: 0.5, isMain })
+  return canvas.lines(8).map(stripCodes).join('\n')
+}
+
+test('a card with a todo list appends its progress to the tokens line', () => {
+  assert.match(progressCardText({ done: 3, total: 5 }), /24 calls · 3\/5/)
+})
+
+test('a card without a list is unchanged', () => {
+  assert.doesNotMatch(progressCardText(undefined), /calls · \d+\/\d+/)
+  assert.doesNotMatch(progressCardText({ done: 1, total: 2 }, true), /calls · \d+\/\d+/)
+})
+
+test('a card whose tokens line is full puts the progress on the status line', () => {
+  const canvas = new Canvas(40, 8)
+  drawCard(canvas, 0, 0, 34, { ...graphBaseRows()[3], st: 'running', prog: { done: 3, total: 5 } },
+    { sessionCost: 0.5, isRich: true })
+  const text = canvas.lines(8).map(stripCodes)
+  assert.ok(text.some(line => line.includes('3/5')))
+  assert.ok(!text[5].includes('3/5'))
+})

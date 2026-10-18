@@ -95,6 +95,7 @@ export const drawCard = (
   const isStuck = !!row.stuck && row.st === 'running'
   const time = fmtT(row.secs) + (isStuck ? '!' : '')
   canvas.text(innerX + innerWidth - time.length, y + 1, time, isStuck ? 'y' : 'd')
+  const progressText = row.prog && !opts.isMain ? ` · ${row.prog.done}/${row.prog.total}` : ''
   canvas.text(innerX, y + 2, fitNoPad(row.task, innerWidth), row.st === 'done' ? 'd' : '')
   canvas.text(innerX, y + 3, fitNoPad('▸ ' + row.act, innerWidth), ACTION_CODE[row.st])
 
@@ -109,6 +110,15 @@ export const drawCard = (
   segment(hasCost ? tokenText + ' · ' : tokenText, 'd')
   if (hasCost) segment(fmtCost(row.cost) + (isCostly ? '▲' : ''), isCostly ? 'yB' : 'd')
   segment(` · ${row.calls} calls`, 'd')
+  if (progressText) {
+    if (position - innerX + [...progressText].length <= innerWidth) segment(progressText, 'd')
+    else {
+      // The tokens line is full: the status line has room between the state and the time.
+      const statusEnd = innerX + [...status].length
+      const timeStart = innerX + innerWidth - time.length
+      if (statusEnd + [...progressText].length < timeStart) canvas.text(statusEnd, y + 1, progressText, 'd')
+    }
+  }
   if (opts.isMain) drawPlanRow(canvas, innerX, y + 5, innerWidth, opts.plan)
   return height
 }

@@ -3,7 +3,7 @@ import { costSlot, showsCost } from '../core/billing'
 import { isExpensive } from '../core/cost'
 import { fmtCost, fmtK, fmtT } from '../core/format'
 import type { Billing } from '../core/model'
-import type { Plan } from '../core/progress'
+import { progressPercent, type Plan } from '../core/progress'
 import { colorize, dim, fitText, padLeft, padRight, stripCodes, toAscii, visibleLength } from './lines'
 import { bottomBorder, progressBar, renderHints, rule, textLine, topBorder } from './frame'
 import type { Row, RowStatus } from './rows'
@@ -29,7 +29,7 @@ export type DialogOpts = {
   billing?: Billing
 }
 
-type ColumnKind = 'name' | 'st' | 'model' | 'task' | 'act' | 'tok' | 'io' | 'cost' | 'calls' | 'time'
+type ColumnKind = 'name' | 'st' | 'model' | 'task' | 'act' | 'plan' | 'tok' | 'io' | 'cost' | 'calls' | 'time'
 type Column = {
   k: ColumnKind
   w?: number
@@ -99,15 +99,19 @@ export const renderDialog = (o: DialogOpts): string[] => {
   // The full summary is about 60 characters wide, so it needs a frameless width of at least 66.
   const isCompactSummary = W < COMPACT_SUMMARY_BELOW
   const hasCost = showsCost(o.billing)
+  // Only a subagent's own todo list opens the column; main's plan has its bar, so goldens without lists stay as they are.
+  const hasSubagentPlan = a.some(row => row.d > 0 && row.prog !== undefined)
   const t = totalsOf(a)
   const px = treePrefixes(a)
   const wideColumns: Column[] = ([
     { k: 'name', w: W >= 100 ? 18 : 16, h: 'AGENT' }, { k: 'st', w: 9, h: 'STATUS' },
     { k: 'model', w: 10, h: 'MODEL', p: 2 }, { k: 'task', f: 1, p: 2, h: 'TASK' }, { k: 'act', f: 1, h: 'NOW' },
+    { k: 'plan', w: 5, r: 1, p: 2, h: 'PLAN' },
     { k: 'tok', w: 6, r: 1, h: 'TOK' }, { k: 'io', w: 11, r: 1, p: 3, h: 'IN/OUT' },
     { k: 'cost', w: 7, r: 1, p: 2, h: 'COST' }, { k: 'calls', w: 5, r: 1, p: 3, h: 'CALLS' },
     { k: 'time', w: 7, r: 1, h: 'TIME' },
-  ] as Column[]).filter(c => (c.p || 1) <= tier && (c.k !== 'cost' || hasCost))
+  ] as Column[]).filter(c =>
+    (c.p || 1) <= tier && (c.k !== 'cost' || hasCost) && (c.k !== 'plan' || hasSubagentPlan))
   const narrowColumns: Column[] = [
     { k: 'name', f: 1, h: 'AGENT' }, { k: 'st', w: 1, h: 'S' }, { k: 'time', w: 7, r: 1, h: 'TIME' },
   ]
@@ -135,6 +139,13 @@ export const renderDialog = (o: DialogOpts): string[] => {
       case 'model': return dim(fitText(ag.model, w))
       case 'task': return colorize(dm, fitText(ag.task, w))
       case 'act': return colorize(ACT_CODES[ag.st] || '', fitText(ag.act || '—', w))
+      case 'plan': {
+        const progress = ag.d > 0 ? ag.prog : undefined
+        if (!progress) return dim(padLeft('—', w))
+        const counts = `${progress.done}/${progress.total}`
+        // A count too long for the cell falls back to the percent, never to a cut number.
+        return colorize(dm, padLeft([...counts].length <= w ? counts : progressPercent(progress) + '%', w))
+      }
       case 'tok': return colorize(dm, padLeft(fmtK(ag.i + ag.o), w))
       case 'io': return dim(padLeft(fmtK(ag.i) + '/' + fmtK(ag.o), w))
       case 'cost':

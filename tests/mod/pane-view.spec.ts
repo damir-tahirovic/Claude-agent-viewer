@@ -371,3 +371,24 @@ test('the pane fits a small body in tree, graph and detail modes', () => {
     }
   }
 })
+
+const withList = (events: AgentEvent[]): SessionState => events.reduce(reduce, twoAgents)
+const listed = withList([
+  { kind: 'todos', at: NOW, agentId: 'a1', todos: [
+    { content: 'a', status: 'completed' }, { content: 'b', status: 'completed' }, { content: 'c', status: 'completed' },
+    { content: 'd', status: 'pending' }, { content: 'e', status: 'pending' },
+  ] },
+])
+
+test('the detail header shows progress 3/5 (60%) when the agent has a list, and nothing otherwise', () => {
+  const withProgress = buildPaneView({ ...base, view: 'detail', selId: 'a1', session: listed })
+  assert.match(stripCodes(withProgress.head[0]), /progress 3\/5 \(60%\)/)
+  const without = buildPaneView({ ...base, view: 'detail', selId: 'a1', session: twoAgents })
+  assert.ok(!stripCodes(without.head[0]).includes('progress'))
+})
+
+test('the tree shows the PLAN column only when a subagent has a list', () => {
+  const tree = (session: SessionState): string => stripCodes(buildPaneView({ ...base, columns: 120, session }).head.join('\n'))
+  assert.match(tree(listed), /PLAN/)
+  assert.ok(!tree(twoAgents).includes('PLAN'))
+})

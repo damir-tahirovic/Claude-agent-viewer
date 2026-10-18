@@ -82,3 +82,12 @@ test('a failed agent carries a generic error text and others carry none', () => 
   assert.equal(rows[1].err, 'error')
   assert.equal(rows[0].err, undefined)
 })
+
+test('a subagent with a todo list carries its progress; main and list-less agents do not', () => {
+  const todos = [{ content: 'a', status: 'completed' }, { content: 'b', status: 'pending' }] as const
+  const withLists = { ...state, todos: { main: todos, w: todos } }
+  const rows = buildRows(withLists, 5000)
+  assert.deepEqual(rows[1].prog, { done: 1, total: 2 })
+  assert.equal(rows[0].prog, undefined)
+  assert.equal(buildRows(state, 5000)[1].prog, undefined)
+})
