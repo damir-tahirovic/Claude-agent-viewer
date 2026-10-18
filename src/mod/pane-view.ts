@@ -64,6 +64,10 @@ const clockOf = (ms: number): string => new Date(ms).toISOString().slice(11, 19)
 export const roomFor = (paneRows: number, extraRows = 0): number =>
   Math.max(MIN_AGENT_ROWS, paneRows - CHROME_ROWS - extraRows)
 
+/** Pane rows that show `agentCount` agents plus the chrome and the toggle row, for a pane that opens no taller than needed. */
+export const paneRowsFor = (agentCount: number): number =>
+  CHROME_ROWS + 1 + Math.max(MIN_AGENT_ROWS, agentCount)
+
 /** Width of the `tree` and `graph` toggle Buttons side by side. */
 const TOGGLE_WIDTH = 14
 const TOGGLE_GAP = 2

@@ -3,7 +3,10 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, orderTree, reduce } from '../src/core/reducer'
 import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
+import { appendBounded } from '../src/mod/event-batch'
+import { openArgsFor } from '../src/mod/open-args'
 import { buildPaneView, roomFor } from '../src/mod/pane-view'
+import { createViewMemo } from '../src/mod/view-memo'
 import { graphColumnsFor, panColumn, panToInclude } from '../src/mod/graph-pane'
 import { decideClose, nextWindow, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
@@ -21,7 +24,6 @@ export const ui = atom(
 )
 
 const PANE_ID = 'agentview'
-const SPIN_MS = 125
 const SPIN_FRAMES = 10
 /** Keys of the detail view's two step Buttons; agent ids never collide with these. */
 const PREV_KEY = '<prev>'
@@ -36,6 +38,10 @@ const TREE_MODE_KEY = 'tree'
 const GRAPH_MODE_KEY = 'graph'
 const FALLBACK_SESSION_ID = 'session'
 const POLL_MS = 1000
+/** Recorded events reach the session atom at most this often, as one write. */
+const FLUSH_MS = 250
+/** Events kept while flushes fail; the oldest are dropped past this. */
+const MAX_QUEUED_EVENTS = 1000
 const DEFAULT_PANE_ROWS = 24
 
 /** Agent rows that fit in the pane as last drawn; the focus hook has no viewport, so render leaves it here. */
@@ -58,14 +64,6 @@ const logOnce = ($: EngineInterface, where: string, err: unknown): void => {
   }
 }
 
-/** Tail of the recording queue; one queue keeps events in the order the hooks saw them. */
-let pending: Promise<void> = Promise.resolve()
-
-/** Queues a recording job so it never delays the host's work; a failing job does not stop the queue. */
-const enqueue = (job: () => Promise<void>): void => {
-  pending = pending.then(job).catch(() => {})
-}
-
 /** Sends the status line when it differs from the last one sent. Never throws. */
 const publishStatus = async ($: EngineInterface): Promise<void> => {
   try {
@@ -80,41 +78,82 @@ const publishStatus = async ($: EngineInterface): Promise<void> => {
   }
 }
 
-/** Folds events into the session atom. Never throws: a bug here must not touch the host's work. */
-const apply = async ($: EngineInterface, events: ReadonlyArray<AgentEvent>): Promise<void> => {
+/** Tail of the building queue; one queue keeps events in the order the hooks saw them. */
+let building: Promise<void> = Promise.resolve()
+/** Tail of the flushes; they never overlap. */
+let flushing: Promise<void> = Promise.resolve()
+/** Recorded events waiting for the next flush. */
+let queued: ReadonlyArray<AgentEvent> = []
+/** The pending flush timer; at most one, so a burst of events is one write. */
+let flushTimer: { cancel: () => void } | undefined
+
+/** Folds the queued events plus `extra` into the session atom in one write, or writes nothing when nothing changes. */
+const flushOnce = async ($: EngineInterface, extra: ReadonlyArray<AgentEvent>): Promise<void> => {
+  const taken = queued
+  queued = []
+  const events = [...taken, ...extra]
   if (events.length === 0) return
   try {
     const at = await $.clock.now()
-    await update($, session, current => {
-      const base: SessionState = current ?? initialState(FALLBACK_SESSION_ID, at)
-      return events.reduce(reduce, base)
-    })
+    const current = await read($, session)
+    // The same object back from the reducer means nothing changed, so nothing is written.
+    if (current && events.reduce(reduce, current as SessionState) === current) return
+    await update($, session, latest => events.reduce(reduce, (latest ?? initialState(FALLBACK_SESSION_ID, at)) as SessionState))
     await publishStatus($)
   } catch (err) {
-    logOnce($, 'apply', err)
+    // A failed flush keeps the recorded events for the next one; poll-only events are rebuilt by the next poll.
+    queued = appendBounded(taken, queued, MAX_QUEUED_EVENTS)
+    logOnce($, 'flush', err)
   }
 }
 
-/** Runs `build` on a clock reading and applies its events; builder errors are swallowed too. */
-const record = async ($: EngineInterface, build: (at: number) => AgentEvent[]): Promise<void> => {
+/** Applies the queued events plus `extra`, after any flush already running. Never throws. */
+const flush = ($: EngineInterface, extra: ReadonlyArray<AgentEvent> = []): Promise<void> => {
+  flushing = flushing.then(() => flushOnce($, extra)).catch(() => {})
+  return flushing
+}
+
+/** Arms the flush timer unless one is pending. */
+const scheduleFlush = ($: EngineInterface): void => {
+  if (flushTimer) return
   try {
-    await apply($, build(await $.clock.now()))
+    flushTimer = $.clock.after(FLUSH_MS, () => {
+      flushTimer = undefined
+      void flush($)
+    })
   } catch (err) {
-    logOnce($, 'record', err)
+    logOnce($, 'schedule', err)
   }
+}
+
+/** Builds events on a clock reading and queues them; never awaits a flush, so the hook path stays free. */
+const record = ($: EngineInterface, build: (at: number) => AgentEvent[]): void => {
+  building = building.then(async () => {
+    try {
+      const events = build(await $.clock.now())
+      if (events.length === 0) return
+      queued = appendBounded(queued, events, MAX_QUEUED_EVENTS)
+      scheduleFlush($)
+    } catch (err) {
+      logOnce($, 'record', err)
+    }
+  }).catch(() => {})
+}
+
+/** Moves the spinner one frame when the pane is open and an agent runs; otherwise writes nothing. */
+const advanceSpinner = async ($: EngineInterface): Promise<void> => {
+  const [state, current] = await Promise.all([read($, ui), read($, session)])
+  if (!state.open) return
+  if (!Object.values(current?.agents ?? {}).some(agent => agent.status === 'running')) return
+  await update($, ui, latest => ({ ...latest, spin: (latest.spin + 1) % SPIN_FRAMES }))
 }
 
 export const register: Register = (on, options) => {
   const known: Record<string, string> = {}
   const isAscii = options.ascii === true
-  let spinner: { cancel: () => void } | undefined
+  const memoizedView = createViewMemo<ReturnType<typeof buildPaneView>>()
   // One poll per mod: a repeated session.start replaces it instead of doubling it.
   let poll: { cancel: () => void } | undefined
-
-  const stopSpinner = (): void => {
-    spinner?.cancel()
-    spinner = undefined
-  }
 
   on('session.start', async ($, e, next) => {
     // Each step has its own try: one failing must not skip the poll, the command or next(e).
@@ -145,8 +184,9 @@ export const register: Register = (on, options) => {
         try {
           const now = await $.clock.now()
           const list = await $.agent.list()
-          await apply($, [...listStatus(list, now, known), { kind: 'tick', at: now }])
+          await flush($, [...listStatus(list, now, known), { kind: 'tick', at: now }])
           for (const agent of list) known[agent.id] = agent.status
+          await advanceSpinner($)
         } catch (err) {
           logOnce($, 'poll', err)
         }
@@ -162,30 +202,22 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  on('command.run', { command: 'agentview' }, async $ => {
+  on('command.run', { command: 'agentview' }, async ($, e) => {
     try {
       // A state saved before the graph existed has no mode. The selection is main, which every graph column
       // layout shows, so the first worker column is 0 and needs no pan.
       await update($, ui, current => ({
         ...current, open: true, view: 'tree', selId: 'main', mode: current.mode ?? 'tree', graphCol: 0, win: undefined,
       }))
-      await $.ui.open({ id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true })
+      const agentCount = Object.keys((await read($, session))?.agents ?? {}).length
+      await $.ui.open({
+        id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true,
+        ...openArgsFor(e.presentation, agentCount),
+      })
     } catch (err) {
       logOnce($, 'command.run', err)
       return { text: 'agentview could not open' }
     }
-    // Started only once the pane is open; it ends itself when the pane is no longer open.
-    stopSpinner()
-    const timer = $.clock.every(SPIN_MS, async () => {
-      try {
-        const state = await read($, ui)
-        if (!state.open) timer.cancel()
-        else await update($, ui, current => ({ ...current, spin: (current.spin + 1) % SPIN_FRAMES }))
-      } catch (err) {
-        logOnce($, 'spinner', err)
-      }
-    })
-    spinner = timer
     // `text` undefined means the command showed no text: the pane is its output.
     return {}
   })
@@ -224,7 +256,6 @@ export const register: Register = (on, options) => {
       // Our state failing must never keep a pane open.
       logOnce($, 'ui.close', err)
     }
-    if (decision !== 'pass') stopSpinner()
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -249,10 +280,16 @@ export const register: Register = (on, options) => {
       </Text>
     )
     if (!current) return <Text dimColor>agentview: waiting for the session to start</Text>
-    const view = buildPaneView({
+    const now = await $.clock.now()
+    const columns = e.props.bodyColumns
+    const rows = e.viewport?.rows ?? DEFAULT_PANE_ROWS
+    const view = memoizedView({
+      session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol,
+      spin: state.spin, win: state.win, columns, rows, ascii: isAscii, second: Math.floor(now / 1000),
+    }, () => buildPaneView({
       session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol, spin: state.spin,
-      now: await $.clock.now(), columns: e.props.bodyColumns, rows: e.viewport?.rows ?? DEFAULT_PANE_ROWS, ascii: isAscii, win: state.win,
-    })
+      now, columns, rows, ascii: isAscii, win: state.win,
+    }))
     latestRoom = roomFor(e.viewport?.rows ?? DEFAULT_PANE_ROWS, view.isToggleBeside ? 0 : 1)
     const label = (text: string): string => (isAscii ? toPlainAscii(text) : text)
     const step = (offset: number) => async (): Promise<void> => {
@@ -355,7 +392,7 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => next(e))
 
   on('tool.call', async ($, e, next) => {
-    enqueue(() => record($, at => toolStart(e, at)))
+    record($, at => toolStart(e, at))
     // The call is not awaited by the recorder; the end is recorded however it finishes.
     let result: Awaited<ReturnType<typeof next>> | undefined
     try {
@@ -363,30 +400,30 @@ export const register: Register = (on, options) => {
       return result
     } finally {
       const finished = result
-      enqueue(() => record($, at => toolEnd(e, finished ?? { isError: true }, at)))
+      record($, at => toolEnd(e, finished ?? { isError: true }, at))
     }
   }).catch(($, e, next) => next(e))
 
   on('agent.spawn', async ($, e, next) => {
     const result = await next(e)
-    enqueue(() => record($, at => spawnStart(e, result ?? {}, at)))
+    record($, at => spawnStart(e, result ?? {}, at))
     return result
   }).catch(($, e, next) => next(e))
 
   on('turn.start', async ($, e, next) => {
-    enqueue(() => record($, at => turnStart(e, at)))
+    record($, at => turnStart(e, at))
     return next(e)
   })
 
   on('turn.step', async function* ($, e, next) {
     const result = yield* next(e)
-    enqueue(() => record($, at => stepUsage(e, result?.usage ?? null, at)))
+    record($, at => stepUsage(e, result?.usage ?? null, at))
     return result
   })
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    enqueue(() => record($, at => turnComplete(e, at)))
+    record($, at => turnComplete(e, at))
     return result
   })
 }
