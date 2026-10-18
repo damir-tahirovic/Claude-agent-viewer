@@ -33,13 +33,16 @@ export type FrameOpts = {
   readonly hasToggle?: boolean
 }
 
+/** Rows the canvas starts with; it grows when the body is taller. */
+const INITIAL_ROWS = 100
+
 const DEFAULT_HINTS: ReadonlyArray<readonly [string, string]> = [
   ['←→↑↓', 'move'], ['⏎', 'details'], ['tab', 'tree'], ['esc', 'close'],
 ]
 
 /** Draws `body` on a canvas and wraps it with header, summary, note, hints, borders. (graph spec `frame`) */
 export const frameGraph = (width: number, opts: FrameOpts, body: (canvas: Canvas) => number): string[] => {
-  const canvas = new Canvas(width, 100)
+  const canvas = new Canvas(width, INITIAL_ROWS)
   const lastY = body(canvas)
   const totals = graphTotals(opts.rows)
   const noteRow = opts.note ? lastY + 2 : null

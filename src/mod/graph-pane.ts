@@ -1,6 +1,6 @@
 // The graph view as pane lines: the renderer's framed screen, made frameless and fitted to the pane.
 import type { Plan } from '../core/progress'
-import { colorize, dim, sliceColumns } from '../view/lines'
+import { colorize, dim, fitNoPad, sliceColumns } from '../view/lines'
 import { buildGraphTree, flattenGraph } from '../view/graph/layout'
 import type { GraphNode } from '../view/graph/layout'
 import { renderGraph, renderGraphNarrow } from '../view/graph/render'
@@ -43,6 +43,20 @@ export type GraphLinesOpts = {
   /** Rows the pane adds around the graph: header, hint line, footer Buttons and a separate toggle row. */
   readonly chromeLines: number
   readonly ascii: boolean
+}
+
+/**
+ * How many worker columns the wide graph shows at `bodyColumns`, or undefined when it is narrow or every
+ * worker fits. Independent of the current view, so a toggle can pan to the selection before the graph draws.
+ */
+export const graphColumnsFor = (
+  rows: ReadonlyArray<{ readonly d: number }>,
+  bodyColumns: number,
+): { readonly visible: number } | undefined => {
+  if (bodyColumns < GRAPH_WIDE_COLUMNS) return undefined
+  const workers = rows.filter(row => row.d === 1).length
+  const visible = Math.max(1, Math.floor((bodyColumns + BORDER_COLUMNS - 4) / WORKER_COLUMN_WIDTH))
+  return workers > visible ? { visible } : undefined
 }
 
 /** Moves the first visible worker column by `offset`, clamped to the columns that exist. */
@@ -92,6 +106,14 @@ const hintLine = (middle: string | undefined): string => {
   return middle ? keys + '   ' + dim(middle) : keys
 }
 
+/** Cuts the body to the lines the pane has room for; the last kept line then says how many were cut. */
+const clipToPane = (lines: string[], opts: GraphLinesOpts): string[] => {
+  const room = Math.max(1, opts.paneRows - opts.chromeLines)
+  if (lines.length <= room) return lines
+  const kept = lines.slice(0, room - 1)
+  return [...kept, dim(fitNoPad(`  ↓ ${lines.length - kept.length} more lines`, opts.columns))]
+}
+
 /** Renders the graph for a pane `columns` wide, collapsing finished subtrees until it fits `paneRows`. */
 export const buildGraphLines = (opts: GraphLinesOpts): GraphLines => {
   const width = opts.columns + BORDER_COLUMNS
@@ -100,11 +122,12 @@ export const buildGraphLines = (opts: GraphLinesOpts): GraphLines => {
     waitingText: WAITING_TEXT, ascii: opts.ascii, hasToggle: false,
   }
   if (opts.columns < GRAPH_WIDE_COLUMNS) {
-    return { lines: deframe(renderGraphNarrow({ ...common, rows: opts.rows }), width), hint: hintLine(undefined) }
+    const narrow = deframe(renderGraphNarrow({ ...common, rows: opts.rows }), width)
+    return { lines: clipToPane(narrow, opts), hint: hintLine(undefined) }
   }
   const workers = opts.rows.filter(row => row.d === 1).length
-  const visible = Math.max(1, Math.floor((width - 4) / WORKER_COLUMN_WIDTH))
-  const hiddenColumns: GraphColumns | undefined = workers > visible
+  const visible = graphColumnsFor(opts.rows, opts.columns)?.visible ?? workers
+  const hiddenColumns: GraphColumns | undefined = visible < workers
     ? { total: workers, visible, first: panColumn(opts.graphCol, 0, { total: workers, visible, first: 0 }) }
     : undefined
   const middle = hiddenColumns
@@ -122,5 +145,5 @@ export const buildGraphLines = (opts: GraphLinesOpts): GraphLines => {
     collapsed.add(id)
     lines = draw(collapsed)
   }
-  return { lines, hint: hintLine(middle), hiddenColumns }
+  return { lines: clipToPane(lines, opts), hint: hintLine(middle), hiddenColumns }
 }

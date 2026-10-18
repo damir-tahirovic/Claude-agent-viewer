@@ -50,7 +50,10 @@ const CHROME_ROWS = 10
 const MIN_AGENT_ROWS = 3
 const ASCII_SPIN = '*'
 /** Footer hints without `q quit`: the pane is closed with esc, and q does nothing here. */
-const TREE_HINTS: [string, string][] = [['↑↓', 'select'], ['⏎', 'details'], ['esc', 'close']]
+const TREE_HINTS: [string, string][] = [['↑↓', 'select'], ['⏎', 'details'], ['t/g', 'view'], ['esc', 'close']]
+/** Below this width the hints plus `● live` do not fit with `t/g view`, so that hint is dropped. */
+const MIN_FULL_HINT_COLUMNS = 54
+const NARROW_TREE_HINTS = TREE_HINTS.filter(([key]) => key !== 't/g')
 const DETAIL_HINTS: [string, string][] = [['◂ ▸', 'prev / next'], ['esc', 'back']]
 const NO_SUBAGENTS_TEXT = '  ◌ no subagents yet — they appear here as soon as main delegates'
 
@@ -125,7 +128,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const width = Math.max(opts.columns, MIN_TREE_COLUMNS)
   const lines = renderDialog({
     W: width, agents: rows, sel: selected,
-    sid: session.sessionId.slice(0, 8), plan, win, spin, ascii: opts.ascii, frame: false, hints: TREE_HINTS,
+    sid: session.sessionId.slice(0, 8), plan, win, spin, ascii: opts.ascii, frame: false, hints: width >= MIN_FULL_HINT_COLUMNS ? TREE_HINTS : NARROW_TREE_HINTS,
     after: rows.length === 1 ? [dim(fitText(NO_SUBAGENTS_TEXT, width - 4).trimEnd())] : undefined,
   })
   const [first, last] = win ?? [0, rows.length]

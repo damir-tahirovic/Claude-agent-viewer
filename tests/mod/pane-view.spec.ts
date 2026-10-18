@@ -125,6 +125,41 @@ test('tree mode is unchanged by the mode option', () => {
   assert.deepEqual(buildPaneView({ ...base, mode: 'tree', session: withWorkers(2) }), tree)
 })
 
+const oversized = (workerCount: number, grandchildren = 0) => {
+  let session = withWorkers(workerCount)
+  for (let index = 1; index <= grandchildren; index++) {
+    session = reduce(session, {
+      kind: 'agent.start', id: 'gc' + index, parentId: 'w1', type: 'helper', description: 'gc' + index, at: NOW,
+    })
+  }
+  return session
+}
+
+test('a graph taller than the pane is cut to the pane with a dimmed more-lines marker', () => {
+  for (const [columns, session] of [[100, oversized(30)], [160, oversized(3, 16)]] as const) {
+    const built = buildPaneView({ ...graphBase, columns, rows: 24, session })
+    const total = built.head.length + built.tail.length + 1 + (built.isToggleBeside ? 0 : 1)
+    assert.ok(total <= 24, `${columns}: ${total} > 24`)
+    assert.match(stripCodes(built.head[built.head.length - 1]), /^ {2}↓ \d+ more lines\s*$/)
+    assert.ok(built.head[built.head.length - 1].includes('{d|'))
+    allLines(built).forEach(line => assert.ok(visibleLength(line) <= columns))
+  }
+})
+
+test('a graph that fits the pane has no more-lines marker', () => {
+  const built = buildPaneView({ ...graphBase, columns: 160, rows: 60, session: withWorkers(2) })
+  assert.doesNotMatch(stripCodes(built.head.join('\n')), /more lines/)
+})
+
+test('a worker with 16 grandchildren is drawn whole, down to its bottom border', () => {
+  const built = buildPaneView({ ...graphBase, columns: 160, rows: 500, session: oversized(1, 16) })
+  const lines = built.head.map(stripCodes)
+  const last = lines.findIndex(line => line.includes('gc16'))
+  assert.ok(last > 0)
+  assert.ok(lines.slice(last).some(line => line.includes('╰')), 'bottom border missing')
+  assert.doesNotMatch(lines.join('\n'), /more lines/)
+})
+
 test('no graph line is wider than the body at 110, 120, 160 and 80 columns', () => {
   for (const columns of [110, 120, 160, 80, 50]) {
     for (const ascii of [false, true]) {
@@ -169,7 +204,7 @@ test('finished subtrees fold into chips when the graph is taller than the viewpo
   }
   session = reduce(session, { kind: 'agent.end', id: 'w1', ok: true, at: NOW })
   const roomy = buildPaneView({ ...graphBase, columns: 160, rows: 60, session })
-  const tight = buildPaneView({ ...graphBase, columns: 160, rows: 14, session })
+  const tight = buildPaneView({ ...graphBase, columns: 160, rows: 18, session })
   assert.ok(tight.head.length < roomy.head.length)
   assert.match(stripCodes(tight.head.join('\n')), /task 2/)
   assert.doesNotMatch(stripCodes(tight.head.join('\n')), /╭─ helper/)
@@ -185,6 +220,18 @@ test('the selected agent is drawn as the selected card and the waiting text is s
   assert.doesNotMatch(text, /waiting for permission/)
 })
 
+test('ascii graph with a waiting grandchild leaves no character above U+007F', () => {
+  let session = withWorkers(2)
+  session = reduce(session, { kind: 'agent.start', id: 'gw', parentId: 'w1', type: 'helper', description: 'gw', at: NOW })
+  session = reduce(session, { kind: 'waiting', agentId: 'gw', at: NOW })
+  for (const columns of [80, 110, 160]) {
+    const built = buildPaneView({ ...graphBase, columns, ascii: true, session })
+    allLines(built).forEach(line => assert.ok(
+      [...stripCodes(line)].every(char => char.codePointAt(0)! <= 0x7f), `${columns}: ${stripCodes(line)}`,
+    ))
+  }
+})
+
 test('ascii graph leaves no character above U+007F', () => {
   for (const columns of [80, 110, 160]) {
     const built = buildPaneView({ ...graphBase, columns, ascii: true, spin: 3, session: withWorkers(5) })
@@ -192,6 +239,11 @@ test('ascii graph leaves no character above U+007F', () => {
       [...stripCodes(line)].every(char => char.codePointAt(0)! <= 0x7f), `${columns}: ${stripCodes(line)}`,
     ))
   }
+})
+
+test('the tree hint names the t/g view toggle', () => {
+  const built = buildPaneView({ ...base, session: twoAgents })
+  assert.match(stripCodes(built.tail.join('\n')), /↑↓ select {3}⏎ details {3}t\/g view {3}esc close/)
 })
 
 test('detail view wins over graph mode', () => {
@@ -243,4 +295,11 @@ test('the toggle takes its own row when the header is too long to share one at 8
   assert.ok(visibleLength(long.head[0]) + 2 + 14 > 80, stripCodes(long.head[0]))
   assert.equal(long.isToggleBeside, false)
   assert.equal(buildPaneView({ ...base, columns: 80, session: withWorkers(1) }).isToggleBeside, true)
+})
+
+test('a failed worker card reads failed with the generic error, not an invented exit code', () => {
+  const session = reduce(withWorkers(1), { kind: 'agent.end', id: 'w1', ok: false, at: NOW })
+  const text = stripCodes(buildPaneView({ ...graphBase, columns: 160, session }).head.join('\n'))
+  assert.match(text, /✗ failed · error/)
+  assert.doesNotMatch(text, /exit 1/)
 })

@@ -75,3 +75,10 @@ test('actionSecs counts seconds on the current action', () => {
   assert.equal(buildRows(state, 2000 + 200_000)[1].actionSecs, 200)
   assert.equal(buildRows(state, 5000)[0].actionSecs, undefined)
 })
+
+test('a failed agent carries a generic error text and others carry none', () => {
+  const failed = reduce(state, { kind: 'agent.end', at: 4000, id: 'w', ok: false })
+  const rows = buildRows(failed, 5000)
+  assert.equal(rows[1].err, 'error')
+  assert.equal(rows[0].err, undefined)
+})

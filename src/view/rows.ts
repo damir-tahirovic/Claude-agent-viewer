@@ -28,7 +28,7 @@ export type Row = {
   /** Seconds on the current action; absent when no tool is running. */
   readonly actionSecs?: number
   readonly stuck?: 1
-  /** Error text of a failed agent; the graph card shows it, and falls back to `exit 1` when absent. */
+  /** Error text of a failed agent; the graph card shows it, and falls back to `exit 1` when absent (the live view sets `error`). */
   readonly err?: string
 }
 
@@ -60,5 +60,7 @@ export const buildRows = (state: SessionState, now: number): Row[] =>
       cost: costOf(agent.model, agent.tokens),
       ...(agent.current ? { actionSecs: Math.max(0, Math.round((now - agent.current.since) / 1000)) } : {}),
       ...(isStuck ? { stuck: 1 as const } : {}),
+      // The engine reports no exit code, so a failed agent gets a plain word instead of an invented one.
+      ...(agent.status === 'failed' ? { err: 'error' } : {}),
     }
   })

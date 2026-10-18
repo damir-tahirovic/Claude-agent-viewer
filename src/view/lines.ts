@@ -67,7 +67,7 @@ export const toAscii = (line: string): string =>
  * ascii screens, which still show those corners, stay byte-identical.
  */
 export const toPlainAscii = (line: string): string =>
-  toAscii(line).replace(/[└┘┌┐]/g, '+').replace(/⏎/g, 'Enter').replace(/–/g, '-')
+  toAscii(line).replace(/[└┘┌┐]/g, '+').replace(/⏎/g, 'Enter').replace(/–/g, '-').replace(/┄/g, '.')
 
 /** Keeps the visible characters from `from` up to (not including) `to` of a coded line, keeping their codes. */
 export const sliceColumns = (line: string, from: number, to: number): string => {
