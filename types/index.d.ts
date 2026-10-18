@@ -50,11 +50,11 @@ export type AgentviewSession = {
 
 /** Pane view state. */
 export type AgentviewUi = {
-  open: boolean
-  view: 'tree' | 'detail'
-  selId: string
-  win?: [number, number]
-  spin: number
+  readonly open: boolean
+  readonly view: 'tree' | 'detail'
+  readonly selId: string
+  readonly win?: readonly [number, number]
+  readonly spin: number
 }
 
 declare module 'claude-code' {
