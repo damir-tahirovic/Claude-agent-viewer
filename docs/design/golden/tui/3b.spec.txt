@@ -1,0 +1,16 @@
+{d|+- }{B|agentview}{d| . session }7f3a9c2e{d| --------------- }{d|67.5k tok . ~$1.10 . plan }{B|60%}{d| -+}
+{d||} {c|* 4 running}   {y|! 1 waiting}   {g|+ 2 done}   {d|x 0 failed}{d|   .  7 agents}              {d||}
+{d|+------------------------------------------------------------------------------+}
+{d||}{d|  AGENT             STATUS     NOW                               TOK     TIME} {d||}
+{d||}  {B|main            }  {c|* running}  Task: add token refresh         21.5k   6m12s  {d||}
+{d||}  {d|+- }{d|worker       }  {g|+ done   }  {d|Edit src/login.ts            }  {d| 12.0k}  {d| 3m08s } {d||}
+{d||}  {d||  └- }{d|scout     }  {g|+ done   }  {d|Grep "session"               }  {d|  3.7k}  {d|   22s } {d||}
+{d||}{IB|> +- worker         * running  Edit src/auth.ts                 9.3k   3m21s  }{d||}
+{d||}  {d||  +- }Explore     {c|* running}  Grep "TODO"                      2.7k     34s  {d||}
+{d||}  {d||  └- }reviewer    {y|! waiting}  {y|Bash: rm -rf dist            }    4.7k   1m35s  {d||}
+{d||}  {d|└- }worker         {c|* running}  Bash: npm test                  13.6k  {y| 4m10s!} {d||}
+{d|+------------------------------------------------------------------------------+}
+{d||} plan {b|########}{d|------}{B| 6/10 60%}  {c|> }Add token refresh to auth.ts                 {d||}
+{d|+------------------------------------------------------------------------------+}
+{d||} {B|^v}{d| select}   {B|⏎}{d| details}   {B|esc}{d| close}   {B|q}{d| quit}                            {g|*}{d| live} {d||}
+{d|+------------------------------------------------------------------------------+}

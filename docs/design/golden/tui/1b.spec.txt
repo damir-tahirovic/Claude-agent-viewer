@@ -1,0 +1,16 @@
+{d|╭─ }{B|agentview}{d| · session }7f3a9c2e{d| ─────────────────────────────────────────────────────────────────────────────────────────────── }{d|67.5k tok · ~$1.10 · plan }{B|60%}{d| ─╮}
+{d|│} {c|⠋ 4 running}   {y|◔ 1 waiting}   {g|✓ 2 done}   {d|✗ 0 failed}{d|   ·  7 agents}                                                                                              {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│}{d|  AGENT               STATUS     MODEL       TASK                       NOW                                         TOK       IN/OUT     COST  CALLS     TIME} {d|│}
+{d|│}  {B|main              }  {c|⠋ running}  {d|opus-5-5  }  refactor auth flow         Task: add token refresh                   21.5k  {d| 18.4k/3.1k}  {yB|~$0.61▲}     14   6m12s  {d|│}
+{d|│}  {d|├─ }{d|worker         }  {g|✓ done   }  {d|sonnet-5-5}  {d|fix login bug            }  {d|Edit src/login.ts                      }  {d| 12.0k}  {d|  9.8k/2.2k}  {d|~$0.14 }  {d|   31}  {d| 3m08s } {d|│}
+{d|│}  {d|│  └─ }{d|scout       }  {g|✓ done   }  {d|haiku-5-5 }  {d|find session usages      }  {d|Grep "session"                         }  {d|  3.7k}  {d|   3.1k/600}  {d|~$0.01 }  {d|    9}  {d|   22s } {d|│}
+{d|│}{IB|▸ ├─ worker           ⠋ running  sonnet-5-5  add token refresh          Edit src/auth.ts                           9.3k    7.4k/1.9k  ~$0.12      24   3m21s  }{d|│}
+{d|│}  {d|│  ├─ }Explore       {c|⠋ running}  {d|haiku-5-5 }  map refresh callers        Grep "TODO"                                2.7k  {d|   2.3k/410}  ~$0.01       6     34s  {d|│}
+{d|│}  {d|│  └─ }reviewer      {y|◔ waiting}  {d|sonnet-5-5}  review auth diff           {y|Bash: rm -rf dist                      }    4.7k  {d|   4.0k/700}  ~$0.03       4   1m35s  {d|│}
+{d|│}  {d|└─ }worker           {c|⠋ running}  {d|sonnet-5-5}  write auth tests           Bash: npm test                            13.6k  {d| 11.2k/2.4k}  ~$0.18      23  {y| 4m10s!} {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} plan {b|██████████████}{d|░░░░░░░░░░}{B| 6/10 60%}  {c|▸ }Add token refresh to auth.ts                                                                                       {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|↑↓}{d| select}   {B|⏎}{d| details}   {B|esc}{d| close}   {B|q}{d| quit}                                                                                                            {g|●}{d| live} {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯}

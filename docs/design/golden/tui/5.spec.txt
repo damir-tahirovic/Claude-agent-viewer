@@ -1,0 +1,15 @@
+{d|╭─ }{B|agentview}{d| · 6 sessions · 3 active}{d| ────────────────────────────────────────────────────── }{d|118.3k tok today · ~$4.53}{d| ─╮}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│}{d|  STATUS     PROJECT              SESSION   AGENTS         TOK     COST   PLAN  LAST ACTION                       AGO} {d|│}
+{d|│} {d|ACTIVE · 3}                                                                                                           {d|│}
+{d|│}{IB|▸ ⠋ running  ~/code/webshop       7f3a9c2e  7 (4 run)    52.3k   ~$1.10    60%  Edit src/auth.ts                   2s }{d|│}
+{d|│}  {y|◔ waiting}  ~/code/api-gateway   {d|c01d44ab}  4 (1 wait)   28.3k   ~$0.52    30%  {y|Bash: rm -rf dist            }  {d| 1m35s} {d|│}
+{d|│}  {c|⠋ running}  ~/code/agentview     {d|9be2117f}  2 (1 run)     9.1k   ~$0.21      —  {d|Read README.md               }  {d|    4s} {d|│}
+{d|│}                                                                                                                      {d|│}
+{d|│} {d|RECENT · 3}                                                                                                           {d|│}
+{d|│}  {g|✓ done   }  {d|~/code/webshop     }  {d|31d8a0b7}  {d|5         }  {d| 88.4k}  {d| ~$2.31}  {d| 100%}  {d|session finished             }  {d|   38m} {d|│}
+{d|│}  {rB|✗ failed }  ~/notes/site         {d|e5527c13}  3            15.7k   ~$0.34    40%  {r|Bash: npm run build · exit 1 }  {d|    2h} {d|│}
+{d|│}  {d|? unknown}  {d|~/code/dotfiles    }  {d|0a6bf9d4}  {d|1         }  {d|  3.2k}  {d| ~$0.05}  {d|    —}  {d|no heartbeat                 }  {d|    1d} {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|↑↓}{d| select}   {B|⏎}{d| open session}   {B|q}{d| quit}                                                                           {g|●}{d| live} {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯}

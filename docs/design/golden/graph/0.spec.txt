@@ -1,0 +1,11 @@
+ {c|╭─}{B| worker }{c|──────────}{d| sonnet-5-5 }{c|─╮}     {c|┃}  {c|running  }{d|heavy line, cyan}                                            
+ {c|│} {c|⠋ running}                {d|3m21s} {c|│}     {y|┆}  {y|waiting  }{d|dashed, yellow}                                              
+ {c|│} add token refresh              {c|│}     {d|│}  done     {d|light, dim}                                                  
+ {c|│} ▸ Edit src/auth.ts             {c|│}     {r|┃}  {r|failed   }{d|heavy, red}                                                  
+ {c|│} {d|9.3k tok · ~$0.12 · 24 calls}   {c|│}     {d|├─}  child of a child                                                    
+ {c|╰────────────────────────────────╯}     {B|╔═╗}  selected node (double border + bold)                               
+                                        {d|spawn}  label on the first edge: main delegated work                     
+ {d|title: name · model}                    {y|! ▲}  stuck > 3 min · expensive (same rules as the tree)                 
+ {d|rows: state·time / task / now /}                                                                                
+ {d|tokens · cost · calls}                  {g|✓ done · result returned}  = the child finished and handed its result up 
+                                                                                                                

@@ -1,0 +1,337 @@
+=== 0 · Legend · how to read the graph (112 × 11 · 112 cols)
+Parent on top, children below, grandchildren stacked under their parent. The line from parent to child is the spawn; its style is the child's status, so a glance down the lines shows what is alive.
+
+ ╭─ worker ────────── sonnet-5-5 ─╮     ┃  running  heavy line, cyan                                            
+ │ ⠋ running                3m21s │     ┆  waiting  dashed, yellow                                              
+ │ add token refresh              │     │  done     light, dim                                                  
+ │ ▸ Edit src/auth.ts             │     ┃  failed   heavy, red                                                  
+ │ 9.3k tok · ~$0.12 · 24 calls   │     ├─  child of a child                                                    
+ ╰────────────────────────────────╯     ╔═╗  selected node (double border + bold)                               
+                                        spawn  label on the first edge: main delegated work                     
+ title: name · model                    ! ▲  stuck > 3 min · expensive (same rules as the tree)                 
+ rows: state·time / task / now /                                                                                
+ tokens · cost · calls                  ✓ done · result returned  = the child finished and handed its result up 
+                                                                                                                
+
+=== 1 · Graph view · 160 cols (160 × 36 · 160 cols)
+Main on top with the session plan inside it. Three subagents hang off the bus line; Explore and reviewer hang under the worker that spawned them. The selected node (add token refresh) has a double border. Layout is fixed by start order: nothing moves when values change, only text inside cards updates.
+
+╭─ agentview · session 7f3a9c2e ────────────────────────────────────────────────────────────────────────────────────────────────67.5k tok · ~$1.10 · plan 60%──╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents                                                                               tree   graph   │
+│                                       ╭─ main ──────────────────────────────────────────────────────────── opus-5-5 ─╮                                       │
+│                                       │ ⠋ running                                                              6m12s │                                       │
+│                                       │ refactor auth flow                                                           │                                       │
+│                                       │ ▸ Task: add token refresh                                                    │                                       │
+│                                       │ in 18.4k · out 3.1k · ~$0.61▲ · 14 calls                                     │                                       │
+│                                       │ plan ██████████░░░░░░ 6/10 60%  ▸ Add token refresh to auth.ts               │                                       │
+│                                       ╰───────────────────────────────────────┬──────────────────────────────────────╯                                       │
+│                                                                               │ spawn                                                                        │
+│                           ╭───────────────────────────────────────────────────┼───────────────────────────────────────────────────╮                          │
+│                           │                                                   ┃                                                   ┃                          │
+│  ╭─ worker ────────────────────────── sonnet-5-5 ─╮  ╔═ worker ══════════════════════════ sonnet-5-5 ═╗  ╭─ worker ────────────────────────── sonnet-5-5 ─╮  │
+│  │ ✓ done · result returned                 3m08s │  ║ ⠋ running                                3m21s ║  │ ⠋ running                               4m10s! │  │
+│  │ fix login bug                                  │  ║ add token refresh                              ║  │ write auth tests                               │  │
+│  │ ▸ Edit src/login.ts                            │  ║ ▸ Edit src/auth.ts                             ║  │ ▸ Bash: npm test                               │  │
+│  │ in 9.8k · out 2.2k · ~$0.14 · 31 calls         │  ║ in 7.4k · out 1.9k · ~$0.12 · 24 calls         ║  │ in 11.2k · out 2.4k · ~$0.18 · 23 calls        │  │
+│  ╰─┬──────────────────────────────────────────────╯  ╚═┬══════════════════════════════════════════════╝  ╰────────────────────────────────────────────────╯  │
+│    │ ╭─ scout ──────────────────────── haiku-5-5 ─╮    ┃ ╭─ Explore ────────────────────── haiku-5-5 ─╮                                                      │
+│    └─│ ✓ done · result returned               22s │    ┣━│ ⠋ running                              34s │                                                      │
+│      │ find session usages                        │    ┆ │ map refresh callers                        │                                                      │
+│      │ ▸ Grep "session"                           │    ┆ │ ▸ Grep "TODO"                              │                                                      │
+│      │ in 3.1k · out 600 · ~$0.01 · 9 calls       │    ┆ │ in 2.3k · out 410 · ~$0.01 · 6 calls       │                                                      │
+│      ╰────────────────────────────────────────────╯    ┆ ╰────────────────────────────────────────────╯                                                      │
+│                                                        ┆ ╭─ reviewer ──────────────────── sonnet-5-5 ─╮                                                      │
+│                                                        └┄│ ◔ waiting for permission             1m35s │                                                      │
+│                                                          │ review auth diff                           │                                                      │
+│                                                          │ ▸ Bash: rm -rf dist                        │                                                      │
+│                                                          │ in 4.0k · out 700 · ~$0.03 · 4 calls       │                                                      │
+│                                                          ╰────────────────────────────────────────────╯                                                      │
+│                                                                                                                                                              │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ←→↑↓ move   ⏎ details   tab tree   esc close                                                                                                         ● live  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 2 · Graph view · 120 cols (120 × 34 · 120 cols)
+Same graph, narrower cards: token split and wide main card are dropped (tier rules as in the tree), structure unchanged.
+
+╭─ agentview · session 7f3a9c2e ────────────────────────────────────────────────────────67.5k tok · ~$1.10 · plan 60%──╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents                                       tree   graph   │
+│                            ╭─ main ──────────────────────────────────────── opus-5-5 ─╮                              │
+│                            │ ⠋ running                                          6m12s │                              │
+│                            │ refactor auth flow                                       │                              │
+│                            │ ▸ Task: add token refresh                                │                              │
+│                            │ 21.5k tok · ~$0.61▲ · 14 calls                           │                              │
+│                            │ plan ██████████░░░░░░ 6/10 60%  ▸ Add token refresh t…   │                              │
+│                            ╰─────────────────────────────┬────────────────────────────╯                              │
+│                                                          │ spawn                                                     │
+│                    ╭─────────────────────────────────────┼─────────────────────────────────────╮                     │
+│                    │                                     ┃                                     ┃                     │
+│  ╭─ worker ──────────── sonnet-5-5 ─╮  ╔═ worker ════════════ sonnet-5-5 ═╗  ╭─ worker ──────────── sonnet-5-5 ─╮    │
+│  │ ✓ done · result returned   3m08s │  ║ ⠋ running                  3m21s ║  │ ⠋ running                 4m10s! │    │
+│  │ fix login bug                    │  ║ add token refresh                ║  │ write auth tests                 │    │
+│  │ ▸ Edit src/login.ts              │  ║ ▸ Edit src/auth.ts               ║  │ ▸ Bash: npm test                 │    │
+│  │ 12.0k tok · ~$0.14 · 31 calls    │  ║ 9.3k tok · ~$0.12 · 24 calls     ║  │ 13.6k tok · ~$0.18 · 23 calls    │    │
+│  ╰─┬────────────────────────────────╯  ╚═┬════════════════════════════════╝  ╰──────────────────────────────────╯    │
+│    │ ╭─ scout ────────── haiku-5-5 ─╮    ┃ ╭─ Explore ──────── haiku-5-5 ─╮                                          │
+│    └─│ ✓ done · result returned 22s │    ┣━│ ⠋ running                34s │                                          │
+│      │ find session usages          │    ┆ │ map refresh callers          │                                          │
+│      │ ▸ Grep "session"             │    ┆ │ ▸ Grep "TODO"                │                                          │
+│      │ 3.7k tok · ~$0.01 · 9 calls  │    ┆ │ 2.7k tok · ~$0.01 · 6 calls  │                                          │
+│      ╰──────────────────────────────╯    ┆ ╰──────────────────────────────╯                                          │
+│                                          ┆ ╭─ reviewer ────── sonnet-5-5 ─╮                                          │
+│                                          └┄│ ◔ waiting for permissio1m35s │                                          │
+│                                            │ review auth diff             │                                          │
+│                                            │ ▸ Bash: rm -rf dist          │                                          │
+│                                            │ 4.7k tok · ~$0.03 · 4 calls  │                                          │
+│                                            ╰──────────────────────────────╯                                          │
+│                                                                                                                      │
+│ ! write auth tests has been on "npm test" for 4m10s                                                                  │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ←→↑↓ move   ⏎ details   tab tree   esc close                                                                 ● live  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 3 · Graph at 80 cols · focus + context (80 × 24 · 80 cols)
+Too narrow for side-by-side columns, so the graph folds into the tree and only the selected node expands into a full card. Connectors and status glyphs survive; one node is always readable in detail. ↑↓ moves the card.
+
+╭─ agentview · session 7f3a9c2e ────────────────67.5k tok · ~$1.10 · plan 60%──╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents              │
+│ ⠋ main     refactor auth flow       Task: add token refresh          6m12s   │
+│ ├─ ✓ worker   fix login bug           Edit src/login.ts              3m08s   │
+│ │  └─ ✓ scout    find session usages    Grep "session"                 22s   │
+│ ├─ ⠋ worker   add token refresh       Edit src/auth.ts               3m21s   │
+│ │  ╔═ worker ════════════════════════════════════════════════ sonnet-5-5 ═╗  │
+│ │  ║ ⠋ running                                                      3m21s ║  │
+│ │  ║ add token refresh                                                    ║  │
+│ │  ║ ▸ Edit src/auth.ts                                                   ║  │
+│ │  ║ in 7.4k · out 1.9k · ~$0.12 · 24 calls                               ║  │
+│ │  ╚══════════════════════════════════════════════════════════════════════╝  │
+│ │  ├─ ⠋ Explore  map refresh callers    Grep "TODO"                    34s   │
+│ │  └─ ◔ reviewer review auth diff       Bash: rm -rf dist            1m35s   │
+│ └─ ⠋ worker   write auth tests        Bash: npm test                4m10s!   │
+│                                                                              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   tab tree   esc close                         ● live  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+=== 4 · ASCII fallback · 120 cols (120 × 34 · 120 cols)
+Every glyph swaps 1:1 for one ASCII character: heavy edge # / dashed : / light |, double border =.
+
++- agentview . session 7f3a9c2e --------------------------------------------------------67.5k tok . ~$1.10 . plan 60%--+
+| * 4 running   ! 1 waiting   + 2 done   x 0 failed   .  7 agents                                       tree   graph   |
+|                            +- main ---------------------------------------- opus-5-5 -+                              |
+|                            | * running                                          6m12s |                              |
+|                            | refactor auth flow                                       |                              |
+|                            | > Task: add token refresh                                |                              |
+|                            | 21.5k tok . ~$0.61^ . 14 calls                           |                              |
+|                            | plan ##########------ 6/10 60%  > Add token refresh t~   |                              |
+|                            +-----------------------------+----------------------------+                              |
+|                                                          | spawn                                                     |
+|                    +-------------------------------------+-------------------------------------+                     |
+|                    |                                     #                                     #                     |
+|  +- worker ------------ sonnet-5-5 -+  += worker ============ sonnet-5-5 =+  +- worker ------------ sonnet-5-5 -+    |
+|  | + done . result returned   3m08s |  | * running                  3m21s |  | * running                 4m10s! |    |
+|  | fix login bug                    |  | add token refresh                |  | write auth tests                 |    |
+|  | > Edit src/login.ts              |  | > Edit src/auth.ts               |  | > Bash: npm test                 |    |
+|  | 12.0k tok . ~$0.14 . 31 calls    |  | 9.3k tok . ~$0.12 . 24 calls     |  | 13.6k tok . ~$0.18 . 23 calls    |    |
+|  +-+--------------------------------+  +=+================================+  +----------------------------------+    |
+|    | +- scout ---------- haiku-5-5 -+    # +- Explore -------- haiku-5-5 -+                                          |
+|    +-| + done . result returned 22s |    +=| * running                34s |                                          |
+|      | find session usages          |    : | map refresh callers          |                                          |
+|      | > Grep "session"             |    : | > Grep "TODO"                |                                          |
+|      | 3.7k tok . ~$0.01 . 9 calls  |    : | 2.7k tok . ~$0.01 . 6 calls  |                                          |
+|      +------------------------------+    : +------------------------------+                                          |
+|                                          : +- reviewer ------ sonnet-5-5 -+                                          |
+|                                          +┄| ! waiting for permissio1m35s |                                          |
+|                                            | review auth diff             |                                          |
+|                                            | > Bash: rm -rf dist          |                                          |
+|                                            | 4.7k tok . ~$0.03 . 4 calls  |                                          |
+|                                            +------------------------------+                                          |
+|                                                                                                                      |
++----------------------------------------------------------------------------------------------------------------------+
+| <>^v move   ⏎ details   tab tree   esc close                                                                 * live  |
++----------------------------------------------------------------------------------------------------------------------+
+
+=== 5a · State · empty (no subagents yet) (120 × 20 · 120 cols)
+Main alone, a dashed stub shows where children will attach. Plan "—" because there is no todo list.
+
+╭─ agentview · session 7f3a9c2e ───────────────────────────────────────────────────────────2.5k tok · ~$0.04 · plan —──╮
+│ ⠋ 1 running   ◔ 0 waiting   ✓ 0 done   ✗ 0 failed   ·  1 agents                                       tree   graph   │
+│                             ╔═ main ════════════════════════════════════════ opus-5-5 ═╗                             │
+│                             ║ ⠋ running                                            41s ║                             │
+│                             ║ refactor auth flow                                       ║                             │
+│                             ║ ▸ Read docs/auth.md                                      ║                             │
+│                             ║ 2.5k tok · ~$0.04▲ · 3 calls                             ║                             │
+│                             ║ plan ░░░░░░░░░░░░░░░░  —  no todo list                   ║                             │
+│                             ╚═════════════════════════════┬════════════════════════════╝                             │
+│                                                           ┆                                                          │
+│                                                           ┆                                                          │
+│                                                ╌╌ no subagents yet ╌╌                                                │
+│                                they appear here the moment main delegates a task                                     │
+│                                                                                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ←→↑↓ move   ⏎ details   tab tree   esc close                                                                 ● live  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 5b · State · waiting for permission (120 × 34 · 120 cols)
+The reviewer node turns yellow, its edge goes dashed, and the card names the wait. Everything else keeps running.
+
+╭─ agentview · session 7f3a9c2e ────────────────────────────────────────────────────────67.5k tok · ~$1.10 · plan 60%──╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents                                       tree   graph   │
+│                            ╭─ main ──────────────────────────────────────── opus-5-5 ─╮                              │
+│                            │ ⠋ running                                          6m12s │                              │
+│                            │ refactor auth flow                                       │                              │
+│                            │ ▸ Task: add token refresh                                │                              │
+│                            │ 21.5k tok · ~$0.61▲ · 14 calls                           │                              │
+│                            │ plan ██████████░░░░░░ 6/10 60%  ▸ Add token refresh t…   │                              │
+│                            ╰─────────────────────────────┬────────────────────────────╯                              │
+│                                                          │ spawn                                                     │
+│                    ╭─────────────────────────────────────┼─────────────────────────────────────╮                     │
+│                    │                                     ┃                                     ┃                     │
+│  ╭─ worker ──────────── sonnet-5-5 ─╮  ╭─ worker ──────────── sonnet-5-5 ─╮  ╭─ worker ──────────── sonnet-5-5 ─╮    │
+│  │ ✓ done · result returned   3m08s │  │ ⠋ running                  3m21s │  │ ⠋ running                 4m10s! │    │
+│  │ fix login bug                    │  │ add token refresh                │  │ write auth tests                 │    │
+│  │ ▸ Edit src/login.ts              │  │ ▸ Edit src/auth.ts               │  │ ▸ Bash: npm test                 │    │
+│  │ 12.0k tok · ~$0.14 · 31 calls    │  │ 9.3k tok · ~$0.12 · 24 calls     │  │ 13.6k tok · ~$0.18 · 23 calls    │    │
+│  ╰─┬────────────────────────────────╯  ╰─┬────────────────────────────────╯  ╰──────────────────────────────────╯    │
+│    │ ╭─ scout ────────── haiku-5-5 ─╮    ┃ ╭─ Explore ──────── haiku-5-5 ─╮                                          │
+│    └─│ ✓ done · result returned 22s │    ┣━│ ⠋ running                34s │                                          │
+│      │ find session usages          │    ┆ │ map refresh callers          │                                          │
+│      │ ▸ Grep "session"             │    ┆ │ ▸ Grep "TODO"                │                                          │
+│      │ 3.7k tok · ~$0.01 · 9 calls  │    ┆ │ 2.7k tok · ~$0.01 · 6 calls  │                                          │
+│      ╰──────────────────────────────╯    ┆ ╰──────────────────────────────╯                                          │
+│                                          ┆ ╭─ reviewer ────── sonnet-5-5 ─╮                                          │
+│                                          └┄│ ◔ waiting for permissio1m35s │                                          │
+│                                            │ review auth diff             │                                          │
+│                                            │ ▸ Bash: rm -rf dist          │                                          │
+│                                            │ 4.7k tok · ~$0.03 · 4 calls  │                                          │
+│                                            ╰──────────────────────────────╯                                          │
+│                                                                                                                      │
+│ ◔ reviewer is waiting for permission: Bash: rm -rf dist · answer in the Claude Code prompt · 1m35s                   │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ←→↑↓ move   ⏎ details   tab tree   esc close                                                                 ● live  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 5c · State · failed subagent (120 × 34 · 120 cols)
+Failed node and its edge go red and heavy. Its parent line stays so you see who is affected.
+
+╭─ agentview · session 7f3a9c2e ────────────────────────────────────────────────────────67.5k tok · ~$1.10 · plan 60%──╮
+│ ⠋ 3 running   ◔ 1 waiting   ✓ 2 done   ✗ 1 failed   ·  7 agents                                       tree   graph   │
+│                            ╭─ main ──────────────────────────────────────── opus-5-5 ─╮                              │
+│                            │ ⠋ running                                          6m12s │                              │
+│                            │ refactor auth flow                                       │                              │
+│                            │ ▸ Task: add token refresh                                │                              │
+│                            │ 21.5k tok · ~$0.61▲ · 14 calls                           │                              │
+│                            │ plan ██████████░░░░░░ 6/10 60%  ▸ Add token refresh t…   │                              │
+│                            ╰─────────────────────────────┬────────────────────────────╯                              │
+│                                                          │ spawn                                                     │
+│                    ╭─────────────────────────────────────┼─────────────────────────────────────╮                     │
+│                    │                                     ┃                                     ┃                     │
+│  ╭─ worker ──────────── sonnet-5-5 ─╮  ╭─ worker ──────────── sonnet-5-5 ─╮  ╔═ worker ════════════ sonnet-5-5 ═╗    │
+│  │ ✓ done · result returned   3m08s │  │ ⠋ running                  3m21s │  ║ ✗ failed · exit 1          4m10s ║    │
+│  │ fix login bug                    │  │ add token refresh                │  ║ write auth tests                 ║    │
+│  │ ▸ Edit src/login.ts              │  │ ▸ Edit src/auth.ts               │  ║ ▸ Bash: npm test                 ║    │
+│  │ 12.0k tok · ~$0.14 · 31 calls    │  │ 9.3k tok · ~$0.12 · 24 calls     │  ║ 13.6k tok · ~$0.18 · 23 calls    ║    │
+│  ╰─┬────────────────────────────────╯  ╰─┬────────────────────────────────╯  ╚══════════════════════════════════╝    │
+│    │ ╭─ scout ────────── haiku-5-5 ─╮    ┃ ╭─ Explore ──────── haiku-5-5 ─╮                                          │
+│    └─│ ✓ done · result returned 22s │    ┣━│ ⠋ running                34s │                                          │
+│      │ find session usages          │    ┆ │ map refresh callers          │                                          │
+│      │ ▸ Grep "session"             │    ┆ │ ▸ Grep "TODO"                │                                          │
+│      │ 3.7k tok · ~$0.01 · 9 calls  │    ┆ │ 2.7k tok · ~$0.01 · 6 calls  │                                          │
+│      ╰──────────────────────────────╯    ┆ ╰──────────────────────────────╯                                          │
+│                                          ┆ ╭─ reviewer ────── sonnet-5-5 ─╮                                          │
+│                                          └┄│ ◔ waiting for permissio1m35s │                                          │
+│                                            │ review auth diff             │                                          │
+│                                            │ ▸ Bash: rm -rf dist          │                                          │
+│                                            │ 4.7k tok · ~$0.03 · 4 calls  │                                          │
+│                                            ╰──────────────────────────────╯                                          │
+│                                                                                                                      │
+│ ✗ write auth tests failed · Bash: npm test exited 1 after 4m10s · ⏎ for output                                       │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ←→↑↓ move   ⏎ details   tab tree   esc close                                                                 ● live  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 5d · State · many agents (16) (160 × 30 · 160 cols)
+Four columns of seven are visible; finished subtrees collapse into a one-line chip so live work keeps the space. ◂ ▸ pans columns; Tab gives the full tree.
+
+╭─ agentview · session 7f3a9c2e ─────────────────────────────────────────────────────────────────────────────────────────────────278k tok · ~$1.96 · plan 60%──╮
+│ ⠋ 9 running   ◔ 1 waiting   ✓ 6 done   ✗ 0 failed   ·  16 agents                                                                              tree   graph   │
+│                                      ╭─ main ──────────────────────────────────────────────────────────── opus-5-5 ─╮                                        │
+│                                      │ ⠋ running                                                             15m05s │                                        │
+│                                      │ migrate webshop to vitest + new API                                          │                                        │
+│                                      │ ▸ Task: update API routes                                                    │                                        │
+│                                      │ in 41.2k · out 8.3k · ~$0.94▲ · 38 calls                                     │                                        │
+│                                      │ plan ██████████░░░░░░ 6/10 60%  ▸ Add token refresh to auth.ts               │                                        │
+│                                      ╰───────────────────────────────────────┬──────────────────────────────────────╯                                        │
+│                                                                              │ spawn                                                                         │
+│                    ╭──────────────────────────────────────┬──────────────────┴───────────────────┬──────────────────────────────────────╮                    │
+│                    │                                      ┃                                      ┃                                      ┃                    │
+│  ╭───────────────────────────────────╮  ╭─ worker ───────────── sonnet-5-5 ─╮  ╔═ worker ═════════════ sonnet-5-5 ═╗  ╭─ worker ───────────── sonnet-5-5 ─╮  │
+│  │ ✓ worker · migrate db sc… +2 done │  │ ⠋ running                   2m02s │  ║ ⠋ running                   3m11s ║  │ ⠋ running                   3m57s │  │
+│  ╰───────────────────────────────────╯  │ update API routes                 │  ║ port tests to vitest              ║  │ update docs                       │  │
+│                                         │ ▸ Edit tests/cart.test.ts         │  ║ ▸ Edit src/db/schema.ts           ║  │ ▸ Grep "SELECT"                   │  │
+│                                         │ in 8.2k · out 1.2k · ~$0.04 · 13 call║ in 12.1k · out 1.7k · ~$0.06 · 19 cal│sin 14.7k · out 2.0k · ~$0.07 · 23 cal│
+│                                         ╰─┬─────────────────────────────────╯  ╚═┬═════════════════════════════════╝  ╰───────────────────────────────────╯  │
+│                                           ┃ ╭─ worker ────────── haiku-5-5 ─╮    ┆ ╭─ worker ────────── haiku-5-5 ─╮                                         │
+│                                           ┣━│ ⠋ running               2m25s │    └┄│ ◔ waiting for permission3m34s │                                         │
+│                                           ┃ │ rewrite /users                │      │ port auth tests               │                                         │
+│                                           ┃ │ ▸ Bash: git diff --stat       │      │ ▸ Read src/routes/users.ts    │                                         │
+│                                           ┃ │ in 9.5k · out 1.4k · ~$0.05 · 15 call│ in 13.4k · out 1.9k · ~$0.07 · 21 calls                                 │
+│                                           ┃ ╰───────────────────────────────╯      ╰───────────────────────────────╯                                         │
+│                                           ┃ ╭─ reviewer ──────── haiku-5-5 ─╮                                                                                │
+│                                           ┗━│ ⠋ running               2m48s │                                                                                │
+│                                             │ check route types             │                                                                                │
+│                                             │ ▸ Edit .github/ci.yml         │                                                                                │
+│                                             │ in 10.8k · out 1.5k · ~$0.06 · 17 calls                                                                        │
+│                                             ╰───────────────────────────────╯                                                                                │
+│                                                                                                                                                              │
+│ 16 agents · 9 done subtrees collapsed · ▸ 3 more workers →                                                                                                   │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ←→↑↓ move   ⏎ details   tab tree   esc close                          ◂ workers 1–4 of 7 ▸                                                           ● live  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 5e · State · finished session (120 × 34 · 120 cols)
+All edges and cards go dim except green ✓; no spinner, no live dot.
+
+╭─ agentview · session 7f3a9c2e ───────────────────────────────────────────────────────67.5k tok · ~$1.10 · plan 100%──╮
+│ ✓ session finished · 7 agents · 14m22s                                                                tree   graph   │
+│                            ╔═ main ════════════════════════════════════════ opus-5-5 ═╗                              │
+│                            ║ ✓ done · result returned                          14m22s ║                              │
+│                            ║ refactor auth flow                                       ║                              │
+│                            ║ ▸ final summary                                          ║                              │
+│                            ║ 21.5k tok · ~$0.61▲ · 14 calls                           ║                              │
+│                            ║ plan ████████████████ 10/10 100%  ✓ all todos complete   ║                              │
+│                            ╚═════════════════════════════┬════════════════════════════╝                              │
+│                                                          │ spawn                                                     │
+│                    ╭─────────────────────────────────────┼─────────────────────────────────────╮                     │
+│                    │                                     │                                     │                     │
+│  ╭─ worker ──────────── sonnet-5-5 ─╮  ╭─ worker ──────────── sonnet-5-5 ─╮  ╭─ worker ──────────── sonnet-5-5 ─╮    │
+│  │ ✓ done · result returned   3m08s │  │ ✓ done · result returned   3m21s │  │ ✓ done · result returned   4m10s │    │
+│  │ fix login bug                    │  │ add token refresh                │  │ write auth tests                 │    │
+│  │ ▸ Edit src/login.ts              │  │ ▸ Edit src/auth.ts               │  │ ▸ Bash: npm test                 │    │
+│  │ 12.0k tok · ~$0.14 · 31 calls    │  │ 9.3k tok · ~$0.12 · 24 calls     │  │ 13.6k tok · ~$0.18 · 23 calls    │    │
+│  ╰─┬────────────────────────────────╯  ╰─┬────────────────────────────────╯  ╰──────────────────────────────────╯    │
+│    │ ╭─ scout ────────── haiku-5-5 ─╮    │ ╭─ Explore ──────── haiku-5-5 ─╮                                          │
+│    └─│ ✓ done · result returned 22s │    ├─│ ✓ done · result returned 34s │                                          │
+│      │ find session usages          │    │ │ map refresh callers          │                                          │
+│      │ ▸ Grep "session"             │    │ │ ▸ Grep "TODO"                │                                          │
+│      │ 3.7k tok · ~$0.01 · 9 calls  │    │ │ 2.7k tok · ~$0.01 · 6 calls  │                                          │
+│      ╰──────────────────────────────╯    │ ╰──────────────────────────────╯                                          │
+│                                          │ ╭─ reviewer ────── sonnet-5-5 ─╮                                          │
+│                                          └─│ ✓ done · result returne1m35s │                                          │
+│                                            │ review auth diff             │                                          │
+│                                            │ ▸ Bash: rm -rf dist          │                                          │
+│                                            │ 4.7k tok · ~$0.03 · 4 calls  │                                          │
+│                                            ╰──────────────────────────────╯                                          │
+│                                                                                                                      │
+│ ✓ Finished in 14m22s — nothing is running                                                                            │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ←→↑↓ move   ⏎ details   tab tree   esc close                                                                 ended   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== rules
+- Tab toggles tree ↔ graph; the selected agent stays selected. Esc closes the dialog (dialog) or goes back (CLI); q quits the CLI.
+- Graph keys: ↑ parent, ↓ first child, ← → previous / next sibling (↑↓ still step through the list at 80 cols). Enter opens the same detail view as in the tree.
+- Stable layout: columns and rows are placed by start order and never re-sorted or re-packed. New agents add a column or a card below their parent; nothing existing moves.
+- Alive but calm: only running edges are heavy and only running cards show a spinner (8 fps). Everything else is static.
+- Dense sessions: finished subtrees collapse into a chip once the graph no longer fits; Enter on a chip expands it. Over ~8 workers, Tab to the tree is the better view.
+- Below ~110 cols the graph folds into the tree with the selected node expanded as a card (screen 3), so nothing is lost on narrow terminals.

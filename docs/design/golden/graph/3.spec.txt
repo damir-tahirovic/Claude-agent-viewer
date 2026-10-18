@@ -1,0 +1,19 @@
+{d|╭─}{B| agentview}{d| · session }7f3a9c2e {d|────────────────67.5k tok · ~$1.10 · plan }{B|60%}{d|──╮}
+{d|│} {c|⠋ 4 running}   {y|◔ 1 waiting}   {g|✓ 2 done}   {d|✗ 0 failed   ·  7 agents}              {d|│}
+{d|│} {c|⠋ }{B|main     }refactor auth flow       Task: add token refresh         {d| 6m12s}   {d|│}
+{d|│} {d|├─ }{g|✓ }worker   {d|fix login bug           Edit src/login.ts              3m08s}   {d|│}
+{d|│} {d|│  └─ }{g|✓ }scout    {d|find session usages    Grep "session"                 22s}   {d|│}
+{d|│} {d|├─ }{IB|⠋ worker   add token refresh       Edit src/auth.ts               3m21s}   {d|│}
+{d|│} {d|│}  {c|╔═}{B| worker }{c|════════════════════════════════════════════════}{d| sonnet-5-5 }{c|═╗}  {d|│}
+{d|│} {d|│}  {c|║} {c|⠋ running}                                                      {d|3m21s} {c|║}  {d|│}
+{d|│} {d|│}  {c|║} add token refresh                                                    {c|║}  {d|│}
+{d|│} {d|│}  {c|║} ▸ Edit src/auth.ts                                                   {c|║}  {d|│}
+{d|│} {d|│}  {c|║} {d|in 7.4k · out 1.9k · ~$0.12 · 24 calls}                               {c|║}  {d|│}
+{d|│} {d|│}  {c|╚══════════════════════════════════════════════════════════════════════╝}  {d|│}
+{d|│} {d|│  ├─ }{c|⠋ }Explore  map refresh callers    Grep "TODO"                 {d|   34s}   {d|│}
+{d|│} {d|│  └─ }{y|◔ }reviewer review auth diff       {y|Bash: rm -rf dist           }{d| 1m35s}   {d|│}
+{d|│} {d|└─ }{c|⠋ }worker   write auth tests        Bash: npm test                {y|4m10s!}   {d|│}
+{d|│}                                                                              {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|↑↓}{d| select}   {B|⏎}{d| details}   {B|tab}{d| tree}   {B|esc}{d| close}                         {g|●}{d| live}  {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────╯}

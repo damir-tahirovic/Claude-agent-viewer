@@ -1,0 +1,19 @@
+{d|╭─ }{B|agentview}{d| · session }7f3a9c2e{d| · }~/code/webshop{d| ────────────────────────────────────── }{d|67.5k tok · ~$1.10 · plan }{B|60%}{d| ─╮}
+{d|│} {c|⠋ 4 running}   {y|◔ 1 waiting}   {g|✓ 2 done}   {d|✗ 0 failed}{d|   ·  7 agents}                                                      {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│}{d|  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME} {d|│}
+{d|│}{IB|▸ main                ⠋ running  opus-5-5    refactor auth fl…  Task: add token refresh       21.5k  ~$0.61▲   6m12s  }{d|│}
+{d|│}  {d|├─ }{d|worker         }  {g|✓ done   }  {d|sonnet-5-5}  {d|fix login bug    }  {d|Edit src/login.ts          }  {d| 12.0k}  {d|~$0.14 }  {d| 3m08s } {d|│}
+{d|│}  {d|│  └─ }{d|scout       }  {g|✓ done   }  {d|haiku-5-5 }  {d|find session usa…}  {d|Grep "session"             }  {d|  3.7k}  {d|~$0.01 }  {d|   22s } {d|│}
+{d|│}  {d|├─ }worker           {c|⠋ running}  {d|sonnet-5-5}  add token refresh  Edit src/auth.ts               9.3k  ~$0.12    3m21s  {d|│}
+{d|│}  {d|│  ├─ }Explore       {c|⠋ running}  {d|haiku-5-5 }  map refresh call…  Grep "TODO"                    2.7k  ~$0.01      34s  {d|│}
+{d|│}  {d|│  └─ }reviewer      {y|◔ waiting}  {d|sonnet-5-5}  review auth diff   {y|Bash: rm -rf dist          }    4.7k  ~$0.03    1m35s  {d|│}
+{d|│}  {d|└─ }worker           {c|⠋ running}  {d|sonnet-5-5}  write auth tests   Bash: npm test                13.6k  ~$0.18   {y| 4m10s!} {d|│}
+{d|│}                                                                                                                      {d|│}
+{d|│}                                                                                                                      {d|│}
+{d|│}                                                                                                                      {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} plan {b|██████████████}{d|░░░░░░░░░░}{B| 6/10 60%}  {c|▸ }Add token refresh to auth.ts                                               {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|↑↓}{d| select}   {B|⏎}{d| details}   {B|esc}{d| sessions}   {B|q}{d| quit}                                                                 {g|●}{d| live} {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯}

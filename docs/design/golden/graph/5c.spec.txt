@@ -1,0 +1,35 @@
+{d|╭─}{B| agentview}{d| · session }7f3a9c2e {d|────────────────────────────────────────────────────────67.5k tok · ~$1.10 · plan }{B|60%}{d|──╮}
+{d|│} {c|⠋ 3 running}   {y|◔ 1 waiting}   {g|✓ 2 done}   {r|✗ 1 failed}{d|   ·  7 agents}                                       {d|tree}  {IB| graph }  {d|│}
+{d|│}                            ╭─{B| main }────────────────────────────────────────{d| opus-5-5 }─╮                              {d|│}
+{d|│}                            │ {c|⠋ running}                                          {d|6m12s} │                              {d|│}
+{d|│}                            │ refactor auth flow                                       │                              {d|│}
+{d|│}                            │ ▸ Task: add token refresh                                │                              {d|│}
+{d|│}                            │ {d|21.5k tok · }{yB|~$0.61▲}{d| · 14 calls}                           │                              {d|│}
+{d|│}                            │ plan {b|██████████}{d|░░░░░░}{B| 6/10 60%  }{c|▸ }Add token refresh t…   │                              {d|│}
+{d|│}                            ╰─────────────────────────────{d|┬}────────────────────────────╯                              {d|│}
+{d|│}                                                          {d|│} {d|spawn}                                                     {d|│}
+{d|│}                    {d|╭─────────────────────────────────────┼─────────────────────────────────────╮}                     {d|│}
+{d|│}                    {d|│}                                     {c|┃}                                     {r|┃}                     {d|│}
+{d|│}  {d|╭─}{B| worker }{d|──────────── sonnet-5-5 ─╮}  {c|╭─}{B| worker }{c|────────────}{d| sonnet-5-5 }{c|─╮}  {r|╔═}{B| worker }{r|════════════}{d| sonnet-5-5 }{r|═╗}    {d|│}
+{d|│}  {d|│} {g|✓ done · result returned}   {d|3m08s} {d|│}  {c|│} {c|⠋ running}                  {d|3m21s} {c|│}  {r|║} {rB|✗ failed · exit 1}          {d|4m10s} {r|║}    {d|│}
+{d|│}  {d|│} {d|fix login bug}                    {d|│}  {c|│} add token refresh                {c|│}  {r|║} write auth tests                 {r|║}    {d|│}
+{d|│}  {d|│} {d|▸ Edit src/login.ts}              {d|│}  {c|│} ▸ Edit src/auth.ts               {c|│}  {r|║} {r|▸ Bash: npm test}                 {r|║}    {d|│}
+{d|│}  {d|│} {d|12.0k tok · ~$0.14 · 31 calls}    {d|│}  {c|│} {d|9.3k tok · ~$0.12 · 24 calls}     {c|│}  {r|║} {d|13.6k tok · ~$0.18 · 23 calls}    {r|║}    {d|│}
+{d|│}  {d|╰─┬────────────────────────────────╯}  {c|╰─}{d|┬}{c|────────────────────────────────╯}  {r|╚══════════════════════════════════╝}    {d|│}
+{d|│}    {d|│} {d|╭─}{B| scout }{d|────────── haiku-5-5 ─╮}    {c|┃} {c|╭─}{B| Explore }{c|────────}{d| haiku-5-5 }{c|─╮}                                          {d|│}
+{d|│}    {d|└─│} {g|✓ done · result returned} {d|22s} {d|│}    {c|┣━│} {c|⠋ running}                {d|34s} {c|│}                                          {d|│}
+{d|│}      {d|│} {d|find session usages}          {d|│}    {y|┆} {c|│} map refresh callers          {c|│}                                          {d|│}
+{d|│}      {d|│} {d|▸ Grep "session"}             {d|│}    {y|┆} {c|│} ▸ Grep "TODO"                {c|│}                                          {d|│}
+{d|│}      {d|│} {d|3.7k tok · ~$0.01 · 9 calls}  {d|│}    {y|┆} {c|│} {d|2.7k tok · ~$0.01 · 6 calls}  {c|│}                                          {d|│}
+{d|│}      {d|╰──────────────────────────────╯}    {y|┆} {c|╰──────────────────────────────╯}                                          {d|│}
+{d|│}                                          {y|┆} {y|╭─}{B| reviewer }{y|──────}{d| sonnet-5-5 }{y|─╮}                                          {d|│}
+{d|│}                                          {y|└┄│} {y|◔ waiting for permissio}{d|1m35s} {y|│}                                          {d|│}
+{d|│}                                            {y|│} review auth diff             {y|│}                                          {d|│}
+{d|│}                                            {y|│} {y|▸ Bash: rm -rf dist}          {y|│}                                          {d|│}
+{d|│}                                            {y|│} {d|4.7k tok · ~$0.03 · 4 calls}  {y|│}                                          {d|│}
+{d|│}                                            {y|╰──────────────────────────────╯}                                          {d|│}
+{d|│}                                                                                                                      {d|│}
+{d|│} {rB|✗ }{r|write auth tests}{d| failed · Bash: npm test exited 1 after 4m10s · ⏎ for output}                                       {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|←→↑↓}{d| move}   {B|⏎}{d| details}   {B|tab}{d| tree}   {B|esc}{d| close}                                                                 {g|●}{d| live}  {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯}

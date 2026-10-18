@@ -1,0 +1,11 @@
+{d|╭─ }{B|agentview}{d| · session }7f3a9c2e{d| ────────────────── }{d|2.5k tok · ~$0.04 · plan }{B|—}{d| ─╮}
+{d|│} {c|⠋ 1 running}   {d|◔ 0 waiting}   {d|✓ 0 done}   {d|✗ 0 failed}{d|   ·  1 agents}              {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────┤}
+{d|│}{d|  AGENT             STATUS     NOW                               TOK     TIME} {d|│}
+{d|│}{IB|▸ main              ⠋ running  Read docs/auth.md                2.5k     41s  }{d|│}
+{d|│} {d|  ◌ no subagents yet — they appear here as soon as main delegates}            {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────┤}
+{d|│} plan {d|░░░░░░░░░░░░░░  —   no todo list in this session}                        {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|↑↓}{d| select}   {B|⏎}{d| details}   {B|esc}{d| close}   {B|q}{d| quit}                            {g|●}{d| live} {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────╯}

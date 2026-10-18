@@ -1,0 +1,366 @@
+=== 1a · In-session dialog · 120 cols (120 × 22 · 120 cols)
+Opened with /agentview over the chat; Esc closes it and the chat is untouched. Rows keep start-time order and only values change. Selected row is inverse. ▲ = expensive (≥ 40% of session cost or ≥ ~$0.50); ! on TIME = stuck on one action > 3 min. Finished rows go dim so live work stands out. Plan % comes only from the main agent's todo list.
+
+> fix the login bug and add tests
+● I'll split this into three tasks and delegate to subagents.
+  ⎿ Task(fix login bug) …
+
+╭─ agentview · session 7f3a9c2e ─────────────────────────────────────────────────────── 67.5k tok · ~$1.10 · plan 60% ─╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME │
+│  main                ⠋ running  opus-5-5    refactor auth fl…  Task: add token refresh       21.5k  ~$0.61▲   6m12s  │
+│  ├─ worker           ✓ done     sonnet-5-5  fix login bug      Edit src/login.ts             12.0k  ~$0.14    3m08s  │
+│  │  └─ scout         ✓ done     haiku-5-5   find session usa…  Grep "session"                 3.7k  ~$0.01      22s  │
+│▸ ├─ worker           ⠋ running  sonnet-5-5  add token refresh  Edit src/auth.ts               9.3k  ~$0.12    3m21s  │
+│  │  ├─ Explore       ⠋ running  haiku-5-5   map refresh call…  Grep "TODO"                    2.7k  ~$0.01      34s  │
+│  │  └─ reviewer      ◔ waiting  sonnet-5-5  review auth diff   Bash: rm -rf dist              4.7k  ~$0.03    1m35s  │
+│  └─ worker           ⠋ running  sonnet-5-5  write auth tests   Bash: npm test                13.6k  ~$0.18    4m10s! │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ plan ██████████████░░░░░░░░░░ 6/10 60%  ▸ Add token refresh to auth.ts                                               │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc close   q quit                                                                    ● live │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+  agentview · 7 agents (4 running) · 52.3k tok · 60%
+
+=== 1b · Same dialog · 160 cols (160 × 14 · 160 cols)
+Wide terminals add IN/OUT token split, tool-call count and MODEL; TASK and NOW get more room. Nothing moves left of the new columns.
+
+╭─ agentview · session 7f3a9c2e ─────────────────────────────────────────────────────────────────────────────────────────────── 67.5k tok · ~$1.10 · plan 60% ─╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents                                                                                              │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  AGENT               STATUS     MODEL       TASK                       NOW                                         TOK       IN/OUT     COST  CALLS     TIME │
+│  main                ⠋ running  opus-5-5    refactor auth flow         Task: add token refresh                   21.5k   18.4k/3.1k  ~$0.61▲     14   6m12s  │
+│  ├─ worker           ✓ done     sonnet-5-5  fix login bug              Edit src/login.ts                         12.0k    9.8k/2.2k  ~$0.14      31   3m08s  │
+│  │  └─ scout         ✓ done     haiku-5-5   find session usages        Grep "session"                             3.7k     3.1k/600  ~$0.01       9     22s  │
+│▸ ├─ worker           ⠋ running  sonnet-5-5  add token refresh          Edit src/auth.ts                           9.3k    7.4k/1.9k  ~$0.12      24   3m21s  │
+│  │  ├─ Explore       ⠋ running  haiku-5-5   map refresh callers        Grep "TODO"                                2.7k     2.3k/410  ~$0.01       6     34s  │
+│  │  └─ reviewer      ◔ waiting  sonnet-5-5  review auth diff           Bash: rm -rf dist                          4.7k     4.0k/700  ~$0.03       4   1m35s  │
+│  └─ worker           ⠋ running  sonnet-5-5  write auth tests           Bash: npm test                            13.6k   11.2k/2.4k  ~$0.18      23   4m10s! │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ plan ██████████████░░░░░░░░░░ 6/10 60%  ▸ Add token refresh to auth.ts                                                                                       │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc close   q quit                                                                                                            ● live │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 2 · Agent detail view · Enter on a row (120 × 31 · 120 cols)
+Enter swaps the tree for this view in place; Esc returns with the same row selected. ↑↓ steps to the previous/next agent without leaving. Actions are oldest → newest; the live one is bold with a spinner, failures are red with ✗. Token bars are relative to the largest bucket. The TODO list is this agent's own, never mixed into session plan %.
+
+╭─ agentview › worker · add token refresh ───────────────────────────────────────────────────────────────── ⠋ running ─╮
+│ model sonnet-5-5   parent main   started 14:02:11   elapsed 3m21s   tool calls 24   on this action 12s               │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ TASK                                                                                                                 │
+│ Add refresh-token rotation to src/auth.ts: issue a new refresh token on every use, invalidate the previous one,      │
+│ and wire the flow into the login handler. Keep the existing session cookie format untouched.                         │
+├──────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────┤
+│ ACTIONS · last 20 of 24                                          │ TOKENS                                            │
+│ 14:02:14 ✓ Read   src/auth.ts                               0.1s │ input         7,400 █████░░░░░░░░░░░░░░░          │
+│ 14:02:16 ✓ Read   src/session/store.ts                      0.1s │ output        1,900 █░░░░░░░░░░░░░░░░░░░          │
+│ 14:02:20 ✓ Grep   "refreshToken"                            0.3s │ cache read   31,200 ████████████████████          │
+│ 14:02:25 ✓ Glob   src/**/*.test.ts                          0.1s │ cache write   4,100 ███░░░░░░░░░░░░░░░░░          │
+│ 14:02:33 ✓ Read   src/login.ts                              0.1s │                                                   │
+│ 14:02:42 ✓ Edit   src/auth.ts                               0.2s │ in + out      9,300                               │
+│ 14:02:55 ✓ Edit   src/auth.ts                               0.2s │ cost         ~$0.12   11% of session cost         │
+│ 14:03:09 ✗ Bash   npx tsc --noEmit                          6.1s │                                                   │
+│ 14:03:17 ✓ Read   src/types/token.d.ts                      0.1s │ TODO · this agent  2/4                            │
+│ 14:03:25 ✓ Edit   src/types/token.d.ts                      0.2s │ ✓ Read auth.ts and session store                  │
+│ 14:03:32 ✓ Bash   npx tsc --noEmit                          5.8s │ ✓ Add rotateRefreshToken()                        │
+│ 14:03:44 ✓ Edit   src/auth.ts                               0.2s │ ▸ Wire rotation into login handler                │
+│ 14:03:56 ✓ Grep   "rotateRefreshToken"                      0.2s │ ◌ Add tests for rotation                          │
+│ 14:04:09 ✓ Read   src/api/routes.ts                         0.1s │                                                   │
+│ 14:04:22 ✓ Edit   src/api/routes.ts                         0.3s │                                                   │
+│ 14:04:37 ✓ Bash   npm run lint -- src/auth.ts               4.4s │                                                   │
+│ 14:04:51 ✓ Edit   src/auth.ts                               0.2s │                                                   │
+│ 14:05:03 ✓ Read   src/auth.test.ts                          0.1s │                                                   │
+│ 14:05:17 ✓ Write  src/auth.refresh.test.ts                  0.4s │                                                   │
+│ 14:05:30 ⠋ Edit   src/auth.ts                                12s │                                                   │
+├──────────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────┤
+│ ↑↓ prev / next agent   esc back to tree   q quit                                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 3a · Dialog at 80 cols (narrow) (80 × 14 · 80 cols)
+Dropped: MODEL, TASK, COST (tier 2). Kept: tree, status glyph + word, NOW, TOK, TIME. The ▲ and ! markers survive in TOK/TIME only via color + marker, so cost warnings at 80 cols show in the header total instead.
+
+> fix the login bug and add tests
+● I'll split this into three tasks and delegate to subagents.
+╭─ agentview · session 7f3a9c2e ─────────────── 67.5k tok · ~$1.10 · plan 60% ─╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  AGENT             STATUS     NOW                               TOK     TIME │
+│  main              ⠋ running  Task: add token refresh         21.5k   6m12s  │
+│  ├─ worker         ✓ done     Edit src/login.ts               12.0k   3m08s  │
+│  │  └─ scout       ✓ done     Grep "session"                   3.7k     22s  │
+│▸ ├─ worker         ⠋ running  Edit src/auth.ts                 9.3k   3m21s  │
+│  │  ├─ Explore     ⠋ running  Grep "TODO"                      2.7k     34s  │
+│  │  └─ reviewer    ◔ waiting  Bash: rm -rf dist                4.7k   1m35s  │
+│  └─ worker         ⠋ running  Bash: npm test                  13.6k   4m10s! │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ plan ████████░░░░░░ 6/10 60%  ▸ Add token refresh to auth.ts                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc close   q quit                            ● live │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+=== 3b · ASCII fallback · 80 cols (80 × 14 · 80 cols)
+Same layout, every glyph swapped 1:1 for a single ASCII character, so widths never change.
+
++- agentview . session 7f3a9c2e --------------- 67.5k tok . ~$1.10 . plan 60% -+
+| * 4 running   ! 1 waiting   + 2 done   x 0 failed   .  7 agents              |
++------------------------------------------------------------------------------+
+|  AGENT             STATUS     NOW                               TOK     TIME |
+|  main              * running  Task: add token refresh         21.5k   6m12s  |
+|  +- worker         + done     Edit src/login.ts               12.0k   3m08s  |
+|  |  └- scout       + done     Grep "session"                   3.7k     22s  |
+|> +- worker         * running  Edit src/auth.ts                 9.3k   3m21s  |
+|  |  +- Explore     * running  Grep "TODO"                      2.7k     34s  |
+|  |  └- reviewer    ! waiting  Bash: rm -rf dist                4.7k   1m35s  |
+|  └- worker         * running  Bash: npm test                  13.6k   4m10s! |
++------------------------------------------------------------------------------+
+| plan ########------ 6/10 60%  > Add token refresh to auth.ts                 |
++------------------------------------------------------------------------------+
+| ^v select   ⏎ details   esc close   q quit                            * live |
++------------------------------------------------------------------------------+
+
+=== 4 · Status line entry · 3 variants (80 × 29 · 81 cols)
+One line under the prompt, always visible, dim by default. Only state words take color. A is closest to the brief; B scans fastest; C leads with whatever is stuck or blocked and only shows totals when all is well. No spinner animation here: one glyph at most, 4 fps.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ > fix the login bug and add tests                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ↑ the line below is the status entry, always visible under the prompt
+
+  A · text  (default; ≈55 cols)
+  agentview · 7 agents (4 running) · 67.5k tok · 60%
+  agentview · 7 agents (4 running, 1 waiting) · 67.5k tok · 60%
+  agentview · 7 agents (1 failed) · 67.5k tok · 70%
+  agentview · no subagents · 6.2k tok · —
+  agentview · 7 agents done · 88.4k tok · 100%
+
+  B · glyph counts + mini bar  (≈60 cols, scans fastest)
+  agentview  ⠋ 4 ◔ 1 ✓ 2 · 67.5k · ~$1.10 · ██████░░░░ 60%
+  agentview  ⠋ 2 ✗ 1 ✓ 4 · 51.0k · ~$1.42 · ███████░░░ 70%
+  agentview  ⠋ 0 ◔ 0 ✗ 0 ✓ 7 · 88.4k · ~$2.31 · ██████████ 100%
+  agentview  ⠋ 1 · 6.2k · ~$0.04 · ░░░░░░░░░░ —
+
+  C · attention first  (shows the one thing that needs you; falls back to counts)
+  ⠋ 4 running · 67.5k tok · 60%   /agentview
+  ◔ reviewer waiting for permission · Bash: rm -rf dist · /agentview
+  ! write auth tests on "npm test" for 4m10s · /agentview
+  ✗ write auth tests failed · exit 1 · /agentview
+  ✓ all 7 agents done · 88.4k tok · ~$2.31 · 100%
+
+=== 5 · Standalone CLI · session list (120 × 14 · 120 cols)
+`agentview` in a separate terminal. Active sessions first (running/waiting), then recent; each group keeps stable order by last start. Enter opens the session view; Esc does nothing at the root; q quits. At 80 cols SESSION, COST and LAST ACTION drop.
+
+╭─ agentview · 6 sessions · 3 active ────────────────────────────────────────────────────── 118.3k tok today · ~$4.53 ─╮
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  STATUS     PROJECT              SESSION   AGENTS         TOK     COST   PLAN  LAST ACTION                       AGO │
+│ ACTIVE · 3                                                                                                           │
+│▸ ⠋ running  ~/code/webshop       7f3a9c2e  7 (4 run)    52.3k   ~$1.10    60%  Edit src/auth.ts                   2s │
+│  ◔ waiting  ~/code/api-gateway   c01d44ab  4 (1 wait)   28.3k   ~$0.52    30%  Bash: rm -rf dist               1m35s │
+│  ⠋ running  ~/code/agentview     9be2117f  2 (1 run)     9.1k   ~$0.21      —  Read README.md                     4s │
+│                                                                                                                      │
+│ RECENT · 3                                                                                                           │
+│  ✓ done     ~/code/webshop       31d8a0b7  5            88.4k   ~$2.31   100%  session finished                  38m │
+│  ✗ failed   ~/notes/site         e5527c13  3            15.7k   ~$0.34    40%  Bash: npm run build · exit 1       2h │
+│  ? unknown  ~/code/dotfiles      0a6bf9d4  1             3.2k   ~$0.05      —  no heartbeat                       1d │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ open session   q quit                                                                           ● live │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 5b · Session list · 80 cols (80 × 14 · 80 cols)
+Same drop rules as the dialog.
+
+╭─ agentview · 6 sessions · 3 active ────────────── 118.3k tok today · ~$4.53 ─╮
+├──────────────────────────────────────────────────────────────────────────────┤
+│  STATUS     PROJECT                        AGENTS         TOK   PLAN     AGO │
+│ ACTIVE · 3                                                                   │
+│▸ ⠋ running  ~/code/webshop                 7 (4 run)    52.3k    60%      2s │
+│  ◔ waiting  ~/code/api-gateway             4 (1 wait)   28.3k    30%   1m35s │
+│  ⠋ running  ~/code/agentview               2 (1 run)     9.1k      —      4s │
+│                                                                              │
+│ RECENT · 3                                                                   │
+│  ✓ done     ~/code/webshop                 5            88.4k   100%     38m │
+│  ✗ failed   ~/notes/site                   3            15.7k    40%      2h │
+│  ? unknown  ~/code/dotfiles                1             3.2k      —      1d │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ open session   q quit                                   ● live │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+=== 6 · Standalone CLI · single session (120 × 20 · 120 cols)
+The dialog design, full-screen, with the project path in the title bar. Esc goes back to the session list instead of closing; q quits. Fills the whole terminal height (rows are padded).
+
+╭─ agentview · session 7f3a9c2e · ~/code/webshop ────────────────────────────────────── 67.5k tok · ~$1.10 · plan 60% ─╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME │
+│▸ main                ⠋ running  opus-5-5    refactor auth fl…  Task: add token refresh       21.5k  ~$0.61▲   6m12s  │
+│  ├─ worker           ✓ done     sonnet-5-5  fix login bug      Edit src/login.ts             12.0k  ~$0.14    3m08s  │
+│  │  └─ scout         ✓ done     haiku-5-5   find session usa…  Grep "session"                 3.7k  ~$0.01      22s  │
+│  ├─ worker           ⠋ running  sonnet-5-5  add token refresh  Edit src/auth.ts               9.3k  ~$0.12    3m21s  │
+│  │  ├─ Explore       ⠋ running  haiku-5-5   map refresh call…  Grep "TODO"                    2.7k  ~$0.01      34s  │
+│  │  └─ reviewer      ◔ waiting  sonnet-5-5  review auth diff   Bash: rm -rf dist              4.7k  ~$0.03    1m35s  │
+│  └─ worker           ⠋ running  sonnet-5-5  write auth tests   Bash: npm test                13.6k  ~$0.18    4m10s! │
+│                                                                                                                      │
+│                                                                                                                      │
+│                                                                                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ plan ██████████████░░░░░░░░░░ 6/10 60%  ▸ Add token refresh to auth.ts                                               │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc sessions   q quit                                                                 ● live │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 7a · State · empty (no subagents yet) (80 × 13 · 80 cols)
+Main is listed alone so the screen is never blank; a single dim line explains what will appear. Plan shows "—" when there is no todo list. No fake numbers.
+
+╭─ agentview · session 7f3a9c2e ────────────────── 2.5k tok · ~$0.04 · plan — ─╮
+│ ⠋ 1 running   ◔ 0 waiting   ✓ 0 done   ✗ 0 failed   ·  1 agents              │
+├──────────────────────────────────────────────────────────────────────────────┤
+│  AGENT             STATUS     NOW                               TOK     TIME │
+│▸ main              ⠋ running  Read docs/auth.md                2.5k     41s  │
+│   ◌ no subagents yet — they appear here as soon as main delegates            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ plan ░░░░░░░░░░░░░░  —   no todo list in this session                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc close   q quit                            ● live │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+=== 7b · State · many agents (16 rows, scrolling) (120 × 22 · 120 cols)
+A 10-row window over 17 agents. The window moves one row at a time when the selection hits an edge; ┃ in the right border is the scroll thumb. Rows never re-sort, so a long list stays readable while it grows at the bottom.
+
+╭─ agentview · session 7f3a9c2e ──────────────────────────────────────────────────────── 278k tok · ~$1.96 · plan 33% ─╮
+│ ⠋ 10 running   ◔ 1 waiting   ✓ 4 done   ✗ 1 failed   ·  16 agents                                                    │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME │
+│   ↑ 3 more above                                                                                                     │
+│  │  └─ Explore       ✓ done     haiku-5-5   find raw SQL       Bash: npm run build            7.9k  ~$0.04    1m39s  │
+│  ├─ worker           ⠋ running  sonnet-5-5  update API routes  Edit tests/cart.test.ts        9.4k  ~$0.04    2m02s  ┃
+│  │  ├─ worker        ⠋ running  sonnet-5-5  rewrite /users     Glob **/*.yml                 10.8k  ~$0.05    2m25s  ┃
+│  │  ├─ worker        ⠋ running  sonnet-5-5  rewrite /orders    Read docs/api.md              12.3k  ~$0.06    2m48s  ┃
+│  │  └─ reviewer      ⠋ running  sonnet-5-5  check route types  Edit .github/ci.yml           13.8k  ~$0.06    3m11s  ┃
+│  ├─ worker           ⠋ running  sonnet-5-5  port tests to vi…  Edit src/db/schema.ts         15.3k  ~$0.07    3m34s  ┃
+│▸ │  ├─ worker        ◔ waiting  sonnet-5-5  port auth tests    Read src/routes/users.ts      16.7k  ~$0.07    3m57s  ┃
+│  │  └─ worker        ⠋ running  sonnet-5-5  port cart tests    Grep "SELECT"                 18.2k  ~$0.08    4m20s  │
+│  ├─ worker           ⠋ running  haiku-5-5   update docs        Bash: npm run build           19.7k  ~$0.09    4m43s  │
+│  │  └─ scout         ✗ failed   haiku-5-5   collect changed …  Edit tests/cart.test.ts       21.1k  ~$0.09    5m06s  │
+│   ↓ 3 more below                                                                                                     │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ plan ████████░░░░░░░░░░░░░░░░ 4/12 33%  ▸ Update API routes                                                          │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc close   q quit                                                                    ● live │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 7c · State · failed subagent (120 × 16 · 120 cols)
+Failed row: red bold ✗, red action, header count turns red, and a one-line note under the list says what failed. Enter shows the last actions with the failing call marked ✗.
+
+╭─ agentview · session 7f3a9c2e ─────────────────────────────────────────────────────── 67.5k tok · ~$1.10 · plan 60% ─╮
+│ ⠋ 3 running   ◔ 1 waiting   ✓ 2 done   ✗ 1 failed   ·  7 agents                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME │
+│  main                ⠋ running  opus-5-5    refactor auth fl…  Task: add token refresh       21.5k  ~$0.61▲   6m12s  │
+│  ├─ worker           ✓ done     sonnet-5-5  fix login bug      Edit src/login.ts             12.0k  ~$0.14    3m08s  │
+│  │  └─ scout         ✓ done     haiku-5-5   find session usa…  Grep "session"                 3.7k  ~$0.01      22s  │
+│  ├─ worker           ⠋ running  sonnet-5-5  add token refresh  Edit src/auth.ts               9.3k  ~$0.12    3m21s  │
+│  │  ├─ Explore       ⠋ running  haiku-5-5   map refresh call…  Grep "TODO"                    2.7k  ~$0.01      34s  │
+│  │  └─ reviewer      ◔ waiting  sonnet-5-5  review auth diff   Bash: rm -rf dist              4.7k  ~$0.03    1m35s  │
+│▸ └─ worker           ✗ failed   sonnet-5-5  write auth tests   Bash: npm test · exit 1       13.6k  ~$0.18    4m10s  │
+│ ✗ write auth tests failed — Bash: npm test exited 1 after 4m10s · ⏎ for output                                       │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ plan ██████████████░░░░░░░░░░ 6/10 60%  ▸ Add token refresh to auth.ts                                               │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc close   q quit                                                                    ● live │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 7d · State · waiting for permission (120 × 16 · 120 cols)
+Yellow ◔ + the word "waiting", with the pending tool shown in NOW. The note names the agent and where to answer; agentview never answers on the user's behalf.
+
+╭─ agentview · session 7f3a9c2e ─────────────────────────────────────────────────────── 67.5k tok · ~$1.10 · plan 60% ─╮
+│ ⠋ 4 running   ◔ 1 waiting   ✓ 2 done   ✗ 0 failed   ·  7 agents                                                      │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME │
+│  main                ⠋ running  opus-5-5    refactor auth fl…  Task: add token refresh       21.5k  ~$0.61▲   6m12s  │
+│  ├─ worker           ✓ done     sonnet-5-5  fix login bug      Edit src/login.ts             12.0k  ~$0.14    3m08s  │
+│  │  └─ scout         ✓ done     haiku-5-5   find session usa…  Grep "session"                 3.7k  ~$0.01      22s  │
+│  ├─ worker           ⠋ running  sonnet-5-5  add token refresh  Edit src/auth.ts               9.3k  ~$0.12    3m21s  │
+│  │  ├─ Explore       ⠋ running  haiku-5-5   map refresh call…  Grep "TODO"                    2.7k  ~$0.01      34s  │
+│▸ │  └─ reviewer      ◔ waiting  sonnet-5-5  review auth diff   Bash: rm -rf dist              4.7k  ~$0.03    1m35s  │
+│  └─ worker           ⠋ running  sonnet-5-5  write auth tests   Bash: npm test                13.6k  ~$0.18    4m10s! │
+│ ◔ reviewer is waiting for permission: Bash: rm -rf dist · answer in the Claude Code prompt · 1m35s                   │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ plan ██████████████░░░░░░░░░░ 6/10 60%  ▸ Add token refresh to auth.ts                                               │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc close   q quit                                                                    ● live │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== 7e · State · finished session (120 × 16 · 120 cols)
+Everything dim except green ✓; spinner and live dot are gone ("ended"); plan bar turns green at 100%. The footer stays so Esc still works.
+
+╭─ agentview · session 7f3a9c2e ────────────────────────────────────────────────────── 67.5k tok · ~$1.10 · plan 100% ─╮
+│ ✓ session finished · 7 agents · 14m22s                                                                               │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME │
+│▸ main                ✓ done     opus-5-5    refactor auth fl…  Task: final summary           21.5k  ~$0.61▲  14m22s  │
+│  ├─ worker           ✓ done     sonnet-5-5  fix login bug      Edit src/login.ts             12.0k  ~$0.14    3m08s  │
+│  │  └─ scout         ✓ done     haiku-5-5   find session usa…  Grep "session"                 3.7k  ~$0.01      22s  │
+│  ├─ worker           ✓ done     sonnet-5-5  add token refresh  Edit src/auth.ts               9.3k  ~$0.12    3m21s  │
+│  │  ├─ Explore       ✓ done     haiku-5-5   map refresh call…  Grep "TODO"                    2.7k  ~$0.01      34s  │
+│  │  └─ reviewer      ✓ done     sonnet-5-5  review auth diff   Bash: rm -rf dist              4.7k  ~$0.03    1m35s  │
+│  └─ worker           ✓ done     sonnet-5-5  write auth tests   Bash: npm test                13.6k  ~$0.18    4m10s  │
+│ ✓ Finished in 14m22s — nothing is running                                                                            │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ plan ████████████████████████ 10/10 100%  ✓ all todos complete                                                       │
+├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ↑↓ select   ⏎ details   esc close   q quit                                                                     ended │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+=== palette
+Running | spinner, word, running count | cyan 36 | 80 / 30
+Waiting · attention | waiting status; stuck TIME (with !); expensive COST (bold, with ▲) | yellow 33 | 214 / 130
+Done | ✓ done | green 32 | 78 / 28
+Failed | ✗ failed (bold), error text | red 31 + bold 1 | 203 / 160
+Plan progress | bar fill; turns green at 100% | blue 34 → green 32 | 75 / 25
+Chrome · secondary | borders, rules, column heads, labels, finished rows | default fg + dim 2 | — (never a gray)
+Primary text | agent names, tasks, current action | default fg 39 | —
+Emphasis · brand | title, plan %, key names in footer | bold 1 (optional 256: 173) | 173 / 166
+Selection | selected row, full width | inverse 7 + bold 1 | —
+
+=== glyphs
+Status | running | ⠋ | * | cyan; animated (spinner below)
+Status | waiting | ◔ | ! | yellow
+Status | done | ✓ | + | green
+Status | failed | ✗ | x | red, bold
+Status | unknown | ? | ? | dim; no heartbeat > 60s
+Spinner | 10 frames @ 8 fps | ⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ | | / - \ | only running rows animate; reduced-motion: static ●  / *
+Tree | branch · last · trunk · gap | ├─  └─  │   | |-  `-  |    | 3 cells per level
+Progress | filled · empty | █ ░ | # - | plan bar 14 (80 cols) or 24 (wider) cells
+Frame | rounded corners · edges · tees | ╭╮╰╯ │ ─ ├┤┬┴ | + | - + | scroll thumb ┃ → |
+Marker | selected · current todo · live | ▸  ▸  ● | >  >  * | 
+Marker | expensive · stuck | ▲  ! | ^  ! | always paired with color
+Todo | done · active · pending | ✓ ▸ ◌ | + > . | 
+Scroll | more above · below | ↑ ↓ | ^ v | 
+
+=== columns
+Tree + name | always | ✓ | ✓ | ✓ | Truncates with … first; connectors never dropped
+Status glyph + word | always | ✓ | ✓ | ✓ | Fixed 9 cells; word is never dropped (color-independent)
+NOW (current action) | 1 · flex | ✓ | ✓ | ✓ | Takes all spare width at 80; 60% of it above that
+TOK (in + out) | 1 | ✓ | ✓ | ✓ | Cache tokens only in detail view
+TIME | 1 | ✓ | ✓ | ✓ | ! suffix when stuck
+MODEL | 2 | — | ✓ | ✓ | Dim; full id e.g. sonnet-5-5
+TASK | 2 · flex | — | ✓ | ✓ | 40% of spare width
+COST ~$ | 2 | — | ✓ | ✓ | ▲ suffix when expensive; the header total stays at every width
+IN/OUT split | 3 | — | — | ✓ | Dim
+CALLS | 3 | — | — | ✓ | Tool-call count
+
+=== keys
+In-session dialog | Move ▸ one row; window scrolls one row at an edge | Open agent detail | Close dialog, back to chat | Inert (modal)
+Agent detail | Previous / next agent | Inert | Back to tree, same row selected | Inert in dialog; quits in CLI
+CLI session list | Select session | Open session view | Inert at root | Quit
+CLI session view | Select agent | Open agent detail | Back to session list | Quit
+
+=== rules
+- Calm updates: values redraw in place; rows are ordered by start time and never re-sort, even when status changes. New agents append under their parent.
+- Redraw only changed cells; spinner runs at 8 fps on running rows only; everything else updates at most once per second.
+- Selection is inverse + bold + ▸ marker, so it reads on any theme and in monochrome. It follows the agent (by id), not the row index, as the list grows.
+- Expensive: cost ≥ 40% of session total or ≥ ~$0.50 → bold yellow with ▲. Stuck: same action > 3 min → yellow TIME with !. Both are subtle (one cell) and never reorder rows.
+- Plan %: done ÷ total of the main agent's todo list only. No todo list → "—" in the header, an empty bar and a one-line explanation. Subagent todos appear only in their own detail view.
+- Cost is always prefixed with ~ (estimate). Token totals = input + output; cache read/write are listed separately in the detail view.

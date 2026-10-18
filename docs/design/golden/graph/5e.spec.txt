@@ -1,0 +1,35 @@
+{d|╭─}{B| agentview}{d| · session }7f3a9c2e {d|───────────────────────────────────────────────────────67.5k tok · ~$1.10 · plan }{B|100%}{d|──╮}
+{d|│} {g|✓ session finished}{d| · 7 agents · 14m22s}                                                                {d|tree}  {IB| graph }  {d|│}
+{d|│}                            {d|╔═}{B| main }{d|════════════════════════════════════════ opus-5-5 ═╗}                              {d|│}
+{d|│}                            {d|║} {g|✓ done · result returned}                          {d|14m22s} {d|║}                              {d|│}
+{d|│}                            {d|║} {d|refactor auth flow}                                       {d|║}                              {d|│}
+{d|│}                            {d|║} {d|▸ final summary}                                          {d|║}                              {d|│}
+{d|│}                            {d|║} {d|21.5k tok · }{yB|~$0.61▲}{d| · 14 calls}                           {d|║}                              {d|│}
+{d|│}                            {d|║} plan {g|████████████████}{B| 10/10 100%  }{g|✓ }{d|all todos complete}   {d|║}                              {d|│}
+{d|│}                            {d|╚═════════════════════════════┬════════════════════════════╝}                              {d|│}
+{d|│}                                                          {d|│} {d|spawn}                                                     {d|│}
+{d|│}                    {d|╭─────────────────────────────────────┼─────────────────────────────────────╮}                     {d|│}
+{d|│}                    {d|│}                                     {d|│}                                     {d|│}                     {d|│}
+{d|│}  {d|╭─}{B| worker }{d|──────────── sonnet-5-5 ─╮}  {d|╭─}{B| worker }{d|──────────── sonnet-5-5 ─╮}  {d|╭─}{B| worker }{d|──────────── sonnet-5-5 ─╮}    {d|│}
+{d|│}  {d|│} {g|✓ done · result returned}   {d|3m08s} {d|│}  {d|│} {g|✓ done · result returned}   {d|3m21s} {d|│}  {d|│} {g|✓ done · result returned}   {d|4m10s} {d|│}    {d|│}
+{d|│}  {d|│} {d|fix login bug}                    {d|│}  {d|│} {d|add token refresh}                {d|│}  {d|│} {d|write auth tests}                 {d|│}    {d|│}
+{d|│}  {d|│} {d|▸ Edit src/login.ts}              {d|│}  {d|│} {d|▸ Edit src/auth.ts}               {d|│}  {d|│} {d|▸ Bash: npm test}                 {d|│}    {d|│}
+{d|│}  {d|│} {d|12.0k tok · ~$0.14 · 31 calls}    {d|│}  {d|│} {d|9.3k tok · ~$0.12 · 24 calls}     {d|│}  {d|│} {d|13.6k tok · ~$0.18 · 23 calls}    {d|│}    {d|│}
+{d|│}  {d|╰─┬────────────────────────────────╯}  {d|╰─┬────────────────────────────────╯}  {d|╰──────────────────────────────────╯}    {d|│}
+{d|│}    {d|│} {d|╭─}{B| scout }{d|────────── haiku-5-5 ─╮}    {d|│} {d|╭─}{B| Explore }{d|──────── haiku-5-5 ─╮}                                          {d|│}
+{d|│}    {d|└─│} {g|✓ done · result returned} {d|22s} {d|│}    {d|├─│} {g|✓ done · result returned} {d|34s} {d|│}                                          {d|│}
+{d|│}      {d|│} {d|find session usages}          {d|│}    {d|│} {d|│} {d|map refresh callers}          {d|│}                                          {d|│}
+{d|│}      {d|│} {d|▸ Grep "session"}             {d|│}    {d|│} {d|│} {d|▸ Grep "TODO"}                {d|│}                                          {d|│}
+{d|│}      {d|│} {d|3.7k tok · ~$0.01 · 9 calls}  {d|│}    {d|│} {d|│} {d|2.7k tok · ~$0.01 · 6 calls}  {d|│}                                          {d|│}
+{d|│}      {d|╰──────────────────────────────╯}    {d|│} {d|╰──────────────────────────────╯}                                          {d|│}
+{d|│}                                          {d|│} {d|╭─}{B| reviewer }{d|────── sonnet-5-5 ─╮}                                          {d|│}
+{d|│}                                          {d|└─│} {g|✓ done · result returne}{d|1m35s} {d|│}                                          {d|│}
+{d|│}                                            {d|│} {d|review auth diff}             {d|│}                                          {d|│}
+{d|│}                                            {d|│} {d|▸ Bash: rm -rf dist}          {d|│}                                          {d|│}
+{d|│}                                            {d|│} {d|4.7k tok · ~$0.03 · 4 calls}  {d|│}                                          {d|│}
+{d|│}                                            {d|╰──────────────────────────────╯}                                          {d|│}
+{d|│}                                                                                                                      {d|│}
+{d|│} {g|✓ }Finished in 14m22s — nothing is running                                                                            {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|←→↑↓}{d| move}   {B|⏎}{d| details}   {B|tab}{d| tree}   {B|esc}{d| close}                                                                 {d|ended}   {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯}

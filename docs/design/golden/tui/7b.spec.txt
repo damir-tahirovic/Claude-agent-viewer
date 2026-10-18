@@ -1,0 +1,21 @@
+{d|╭─ }{B|agentview}{d| · session }7f3a9c2e{d| ──────────────────────────────────────────────────────── }{d|278k tok · ~$1.96 · plan }{B|33%}{d| ─╮}
+{d|│} {c|⠋ 10 running}   {y|◔ 1 waiting}   {g|✓ 4 done}   {r|✗ 1 failed}{d|   ·  16 agents}                                                    {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│}{d|  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME} {d|│}
+{d|│} {d|  ↑ 3 more above}                                                                                                     {d|│}
+{d|│}  {d|│  └─ }{d|Explore     }  {g|✓ done   }  {d|haiku-5-5 }  {d|find raw SQL     }  {d|Bash: npm run build        }  {d|  7.9k}  {d|~$0.04 }  {d| 1m39s } {d|│}
+{d|│}  {d|├─ }worker           {c|⠋ running}  {d|sonnet-5-5}  update API routes  Edit tests/cart.test.ts        9.4k  ~$0.04    2m02s  {B|┃}
+{d|│}  {d|│  ├─ }worker        {c|⠋ running}  {d|sonnet-5-5}  rewrite /users     Glob **/*.yml                 10.8k  ~$0.05    2m25s  {B|┃}
+{d|│}  {d|│  ├─ }worker        {c|⠋ running}  {d|sonnet-5-5}  rewrite /orders    Read docs/api.md              12.3k  ~$0.06    2m48s  {B|┃}
+{d|│}  {d|│  └─ }reviewer      {c|⠋ running}  {d|sonnet-5-5}  check route types  Edit .github/ci.yml           13.8k  ~$0.06    3m11s  {B|┃}
+{d|│}  {d|├─ }worker           {c|⠋ running}  {d|sonnet-5-5}  port tests to vi…  Edit src/db/schema.ts         15.3k  ~$0.07    3m34s  {B|┃}
+{d|│}{IB|▸ │  ├─ worker        ◔ waiting  sonnet-5-5  port auth tests    Read src/routes/users.ts      16.7k  ~$0.07    3m57s  }{B|┃}
+{d|│}  {d|│  └─ }worker        {c|⠋ running}  {d|sonnet-5-5}  port cart tests    Grep "SELECT"                 18.2k  ~$0.08    4m20s  {d|│}
+{d|│}  {d|├─ }worker           {c|⠋ running}  {d|haiku-5-5 }  update docs        Bash: npm run build           19.7k  ~$0.09    4m43s  {d|│}
+{d|│}  {d|│  └─ }scout         {rB|✗ failed }  {d|haiku-5-5 }  collect changed …  {r|Edit tests/cart.test.ts    }   21.1k  ~$0.09    5m06s  {d|│}
+{d|│} {d|  ↓ 3 more below}                                                                                                     {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} plan {b|████████}{d|░░░░░░░░░░░░░░░░}{B| 4/12 33%}  {c|▸ }Update API routes                                                          {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|↑↓}{d| select}   {B|⏎}{d| details}   {B|esc}{d| close}   {B|q}{d| quit}                                                                    {g|●}{d| live} {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯}

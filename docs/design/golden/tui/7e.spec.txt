@@ -1,0 +1,17 @@
+{d|╭─ }{B|agentview}{d| · session }7f3a9c2e{d| ────────────────────────────────────────────────────── }{d|67.5k tok · ~$1.10 · plan }{B|100%}{d| ─╮}
+{d|│} {g|✓ session finished}{d| · 7 agents · 14m22s}                                                                               {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│}{d|  AGENT               STATUS     MODEL       TASK               NOW                             TOK     COST     TIME} {d|│}
+{d|│}{IB|▸ main                ✓ done     opus-5-5    refactor auth fl…  Task: final summary           21.5k  ~$0.61▲  14m22s  }{d|│}
+{d|│}  {d|├─ }{d|worker         }  {g|✓ done   }  {d|sonnet-5-5}  {d|fix login bug    }  {d|Edit src/login.ts          }  {d| 12.0k}  {d|~$0.14 }  {d| 3m08s } {d|│}
+{d|│}  {d|│  └─ }{d|scout       }  {g|✓ done   }  {d|haiku-5-5 }  {d|find session usa…}  {d|Grep "session"             }  {d|  3.7k}  {d|~$0.01 }  {d|   22s } {d|│}
+{d|│}  {d|├─ }{d|worker         }  {g|✓ done   }  {d|sonnet-5-5}  {d|add token refresh}  {d|Edit src/auth.ts           }  {d|  9.3k}  {d|~$0.12 }  {d| 3m21s } {d|│}
+{d|│}  {d|│  ├─ }{d|Explore     }  {g|✓ done   }  {d|haiku-5-5 }  {d|map refresh call…}  {d|Grep "TODO"                }  {d|  2.7k}  {d|~$0.01 }  {d|   34s } {d|│}
+{d|│}  {d|│  └─ }{d|reviewer    }  {g|✓ done   }  {d|sonnet-5-5}  {d|review auth diff }  {d|Bash: rm -rf dist          }  {d|  4.7k}  {d|~$0.03 }  {d| 1m35s } {d|│}
+{d|│}  {d|└─ }{d|worker         }  {g|✓ done   }  {d|sonnet-5-5}  {d|write auth tests }  {d|Bash: npm test             }  {d| 13.6k}  {d|~$0.18 }  {d| 4m10s } {d|│}
+{d|│} {g|✓ }Finished in 14m22s — nothing is running                                                                            {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} plan {g|████████████████████████}{B| 10/10 100%}  {g|✓ }{d|all todos complete}                                                       {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {B|↑↓}{d| select}   {B|⏎}{d| details}   {B|esc}{d| close}   {B|q}{d| quit}                                                                     {d|ended} {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯}

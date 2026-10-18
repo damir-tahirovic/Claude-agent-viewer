@@ -1,0 +1,31 @@
+{d|╭─ }{B|agentview}{d| › }{B|worker}{d| · add token refresh}{d| ───────────────────────────────────────────────────────────────── }{c|⠋ running}{d| ─╮}
+{d|│} {d|model }sonnet-5-5   {d|parent }main   {d|started }14:02:11   {d|elapsed }3m21s   {d|tool calls }24   {d|on this action }12s               {d|│}
+{d|├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤}
+{d|│} {d|TASK}                                                                                                                 {d|│}
+{d|│} Add refresh-token rotation to src/auth.ts: issue a new refresh token on every use, invalidate the previous one,      {d|│}
+{d|│} and wire the flow into the login handler. Keep the existing session cookie format untouched.                         {d|│}
+{d|├──────────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────┤}
+{d|│} {d|ACTIONS · last 20 of 24}                                          {d|│} {d|TOKENS}                                            {d|│}
+{d|│} {d|14:02:14} {g|✓} Read   src/auth.ts                              {d| 0.1s} {d|│} input         7,400 {b|█████}{d|░░░░░░░░░░░░░░░}          {d|│}
+{d|│} {d|14:02:16} {g|✓} Read   src/session/store.ts                     {d| 0.1s} {d|│} output        1,900 {b|█}{d|░░░░░░░░░░░░░░░░░░░}          {d|│}
+{d|│} {d|14:02:20} {g|✓} Grep   "refreshToken"                           {d| 0.3s} {d|│} cache read   31,200 {b|████████████████████}          {d|│}
+{d|│} {d|14:02:25} {g|✓} Glob   src/**/*.test.ts                         {d| 0.1s} {d|│} cache write   4,100 {b|███}{d|░░░░░░░░░░░░░░░░░}          {d|│}
+{d|│} {d|14:02:33} {g|✓} Read   src/login.ts                             {d| 0.1s} {d|│}                                                   {d|│}
+{d|│} {d|14:02:42} {g|✓} Edit   src/auth.ts                              {d| 0.2s} {d|│} in + out      9,300                               {d|│}
+{d|│} {d|14:02:55} {g|✓} Edit   src/auth.ts                              {d| 0.2s} {d|│} cost         ~$0.12{d|   11% of session cost}         {d|│}
+{d|│} {d|14:03:09} {rB|✗} Bash   {r|npx tsc --noEmit                        } {d| 6.1s} {d|│}                                                   {d|│}
+{d|│} {d|14:03:17} {g|✓} Read   src/types/token.d.ts                     {d| 0.1s} {d|│} {d|TODO · this agent  2/4}                            {d|│}
+{d|│} {d|14:03:25} {g|✓} Edit   src/types/token.d.ts                     {d| 0.2s} {d|│} {g|✓ }{d|Read auth.ts and session store}                  {d|│}
+{d|│} {d|14:03:32} {g|✓} Bash   npx tsc --noEmit                         {d| 5.8s} {d|│} {g|✓ }{d|Add rotateRefreshToken()}                        {d|│}
+{d|│} {d|14:03:44} {g|✓} Edit   src/auth.ts                              {d| 0.2s} {d|│} {c|▸ }{B|Wire rotation into login handler}                {d|│}
+{d|│} {d|14:03:56} {g|✓} Grep   "rotateRefreshToken"                     {d| 0.2s} {d|│} ◌ {d|Add tests for rotation}                          {d|│}
+{d|│} {d|14:04:09} {g|✓} Read   src/api/routes.ts                        {d| 0.1s} {d|│}                                                   {d|│}
+{d|│} {d|14:04:22} {g|✓} Edit   src/api/routes.ts                        {d| 0.3s} {d|│}                                                   {d|│}
+{d|│} {d|14:04:37} {g|✓} Bash   npm run lint -- src/auth.ts              {d| 4.4s} {d|│}                                                   {d|│}
+{d|│} {d|14:04:51} {g|✓} Edit   src/auth.ts                              {d| 0.2s} {d|│}                                                   {d|│}
+{d|│} {d|14:05:03} {g|✓} Read   src/auth.test.ts                         {d| 0.1s} {d|│}                                                   {d|│}
+{d|│} {d|14:05:17} {g|✓} Write  src/auth.refresh.test.ts                 {d| 0.4s} {d|│}                                                   {d|│}
+{d|│} {d|14:05:30} {c|⠋} {B|Edit  } {B|src/auth.ts                             } {d|  12s} {d|│}                                                   {d|│}
+{d|├──────────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────┤}
+{d|│} {B|↑↓}{d| prev / next agent}   {B|esc}{d| back to tree}   {B|q}{d| quit}                                                                     {d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯}

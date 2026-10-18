@@ -1,0 +1,24 @@
+{d|╭──────────────────────────────────────────────────────────────────────────────╮}
+{d|│ }> {d|fix the login bug and add tests                                             }{d|│}
+{d|╰──────────────────────────────────────────────────────────────────────────────╯}
+{d|  ↑ the line below is the status entry, always visible under the prompt}
+
+{d|  A · text  (default; ≈55 cols)}
+{d|  agentview · }7 agents ({c|4 running}{d|) · }67.5k tok{d| · }{B|60%}
+{d|  agentview · }7 agents ({c|4 running}, {y|1 waiting}{d|) · }67.5k tok{d| · }{B|60%}
+{d|  agentview · }7 agents ({rB|1 failed}{d|) · }67.5k tok{d| · }{B|70%}
+{d|  agentview · no subagents · 6.2k tok · —}
+{d|  agentview · }{g|7 agents done}{d| · }88.4k tok{d| · }{B|100%}
+
+{d|  B · glyph counts + mini bar  (≈60 cols, scans fastest)}
+  {B|agentview}  {c|⠋ 4} {y|◔ 1} {g|✓ 2}{d| · 67.5k · ~$1.10 · }{b|██████}{d|░░░░} {B|60%}
+  {B|agentview}  {c|⠋ 2} {rB|✗ 1} {g|✓ 4}{d| · 51.0k · ~$1.42 · }{b|███████}{d|░░░} {B|70%}
+  {B|agentview}  {d|⠋ 0 ◔ 0 ✗ 0} {g|✓ 7}{d| · 88.4k · ~$2.31 · }{g|██████████} {B|100%}
+  {B|agentview}  {c|⠋ 1}{d| · 6.2k · ~$0.04 · ░░░░░░░░░░ —}
+
+{d|  C · attention first  (shows the one thing that needs you; falls back to counts)}
+  {c|⠋} 4 running · 67.5k tok · {B|60%}{d|   /agentview}
+  {y|◔} {y|reviewer waiting for permission}{d| · Bash: rm -rf dist · /agentview}
+  {y|!} {y|write auth tests on "npm test" for 4m10s}{d| · /agentview}
+  {rB|✗} {r|write auth tests failed}{d| · exit 1 · /agentview}
+  {g|✓} all 7 agents done{d| · 88.4k tok · ~$2.31 · 100%}
