@@ -1,5 +1,6 @@
 // Graph view entry point. A typed port of `graph` and `asc` in docs/design/graph-generator.js.
 import type { Row } from '../rows'
+import type { Billing } from '../../core/model'
 import type { Plan } from '../../core/progress'
 import { frameGraph, graphTotals } from './frame'
 import { flattenGraph, layoutNarrow, layoutWide } from './layout'
@@ -21,6 +22,8 @@ export type GraphOpts = {
   readonly waitingText?: string
   readonly spin?: string
   readonly hasToggle?: boolean
+  /** How the session is paid for; cost shows only with API billing, the default. */
+  readonly billing?: Billing
 }
 
 /** Width from which cards show the input/output token split and the main card is wider. */

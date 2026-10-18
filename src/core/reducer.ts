@@ -1,4 +1,5 @@
 import { HEARTBEAT_MIN_MS, MAIN, RECENT_MAX, UNKNOWN_AFTER_MS, ZERO, type AgentEvent, type AgentNode, type SessionState, type ToolCall } from './model'
+import { isSameBilling } from './billing'
 import { summarize } from './summary'
 
 const node = (id: string, at: number, overrides: Partial<AgentNode> = {}): AgentNode => ({
@@ -21,6 +22,7 @@ export const initialState = (sessionId: string, at: number): SessionState => ({
   startedAt: at,
   agents: { [MAIN]: node(MAIN, at, { type: 'main', status: 'done', endedAt: at }) },
   todos: {},
+  billing: { kind: 'unknown' },
 })
 
 /** Records a signal from an agent; a waiting or unknown agent is running again. */
@@ -155,6 +157,9 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
       }
       return { ...state, agents }
     }
+    case 'billing':
+      // The same object back means nothing changed, so the poll-free path writes nothing.
+      return state.billing && isSameBilling(state.billing, event.billing) ? state : { ...state, billing: event.billing }
     default: {
       const unhandled: never = event
       return state

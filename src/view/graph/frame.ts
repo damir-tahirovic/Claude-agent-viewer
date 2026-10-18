@@ -1,5 +1,7 @@
 // Frame around the graph body. A typed port of `frame` and `totals` in docs/design/graph-generator.js.
-import { fmtCost, fmtK } from '../../core/format'
+import { costSlot } from '../../core/billing'
+import { fmtK } from '../../core/format'
+import type { Billing } from '../../core/model'
 import type { Plan } from '../../core/progress'
 import { SPIN } from '../lines'
 import type { Row, RowStatus } from '../rows'
@@ -30,6 +32,8 @@ export type FrameOpts = {
   readonly middle?: string
   readonly hints?: ReadonlyArray<readonly [string, string]>
   readonly spin?: string
+  /** How the session is paid for; the header shows cost only with API billing, the default. */
+  readonly billing?: Billing
   /** Draw the spec's `tree  graph` toggle label in the summary row; the live pane has real Buttons instead. Default true. */
   readonly hasToggle?: boolean
 }
@@ -68,7 +72,7 @@ export const frameGraph = (width: number, opts: FrameOpts, body: (canvas: Canvas
     canvas.put(width - 1, r, '│', 'd')
   }
   const percent = opts.plan ? Math.round(opts.plan.done / opts.plan.total * 100) + '%' : '—'
-  const rightText = `${fmtK(totals.tok)} tok · ${fmtCost(totals.cost)} · plan `
+  const rightText = `${fmtK(totals.tok)} tok · ${costSlot(opts.billing, totals.cost)} · plan `
   const rightLength = [...rightText].length + [...percent].length
   canvas.runs(2, 0, [
     [' agentview', 'B'], [' · session ', 'd'], [opts.sessionId || '7f3a9c2e', ''], [' ', ''],

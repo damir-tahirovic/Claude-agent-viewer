@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { AgentEvent } from '../../src/core/model'
+import type { AgentEvent, SessionState } from '../../src/core/model'
 import { reduce, initialState } from '../../src/core/reducer'
 import { buildPaneView } from '../../src/mod/pane-view'
 import { stripCodes, visibleLength } from '../../src/view/lines'
@@ -9,7 +9,9 @@ const NOW = 1_700_000_000_000
 const base = {
   view: 'tree' as const, selId: 'main', spin: 0, now: NOW, columns: 100, rows: 30, ascii: false,
 }
-const twoAgents = reduce(initialState('abcdef123456', NOW), {
+/** A fresh session starts with unknown billing, which hides cost; these tests are about layout with cost shown. */
+const apiState = (id: string): SessionState => ({ ...initialState(id, NOW), billing: { kind: 'api' } })
+const twoAgents = reduce(apiState('abcdef123456'), {
   kind: 'agent.start', id: 'a1', parentId: 'main', type: 'worker', description: 'fix bug', at: NOW,
 })
 
@@ -99,7 +101,7 @@ test('without a stored window the selection decides', () => {
 
 // Graph mode: a session with `count` workers, the first finished.
 const withWorkers = (count: number) => {
-  let state = initialState('abcdef123456', NOW)
+  let state = apiState('abcdef123456')
   for (let index = 1; index <= count; index++) {
     state = reduce(state, {
       kind: 'agent.start', id: 'w' + index, parentId: 'main', type: 'worker', description: 'task ' + index, at: NOW,
@@ -302,4 +304,42 @@ test('a failed worker card reads failed with the generic error, not an invented 
   const text = stripCodes(buildPaneView({ ...graphBase, columns: 160, session }).head.join('\n'))
   assert.match(text, /✗ failed · error/)
   assert.doesNotMatch(text, /exit 1/)
+})
+
+const subscription: SessionState = {
+  ...twoAgents,
+  billing: { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }, { kind: 'seven_day', percentUsed: 21 }] },
+}
+const unknown: SessionState = { ...twoAgents, billing: { kind: 'unknown' } }
+const withTokens = (session: SessionState) => reduce(session, {
+  kind: 'usage', at: NOW, agentId: 'main', model: 'claude-opus-5-5',
+  tokens: { input: 9000, output: 4000, cacheRead: 0, cacheWrite: 0 },
+})
+const screen = (opts: Parameters<typeof buildPaneView>[0]): string => {
+  const built = buildPaneView(opts)
+  return stripCodes([...built.head, ...built.agentLines.map(entry => entry.line), ...built.tail].join('\n'))
+}
+
+for (const mode of ['tree', 'graph'] as const) {
+  for (const columns of [100, 160]) {
+    test(`${mode} at ${columns} columns: API billing shows ~$ cost`, () => {
+      assert.match(screen({ ...base, columns, mode, session: withTokens(twoAgents) }), /~\$/)
+    })
+    test(`${mode} at ${columns} columns: a subscription shows plan limits and no ~$ or mark`, () => {
+      const text = screen({ ...base, columns, mode, session: withTokens(subscription) })
+      assert.doesNotMatch(text, /~\$|▲/)
+      assert.match(text.split('\n')[0], /5h 71% · 7d 21%/)
+    })
+    test(`${mode} at ${columns} columns: unknown billing hides cost and shows a dash in the header`, () => {
+      const text = screen({ ...base, columns, mode, session: withTokens(unknown) })
+      assert.doesNotMatch(text, /~\$|▲/)
+      assert.match(text.split('\n')[0], /tok · — · plan/)
+    })
+  }
+}
+
+test('detail view hides the cost line and the header cost on a subscription, and shows them on API billing', () => {
+  const detail = { ...base, view: 'detail' as const, selId: 'main', columns: 120 }
+  assert.doesNotMatch(screen({ ...detail, session: withTokens(subscription) }), /~\$|cost/)
+  assert.match(screen({ ...detail, session: withTokens(twoAgents) }), /~\$.*\n[\s\S]*cost +~\$/)
 })

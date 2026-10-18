@@ -1,6 +1,8 @@
 // Agent card and collapsed chip. A typed port of `card` and `chip` in docs/design/graph-generator.js.
+import { showsCost } from '../../core/billing'
 import { isExpensive } from '../../core/cost'
 import { fmtCost, fmtK, fmtT } from '../../core/format'
+import type { Billing } from '../../core/model'
 import type { Plan } from '../../core/progress'
 import { fitNoPad, SPIN } from '../lines'
 import type { Row } from '../rows'
@@ -19,6 +21,8 @@ export type CardOpts = {
   readonly error?: string
   /** Spinner frame shown for a running agent. */
   readonly spin?: string
+  /** How the session is paid for; the cost segment shows only with API billing, the default. */
+  readonly billing?: Billing
 }
 
 const SINGLE_FRAME = ['╭', '─', '╮', '│', '╰', '╯'] as const
@@ -100,8 +104,10 @@ export const drawCard = (
     canvas.text(position, y + 4, text, codes)
     position += [...text].length
   }
-  segment(opts.isRich ? `in ${fmtK(row.i)} · out ${fmtK(row.o)} · ` : `${fmtK(row.i + row.o)} tok · `, 'd')
-  segment(fmtCost(row.cost) + (isCostly ? '▲' : ''), isCostly ? 'yB' : 'd')
+  const hasCost = showsCost(opts.billing)
+  const tokenText = opts.isRich ? `in ${fmtK(row.i)} · out ${fmtK(row.o)}` : `${fmtK(row.i + row.o)} tok`
+  segment(hasCost ? tokenText + ' · ' : tokenText, 'd')
+  if (hasCost) segment(fmtCost(row.cost) + (isCostly ? '▲' : ''), isCostly ? 'yB' : 'd')
   segment(` · ${row.calls} calls`, 'd')
   if (opts.isMain) drawPlanRow(canvas, innerX, y + 5, innerWidth, opts.plan)
   return height

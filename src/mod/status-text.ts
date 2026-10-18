@@ -6,4 +6,4 @@ import { statusLine } from '../view/status'
 
 /** Attention-first status line for the session at time `now`. */
 export const statusFor = (state: SessionState, now: number): string =>
-  statusLine(buildRows(state, now), planOf(state.todos.main))
+  statusLine(buildRows(state, now), planOf(state.todos.main), {}, state.billing)

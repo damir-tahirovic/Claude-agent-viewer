@@ -30,3 +30,18 @@ test('the same state at the same time gives the same text', () => {
   const state = initialState('s', AT)
   assert.equal(statusFor(state, AT), statusFor(state, AT))
 })
+
+test('the all-done line shows cost on API billing and leaves it out on a subscription', () => {
+  const done: AgentEvent[] = [
+    { kind: 'todos', at: AT, agentId: 'main', todos: [{ content: 'x', status: 'completed' }] },
+    { kind: 'agent.start', id: 'a', type: 'worker', description: 'x', at: AT },
+    { kind: 'usage', at: AT, agentId: 'a', model: 'claude-opus-5-5', tokens: { input: 1_000_000, output: 0, cacheRead: 0, cacheWrite: 0 } },
+    { kind: 'agent.end', id: 'a', ok: true, at: AT },
+  ]
+  const api = fold([...done, { kind: 'billing', at: AT, billing: { kind: 'api' } }])
+  const plan = fold([...done, { kind: 'billing', at: AT, billing: { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }] } }])
+  const unknown = fold(done)
+  assert.match(statusFor(api, AT), /^✓ all 2 agents done · 1000k tok · ~\$\d/)
+  for (const state of [plan, unknown]) assert.doesNotMatch(statusFor(state, AT), /~\$/)
+  assert.match(statusFor(plan, AT), /^✓ all 2 agents done · .* tok · 100%$/)
+})

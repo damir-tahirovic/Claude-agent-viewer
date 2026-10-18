@@ -1,7 +1,8 @@
 // Agent detail view. A typed port of `detail` in docs/design/spec-generator.js.
+import { showsCost } from '../core/billing'
 import { costOf } from '../core/cost'
 import { fmtCost, fmtT, shortModel } from '../core/format'
-import type { Action, AgentNode, AgentStatus, Todo } from '../core/model'
+import type { Action, AgentNode, AgentStatus, Billing, Todo } from '../core/model'
 import { bottomBorder, progressBar, renderHints, rule, textLine, topBorder } from './frame'
 import { colorize, dim, fitText, padLeft, padRight, toAscii } from './lines'
 
@@ -25,6 +26,8 @@ export type DetailOpts = {
   readonly ascii?: boolean
   /** Key hints in the footer; the generator's list when absent. */
   readonly hints?: ReadonlyArray<readonly [string, string]>
+  /** How the session is paid for; the cost line and its share show only with API billing, the default. */
+  readonly billing?: Billing
   /** Draw the border; false drops top, bottom and side edges for a host that draws its own. */
   readonly frame?: boolean
 }
@@ -164,6 +167,7 @@ export const renderDetail = (o: DetailOpts): string[] => {
     fitText(label, 12) + padLeft(withThousands(count), 7) + ' ' +
     progressBar(count, largest, TOKEN_BAR_WIDTH, 'b')
   const cost = o.cost ?? costOf(agent.model, tokens)
+  const hasCost = showsCost(o.billing)
   const share = o.sessionCost ? dim(`   ${Math.round(cost / o.sessionCost * 100)}% of session cost`) : ''
   const right = [
     dim('TOKENS'),
@@ -171,7 +175,7 @@ export const renderDetail = (o: DetailOpts): string[] => {
     tokenRow('cache read', tokens.cacheRead), tokenRow('cache write', tokens.cacheWrite),
     '',
     fitText('in + out', 12) + padLeft(withThousands(tokens.input + tokens.output), 7),
-    fitText('cost', 12) + padLeft(fmtCost(cost), 7) + share,
+    ...(hasCost ? [fitText('cost', 12) + padLeft(fmtCost(cost), 7) + share] : []),
     ...(o.todos?.length ? todoLines(o.todos) : []),
   ]
   const bodyRows = Math.max(left.length, right.length)

@@ -41,3 +41,13 @@ test('a card of a lone agent costing $0.00 shows no expensive mark', () => {
 test('a card holding the larger part of two costed agents shows the mark', () => {
   assert.ok(cardText(0.06, { sessionCost: 0.08, costedAgents: 2 }).includes('▲'))
 })
+
+test('a card off API billing leaves out the cost segment and the mark', () => {
+  for (const billing of [{ kind: 'unknown' }, { kind: 'subscription', limits: [] }] as const) {
+    const canvas = new Canvas(60, 8)
+    drawCard(canvas, 0, 0, 50, { ...graphBaseRows()[3], cost: 0.9, st: 'running' }, { sessionCost: 0.9, costedAgents: 2, billing })
+    const text = canvas.lines(8).map(stripCodes).join('\n')
+    assert.ok(!text.includes('~$') && !text.includes('▲'))
+    assert.ok(text.includes(' tok · 24 calls'))
+  }
+})

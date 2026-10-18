@@ -52,12 +52,23 @@ export type AgentNode = {
   readonly tokens: Tokens
 }
 
+/** One usage window of a subscription, as the engine reports it (`five_hour`, `seven_day`, ...). */
+export type UsageLimit = { readonly kind: string; readonly percentUsed: number }
+
+/** How the session is paid for: a plan with usage limits, an API key with per-token cost, or not known yet. */
+export type Billing =
+  | { readonly kind: 'subscription'; readonly limits: ReadonlyArray<UsageLimit> }
+  | { readonly kind: 'api' }
+  | { readonly kind: 'unknown' }
+
 /** Whole session snapshot: every agent and every agent's todos. */
 export type SessionState = {
   readonly sessionId: string
   readonly startedAt: number
   readonly agents: Readonly<Record<string, AgentNode>>
   readonly todos: Readonly<Record<string, ReadonlyArray<Todo>>>
+  /** Absent means API billing, so renderers and fixtures without it show cost. */
+  readonly billing?: Billing
 }
 
 /** Normalized input event; the only thing the reducer consumes. */
@@ -99,6 +110,7 @@ export type AgentEvent =
   | { readonly kind: 'heartbeat'; readonly at: number; readonly agentId: string }
   | { readonly kind: 'turn'; readonly at: number; readonly agentId: typeof MAIN; readonly phase: 'start' | 'end' }
   | { readonly kind: 'tick'; readonly at: number }
+  | { readonly kind: 'billing'; readonly at: number; readonly billing: Billing }
 
 /** Id of the main session agent. */
 export const MAIN = 'main'

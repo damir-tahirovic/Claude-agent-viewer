@@ -279,3 +279,19 @@ test('a tick that marks nothing unknown returns the same state', () => {
   const state = run([{ kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' }])
   assert.equal(reduce(state, { kind: 'tick', at: 5_000 }), state)
 })
+
+test('a fresh session has unknown billing', () => {
+  assert.deepEqual(initialState('s1', 0).billing, { kind: 'unknown' })
+})
+
+test('a billing event sets the billing', () => {
+  const plan = { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }] } as const
+  assert.deepEqual(run([{ kind: 'billing', at: 1, billing: plan }]).billing, plan)
+})
+
+test('a billing event with the same value returns the same state', () => {
+  const plan = { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }] } as const
+  const once = run([{ kind: 'billing', at: 1, billing: plan }])
+  assert.equal(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }] } }), once)
+  assert.notEqual(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'api' } }), once)
+})

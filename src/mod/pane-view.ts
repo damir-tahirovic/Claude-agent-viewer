@@ -1,4 +1,5 @@
 // Pane content as coded lines: the tree dialog or one agent's detail, without the host's own frame.
+import { costSlot, showsCost } from '../core/billing'
 import { fmtCost, fmtK } from '../core/format'
 import type { SessionState } from '../core/model'
 import { planOf } from '../core/progress'
@@ -89,12 +90,13 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
 
   if (opts.view === 'detail' && agent) {
     const parent = agent.parentId ? session.agents[agent.parentId] : undefined
+    const costPart = showsCost(session.billing) ? fmtCost(rows[selected].cost) + ' · ' : ''
     const header = colorize('B', 'agentview') + dim(' › ') + colorize('B', agent.type) +
-      dim(' · ' + fmtCost(rows[selected].cost) + ' · ') + colorize(...statusBadge(agent.status, spin))
+      dim(' · ' + costPart) + colorize(...statusBadge(agent.status, spin))
     const lines = renderDetail({
       W: Math.max(opts.columns, MIN_DETAIL_COLUMNS), agent, parentName: parent?.type ?? '—',
       todos: session.todos[agent.id], now, clock: clockOf, cost: rows[selected].cost, sessionCost,
-      spin, ascii: opts.ascii, frame: false, hints: DETAIL_HINTS,
+      spin, ascii: opts.ascii, frame: false, hints: DETAIL_HINTS, billing: session.billing,
     })
     // Below 90 columns the detail is cut, not reflowed; a narrow detail layout is not designed yet.
     const body = [header, ...lines].map(line => finish(clipLine(line, opts.columns)))
@@ -104,7 +106,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const plan = planOf(session.todos.main)
   const percent = plan ? Math.round(plan.done / plan.total * 100) + '%' : '—'
   const header = colorize('B', 'agentview') + dim(` · session ${session.sessionId.slice(0, 8)} · ` +
-    `${fmtK(sessionTokens)} tok · ${fmtCost(sessionCost)} · plan `) + colorize('B', percent)
+    `${fmtK(sessionTokens)} tok · ${costSlot(session.billing, sessionCost)} · plan `) + colorize('B', percent)
 
   const isToggleBeside = visibleLength(finish(header)) + TOGGLE_GAP + TOGGLE_WIDTH <= opts.columns
   const toggleRows = isToggleBeside ? 0 : 1
@@ -113,7 +115,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
     const graph = buildGraphLines({
       rows, selectedId: rows[selected]?.id ?? 'main', graphCol: opts.graphCol ?? 0, plan,
       sessionId: session.sessionId.slice(0, 8), spin, columns: opts.columns, paneRows: opts.rows,
-      chromeLines: GRAPH_CHROME_ROWS + toggleRows, ascii: opts.ascii,
+      chromeLines: GRAPH_CHROME_ROWS + toggleRows, ascii: opts.ascii, billing: session.billing,
     })
     return {
       order, outline, isToggleBeside,
@@ -132,7 +134,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const width = Math.max(opts.columns, MIN_TREE_COLUMNS)
   const lines = renderDialog({
     W: width, agents: rows, sel: selected,
-    sid: session.sessionId.slice(0, 8), plan, win, spin, ascii: opts.ascii, frame: false, hints: width >= MIN_FULL_HINT_COLUMNS ? TREE_HINTS : NARROW_TREE_HINTS,
+    sid: session.sessionId.slice(0, 8), plan, win, spin, billing: session.billing, ascii: opts.ascii, frame: false, hints: width >= MIN_FULL_HINT_COLUMNS ? TREE_HINTS : NARROW_TREE_HINTS,
     after: rows.length === 1 ? [dim(fitText(NO_SUBAGENTS_TEXT, width - 4).trimEnd())] : undefined,
   })
   const [first, last] = win ?? [0, rows.length]

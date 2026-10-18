@@ -50,7 +50,14 @@ export type AgentviewSession = {
     readonly content: string
     readonly status: 'pending' | 'in_progress' | 'completed'
   }>>>
+  readonly billing?: AgentviewBilling
 }
+
+/** How the session is paid for (mirrors Billing in src/core/model.ts). */
+export type AgentviewBilling =
+  | { readonly kind: 'subscription'; readonly limits: ReadonlyArray<{ readonly kind: string; readonly percentUsed: number }> }
+  | { readonly kind: 'api' }
+  | { readonly kind: 'unknown' }
 
 /** Pane view state. */
 export type AgentviewUi = {

@@ -147,3 +147,19 @@ test('the first of two agents at $0.06 and $0.02 shows the expensive mark', () =
   assert.equal(lines.filter(line => line.includes('▲')).length, 1)
   assert.ok(lines.find(line => line.includes('▲'))?.includes('~$0.06▲'))
 })
+
+const subscriptionBilling = { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }, { kind: 'seven_day', percentUsed: 21 }] } as const
+
+test('the dialog on a subscription drops the COST column and the mark, and shows limits in the header', () => {
+  const agents = [costRow('a', 0, 0.9), costRow('b', 1, 0.02)]
+  const text = renderDialog({ W: 120, agents, sel: 0, plan: null, billing: subscriptionBilling }).map(stripCodes).join('\n')
+  assert.ok(!text.includes('COST') && !text.includes('~$') && !text.includes('▲'))
+  assert.ok(text.includes('5h 71% · 7d 21%'))
+})
+
+test('the dialog with unknown billing drops cost and shows a dash in the header', () => {
+  const text = renderDialog({ W: 120, agents: [costRow('a', 0, 0.9)], sel: 0, plan: null, billing: { kind: 'unknown' } })
+    .map(stripCodes).join('\n')
+  assert.ok(!text.includes('COST') && !text.includes('~$'))
+  assert.ok(text.includes('tok · — · plan'))
+})

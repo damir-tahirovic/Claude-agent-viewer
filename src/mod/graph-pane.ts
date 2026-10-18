@@ -1,4 +1,5 @@
 // The graph view as pane lines: the renderer's framed screen, made frameless and fitted to the pane.
+import type { Billing } from '../core/model'
 import type { Plan } from '../core/progress'
 import { colorize, dim, fitNoPad, sliceColumns } from '../view/lines'
 import { buildGraphTree, flattenGraph } from '../view/graph/layout'
@@ -43,6 +44,7 @@ export type GraphLinesOpts = {
   /** Rows the pane adds around the graph: header, hint line, footer Buttons and a separate toggle row. */
   readonly chromeLines: number
   readonly ascii: boolean
+  readonly billing?: Billing
 }
 
 /**
@@ -119,7 +121,7 @@ export const buildGraphLines = (opts: GraphLinesOpts): GraphLines => {
   const width = opts.columns + BORDER_COLUMNS
   const common = {
     width, selectedId: opts.selectedId, plan: opts.plan, sessionId: opts.sessionId, spin: opts.spin,
-    waitingText: WAITING_TEXT, ascii: opts.ascii, hasToggle: false,
+    waitingText: WAITING_TEXT, ascii: opts.ascii, hasToggle: false, billing: opts.billing,
   }
   if (opts.columns < GRAPH_WIDE_COLUMNS) {
     const narrow = deframe(renderGraphNarrow({ ...common, rows: opts.rows }), width)

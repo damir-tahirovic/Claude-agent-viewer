@@ -1,6 +1,8 @@
 // Attention-first status line. A port of variant C in the status-line section of
 // docs/design/spec-generator.js (`statusLines`), as plain text for `$.ui.status`.
+import { showsCost } from '../core/billing'
 import { fmtCost, fmtK, fmtT } from '../core/format'
+import type { Billing } from '../core/model'
 import type { Plan } from '../core/progress'
 import type { Row } from './rows'
 
@@ -17,6 +19,7 @@ export const statusLine = (
   rows: ReadonlyArray<Row>,
   plan: Plan | null,
   reasons: StatusReasons = {},
+  billing?: Billing,
 ): string => {
   const waiting = rows.find(row => row.st === 'waiting')
   if (waiting) {
@@ -36,8 +39,9 @@ export const statusLine = (
   const helpers = rows.filter(row => row.d > 0)
   const isPlanComplete = plan !== null && plan.total > 0 && plan.done === plan.total
   if (isPlanComplete && helpers.length > 0 && helpers.every(row => row.st === 'done')) {
-    const cost = fmtCost(rows.reduce((sum, row) => sum + row.cost, 0))
-    return `✓ all ${rows.length} agents done · ${tokens} tok · ${cost} · 100%`
+    // Off API billing the estimate is not what is being paid, so the line leaves the cost out.
+    const cost = showsCost(billing) ? ` · ${fmtCost(rows.reduce((sum, row) => sum + row.cost, 0))}` : ''
+    return `✓ all ${rows.length} agents done · ${tokens} tok${cost} · 100%`
   }
   const running = rows.filter(row => row.st === 'running').length
   const progress = plan ? Math.round(plan.done / plan.total * 100) + '%' : '—'

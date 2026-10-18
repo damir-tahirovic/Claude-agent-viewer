@@ -1,6 +1,8 @@
 // Dialog renderer. A typed port of `dialog` and its helpers in docs/design/spec-generator.js.
+import { costSlot, showsCost } from '../core/billing'
 import { isExpensive } from '../core/cost'
 import { fmtCost, fmtK, fmtT } from '../core/format'
+import type { Billing } from '../core/model'
 import type { Plan } from '../core/progress'
 import { colorize, dim, fitText, padLeft, padRight, stripCodes, toAscii, visibleLength } from './lines'
 import { bottomBorder, progressBar, renderHints, rule, textLine, topBorder } from './frame'
@@ -23,6 +25,8 @@ export type DialogOpts = {
   frame?: boolean
   /** Spinner frame shown for running agents. */
   spin?: string
+  /** How the session is paid for; cost is shown only with API billing, which is the default. */
+  billing?: Billing
 }
 
 type ColumnKind = 'name' | 'st' | 'model' | 'task' | 'act' | 'tok' | 'io' | 'cost' | 'calls' | 'time'
@@ -93,6 +97,7 @@ export const renderDialog = (o: DialogOpts): string[] => {
   const isNarrow = W < NARROW_BELOW
   // The full summary is about 60 characters wide, so it needs a frameless width of at least 66.
   const isCompactSummary = W < COMPACT_SUMMARY_BELOW
+  const hasCost = showsCost(o.billing)
   const t = totalsOf(a)
   const px = treePrefixes(a)
   const wideColumns: Column[] = ([
@@ -101,7 +106,7 @@ export const renderDialog = (o: DialogOpts): string[] => {
     { k: 'tok', w: 6, r: 1, h: 'TOK' }, { k: 'io', w: 11, r: 1, p: 3, h: 'IN/OUT' },
     { k: 'cost', w: 7, r: 1, p: 2, h: 'COST' }, { k: 'calls', w: 5, r: 1, p: 3, h: 'CALLS' },
     { k: 'time', w: 7, r: 1, h: 'TIME' },
-  ] as Column[]).filter(c => (c.p || 1) <= tier)
+  ] as Column[]).filter(c => (c.p || 1) <= tier && (c.k !== 'cost' || hasCost))
   const narrowColumns: Column[] = [
     { k: 'name', f: 1, h: 'AGENT' }, { k: 'st', w: 1, h: 'S' }, { k: 'time', w: 7, r: 1, h: 'TIME' },
   ]
@@ -154,7 +159,7 @@ export const renderDialog = (o: DialogOpts): string[] => {
       : topBorder(
         W,
         colorize('B', 'agentview') + dim(' · session ') + idl + (o.path ? dim(' · ') + o.path : ''),
-        dim(`${fmtK(t.tok)} tok · ${fmtCost(t.cost)} · plan `) + colorize('B', pct),
+        dim(`${fmtK(t.tok)} tok · ${costSlot(o.billing, t.cost)} · plan `) + colorize('B', pct),
       ))
   }
   const summary: [string, string, string, number][] = [
