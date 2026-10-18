@@ -57,6 +57,10 @@ export type AgentviewUi = {
   readonly open: boolean
   readonly view: 'tree' | 'detail'
   readonly selId: string
+  /** Which list the tree view shows; the last choice is kept when the command runs again. */
+  readonly mode: 'tree' | 'graph'
+  /** First visible worker column of the wide graph. */
+  readonly graphCol: number
   readonly win?: readonly [number, number]
   readonly spin: number
 }

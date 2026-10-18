@@ -178,3 +178,55 @@ test('a rejected tool still answers and the end is recorded as failed', async ($
   await settle()
   expect(latest?.agents.main?.recent[0]?.ok).toBe(false)
 })
+
+const mountGraphPane = ($: Parameters<Parameters<typeof test>[1]>[0], bodyColumns = 160) => $.ui.mount({
+  plugin: 'agentview', surface: 'terminal', component: 'Pane', requestId: 'agentview',
+  props: { title: 'agentview', isFocused: true, bodyColumns, placement: 'inline' },
+})
+
+test('the graph button shows cards, next moves the selection and the tree button returns', async ($, on) => {
+  mock.clock(on, { now: AT })
+  on('tool.call', readTool)
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+  await settle()
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
+  const pane = await mountGraphPane($)
+  expect(await pane.find({ type: 'Text', text: /AGENT/ })).toBeDefined()
+  await pane.press({ key: 'graph' })
+  expect(await pane.find({ type: 'Text', text: /╔═ main/ })).toBeDefined()
+  expect(await pane.find({ type: 'Text', text: /AGENT/ })).toBeUndefined()
+  expect(await pane.find({ type: 'Text', text: /◂ ▸ select/ })).toBeDefined()
+  await pane.press({ key: '>graph-next<' })
+  expect(await pane.find({ type: 'Text', text: /╭─ main/ })).toBeDefined()
+  expect(await pane.find({ type: 'Text', text: /╔═ (?!main)/ })).toBeDefined()
+  await pane.press({ key: 'tree' })
+  expect(await pane.find({ type: 'Text', text: /AGENT/ })).toBeDefined()
+  await pane.unmount()
+})
+
+test('details opened from the graph show the detail view', async ($, on) => {
+  mock.clock(on, { now: AT })
+  on('tool.call', readTool)
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+  await settle()
+  const pane = await mountGraphPane($, 120)
+  await pane.press({ key: 'graph' })
+  await pane.press({ key: '<graph-details>' })
+  expect(await pane.find({ type: 'Text', text: /TASK/ })).toBeDefined()
+  await pane.unmount()
+})
+
+test('the pan buttons appear only with hidden columns and move the worker range', async ($, on) => {
+  mock.clock(on, { now: AT })
+  on('tool.call', readTool)
+  for (const id of ['sub1', 'sub2', 'sub3']) await $.tool.call({ tool: 'Read', file_path: '/tmp/' + id, agentId: id })
+  const pane = await mountGraphPane($, 110)
+  await pane.press({ key: 'graph' })
+  expect(await pane.find({ type: 'Text', text: /workers 1–2 of 3/ })).toBeDefined()
+  await pane.press({ key: '>pan-right<' })
+  expect(await pane.find({ type: 'Text', text: /workers 2–3 of 3/ })).toBeDefined()
+  await pane.unmount()
+  const wide = await mountGraphPane($, 160)
+  expect(await wide.find({ key: '>pan-right<' })).toBeUndefined()
+  await wide.unmount()
+})

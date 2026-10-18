@@ -96,3 +96,105 @@ test('without a stored window the selection decides', () => {
   const built = buildPaneView({ ...base, rows: 18, selId: 'w15', session: crowded })
   assert.ok(built.agentLines.some(entry => entry.id === 'w15'))
 })
+
+// Graph mode: a session with `count` workers, the first finished.
+const withWorkers = (count: number) => {
+  let state = initialState('abcdef123456', NOW)
+  for (let index = 1; index <= count; index++) {
+    state = reduce(state, {
+      kind: 'agent.start', id: 'w' + index, parentId: 'main', type: 'worker', description: 'task ' + index, at: NOW,
+    })
+  }
+  return state
+}
+const allLines = (built: ReturnType<typeof buildPaneView>): string[] =>
+  [...built.head, ...built.agentLines.map(entry => entry.line), ...built.tail]
+const graphBase = { ...base, mode: 'graph' as const, rows: 40 }
+
+test('graph mode draws cards, the pane header first and the real controls as the hint', () => {
+  const built = buildPaneView({ ...graphBase, columns: 160, session: withWorkers(3) })
+  assert.match(stripCodes(built.head[0]), /^agentview · session abcdef12/)
+  assert.match(stripCodes(built.head.join('\n')), /╔═ main/)
+  assert.equal(built.agentLines.length, 0)
+  assert.match(stripCodes(built.tail.join('\n')), /◂ ▸ select\s+⏎ details\s+t\/g view\s+esc close/)
+  assert.doesNotMatch(stripCodes(built.head.join('\n')), /tab tree|live/)
+})
+
+test('tree mode is unchanged by the mode option', () => {
+  const tree = buildPaneView({ ...base, session: withWorkers(2) })
+  assert.deepEqual(buildPaneView({ ...base, mode: 'tree', session: withWorkers(2) }), tree)
+})
+
+test('no graph line is wider than the body at 110, 120, 160 and 80 columns', () => {
+  for (const columns of [110, 120, 160, 80, 50]) {
+    for (const ascii of [false, true]) {
+      const built = buildPaneView({ ...graphBase, columns, ascii, session: withWorkers(5) })
+      allLines(built).forEach(line => assert.ok(visibleLength(line) <= columns, `${columns}: ${stripCodes(line)}`))
+      assert.ok(allLines(built).length > 5)
+    }
+  }
+})
+
+test('the graph has no frame corners or border columns', () => {
+  const built = buildPaneView({ ...graphBase, columns: 120, session: withWorkers(2) })
+  assert.doesNotMatch(stripCodes(built.head.join('\n')), /tree {2} graph/)
+  built.head.slice(1).forEach(line => assert.doesNotMatch(stripCodes(line), /^[╭╰│├╮╯┤]|[╭╰│├╮╯┤]$/))
+})
+
+test('workers that do not fit hide behind a range and the pan moves the first column', () => {
+  const session = withWorkers(5)
+  const first = buildPaneView({ ...graphBase, columns: 110, session })
+  assert.deepEqual(first.hiddenColumns, { total: 5, visible: 2, first: 0 })
+  assert.match(stripCodes(first.tail.join('\n')), /◂ workers 1–2 of 5 ▸/)
+  assert.match(stripCodes(first.head.join('\n')), /task 1/)
+  assert.doesNotMatch(stripCodes(first.head.join('\n')), /task 3/)
+  const panned = buildPaneView({ ...graphBase, columns: 110, graphCol: 2, session })
+  assert.match(stripCodes(panned.tail.join('\n')), /workers 3–4 of 5/)
+  assert.match(stripCodes(panned.head.join('\n')), /task 3/)
+  assert.doesNotMatch(stripCodes(panned.head.join('\n')), /task 1\b/)
+  assert.equal(buildPaneView({ ...graphBase, columns: 110, graphCol: 99, session }).hiddenColumns?.first, 3)
+})
+
+test('a wide enough graph hides no columns and shows no range', () => {
+  const built = buildPaneView({ ...graphBase, columns: 160, session: withWorkers(3) })
+  assert.equal(built.hiddenColumns, undefined)
+  assert.doesNotMatch(stripCodes(built.tail.join('\n')), /workers/)
+})
+
+test('finished subtrees fold into chips when the graph is taller than the viewport', () => {
+  let session = withWorkers(2)
+  for (const id of ['g1', 'g2', 'g3']) {
+    session = reduce(session, { kind: 'agent.start', id, parentId: 'w1', type: 'helper', description: id, at: NOW })
+    session = reduce(session, { kind: 'agent.end', id, ok: true, at: NOW })
+  }
+  session = reduce(session, { kind: 'agent.end', id: 'w1', ok: true, at: NOW })
+  const roomy = buildPaneView({ ...graphBase, columns: 160, rows: 60, session })
+  const tight = buildPaneView({ ...graphBase, columns: 160, rows: 14, session })
+  assert.ok(tight.head.length < roomy.head.length)
+  assert.match(stripCodes(tight.head.join('\n')), /task 2/)
+  assert.doesNotMatch(stripCodes(tight.head.join('\n')), /╭─ helper/)
+  assert.match(stripCodes(roomy.head.join('\n')), /╭─ helper/)
+})
+
+test('the selected agent is drawn as the selected card and the waiting text is short', () => {
+  let session = withWorkers(1)
+  session = reduce(session, { kind: 'waiting', agentId: 'w1', at: NOW })
+  const built = buildPaneView({ ...graphBase, columns: 160, selId: 'w1', session })
+  const text = stripCodes(built.head.join('\n'))
+  assert.match(text, /◔ waiting/)
+  assert.doesNotMatch(text, /waiting for permission/)
+})
+
+test('ascii graph leaves no character above U+007F', () => {
+  for (const columns of [80, 110, 160]) {
+    const built = buildPaneView({ ...graphBase, columns, ascii: true, spin: 3, session: withWorkers(5) })
+    allLines(built).forEach(line => assert.ok(
+      [...stripCodes(line)].every(char => char.codePointAt(0)! <= 0x7f), `${columns}: ${stripCodes(line)}`,
+    ))
+  }
+})
+
+test('detail view wins over graph mode', () => {
+  const built = buildPaneView({ ...graphBase, view: 'detail', selId: 'w1', columns: 120, session: withWorkers(1) })
+  assert.match(stripCodes(built.head.join('\n')), /TASK/)
+})

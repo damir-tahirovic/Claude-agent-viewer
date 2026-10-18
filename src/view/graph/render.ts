@@ -20,6 +20,7 @@ export type GraphOpts = {
   readonly firstColumn?: number
   readonly waitingText?: string
   readonly spin?: string
+  readonly hasToggle?: boolean
 }
 
 /** Width from which cards show the input/output token split and the main card is wider. */

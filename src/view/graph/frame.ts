@@ -29,6 +29,8 @@ export type FrameOpts = {
   readonly middle?: string
   readonly hints?: ReadonlyArray<readonly [string, string]>
   readonly spin?: string
+  /** Draw the spec's `tree  graph` toggle label in the summary row; the live pane has real Buttons instead. Default true. */
+  readonly hasToggle?: boolean
 }
 
 const DEFAULT_HINTS: ReadonlyArray<readonly [string, string]> = [
@@ -86,7 +88,7 @@ export const frameGraph = (width: number, opts: FrameOpts, body: (canvas: Canvas
         [`   ·  ${totals.n} agents`, 'd'],
       ]
   canvas.runs(2, 1, summary)
-  if (width >= 100) canvas.runs(width - 3 - 13, 1, [['tree', 'd'], ['  ', ''], [' graph ', 'IB']])
+  if (width >= 100 && opts.hasToggle !== false) canvas.runs(width - 3 - 13, 1, [['tree', 'd'], ['  ', ''], [' graph ', 'IB']])
   if (noteRow) canvas.runs(2, noteRow, opts.note ?? [])
 
   let position = 2

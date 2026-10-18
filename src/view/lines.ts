@@ -66,4 +66,18 @@ export const toAscii = (line: string): string =>
  * `toAscii` plus the corner and return glyphs the generator leaves alone. Kept separate so the golden
  * ascii screens, which still show those corners, stay byte-identical.
  */
-export const toPlainAscii = (line: string): string => toAscii(line).replace(/[└┘┌┐]/g, '+').replace(/⏎/g, 'Enter')
+export const toPlainAscii = (line: string): string => toAscii(line).replace(/[└┘┌┐]/g, '+').replace(/⏎/g, 'Enter').replace(/–/g, '-')
+
+/** Keeps the visible characters from `from` up to (not including) `to` of a coded line, keeping their codes. */
+export const sliceColumns = (line: string, from: number, to: number): string => {
+  let position = 0
+  let out = ''
+  for (const part of line.split(/(\{[a-zA-Z]+\|[^{}]*\})/)) {
+    const group = /^\{([a-zA-Z]+)\|([^{}]*)\}$/.exec(part)
+    const chars = [...(group ? group[2] : part)]
+    const text = chars.slice(Math.max(0, from - position), Math.max(0, to - position)).join('')
+    position += chars.length
+    out += group && text ? `{${group[1]}|${text}}` : text
+  }
+  return out
+}

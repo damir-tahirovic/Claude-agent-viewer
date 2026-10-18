@@ -6,11 +6,17 @@ import { renderDetail, statusBadge } from '../view/detail'
 import { renderDialog, windowFor } from '../view/dialog'
 import { clipLine, colorize, dim, fitText, SPIN, toPlainAscii } from '../view/lines'
 import { buildRows } from '../view/rows'
+import { buildGraphLines } from './graph-pane'
+import type { GraphColumns } from './graph-pane'
 
 /** Inputs for one pane render. */
 export type PaneViewOpts = {
   readonly session: SessionState
   readonly view: 'tree' | 'detail'
+  /** Which list the tree view shows: the table or the graph. */
+  readonly mode?: 'tree' | 'graph'
+  /** First visible worker column of a wide graph. */
+  readonly graphCol?: number
   readonly selId: string
   readonly spin: number
   readonly now: number
@@ -28,6 +34,8 @@ export type PaneView = {
   readonly head: ReadonlyArray<string>
   readonly agentLines: ReadonlyArray<{ readonly id: string; readonly line: string }>
   readonly tail: ReadonlyArray<string>
+  /** Worker columns of the graph when some are hidden; the pan Buttons need them. */
+  readonly hiddenColumns?: GraphColumns
 }
 
 // Below 60 columns the dialog switches to its narrow mode; 50 is the narrowest width the hint and plan lines fit.
@@ -75,6 +83,24 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   }
 
   const plan = planOf(session.todos.main)
+  const percent = plan ? Math.round(plan.done / plan.total * 100) + '%' : '—'
+  const header = colorize('B', 'agentview') + dim(` · session ${session.sessionId.slice(0, 8)} · ` +
+    `${fmtK(sessionTokens)} tok · ${fmtCost(sessionCost)} · plan `) + colorize('B', percent)
+
+  if (opts.mode === 'graph') {
+    const graph = buildGraphLines({
+      rows, selectedId: rows[selected]?.id ?? 'main', graphCol: opts.graphCol ?? 0, plan,
+      sessionId: session.sessionId.slice(0, 8), spin, columns: opts.columns, paneRows: opts.rows, ascii: opts.ascii,
+    })
+    return {
+      order,
+      head: [header, ...graph.lines].map(line => finish(clipLine(line, opts.columns))),
+      agentLines: [],
+      tail: [finish(clipLine(graph.hint, opts.columns))],
+      hiddenColumns: graph.hiddenColumns,
+    }
+  }
+
   const room = roomFor(opts.rows)
   // The stored window is clamped to valid bounds; windowFor then keeps the selection inside it.
   const storedStart = opts.win ? Math.min(Math.max(0, opts.win[0]), Math.max(0, rows.length - room)) : undefined
@@ -89,9 +115,6 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const [first, last] = win ?? [0, rows.length]
   // Frameless layout: summary, rule and column heads, then an optional "more above" line.
   const firstRowLine = 3 + (win && first > 0 ? 1 : 0)
-  const percent = plan ? Math.round(plan.done / plan.total * 100) + '%' : '—'
-  const header = colorize('B', 'agentview') + dim(` · session ${session.sessionId.slice(0, 8)} · ` +
-    `${fmtK(sessionTokens)} tok · ${fmtCost(sessionCost)} · plan `) + colorize('B', percent)
   return {
     order,
     head: [header, ...lines.slice(0, firstRowLine)].map(finish),

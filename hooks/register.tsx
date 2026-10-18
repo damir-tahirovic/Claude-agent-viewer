@@ -4,6 +4,7 @@ import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, orderTree, reduce } from '../src/core/reducer'
 import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
 import { buildPaneView, roomFor } from '../src/mod/pane-view'
+import { panColumn } from '../src/mod/graph-pane'
 import { decideClose, nextWindow, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
 import { toPlainAscii } from '../src/view/lines'
@@ -16,7 +17,7 @@ export const session = atom({ plugin: 'agentview', key: 'session' } as const, nu
 /** Pane view state atom. */
 export const ui = atom(
   { plugin: 'agentview', key: 'ui' } as const,
-  { open: false, view: 'tree', selId: 'main', spin: 0 } as AgentviewUi,
+  { open: false, view: 'tree', selId: 'main', mode: 'tree', graphCol: 0, spin: 0 } as AgentviewUi,
 )
 
 const PANE_ID = 'agentview'
@@ -25,6 +26,16 @@ const SPIN_FRAMES = 10
 /** Keys of the detail view's two step Buttons; agent ids never collide with these. */
 const PREV_KEY = '<prev>'
 const NEXT_KEY = '>next<'
+/** Keys of the graph footer Buttons and the header toggle; none is an agent id. */
+const GRAPH_PREV_KEY = '<graph-prev>'
+const GRAPH_NEXT_KEY = '>graph-next<'
+const GRAPH_DETAILS_KEY = '<graph-details>'
+const PAN_LEFT_KEY = '<pan-left>'
+const PAN_RIGHT_KEY = '>pan-right<'
+const TREE_MODE_KEY = 'tree'
+const GRAPH_MODE_KEY = 'graph'
+/** Below this width the view toggle gets its own row instead of sharing the header's. */
+const TOGGLE_BESIDE_HEADER_COLUMNS = 80
 const FALLBACK_SESSION_ID = 'session'
 const POLL_MS = 1000
 const DEFAULT_PANE_ROWS = 24
@@ -155,7 +166,7 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'agentview' }, async $ => {
     try {
-      await update($, ui, current => ({ ...current, open: true, view: 'tree', selId: 'main', win: undefined }))
+      await update($, ui, current => ({ ...current, open: true, view: 'tree', selId: 'main', graphCol: 0, win: undefined }))
       await $.ui.open({ id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true })
     } catch (err) {
       logOnce($, 'command.run', err)
@@ -181,8 +192,10 @@ export const register: Register = (on, options) => {
     try {
       const key = e.element
       const state = await read($, ui)
-      if (e.requestId === PANE_ID && key && state.view === 'tree' && key !== state.selId) {
-        const order = orderTree((await read($, session)) ?? initialState(FALLBACK_SESSION_ID, 0)).map(entry => entry.id)
+      const order = orderTree((await read($, session)) ?? initialState(FALLBACK_SESSION_ID, 0)).map(entry => entry.id)
+      // Only agent rows move the selection; the toggle and graph Buttons keep their own keys.
+      if (e.requestId === PANE_ID && key && state.view === 'tree' && state.mode === 'tree' &&
+        order.includes(key) && key !== state.selId) {
         const win = nextWindow(order, key, state.win ?? [0, latestRoom], latestRoom)
         await update($, ui, current => ({ ...current, selId: key, win }))
       }
@@ -235,7 +248,7 @@ export const register: Register = (on, options) => {
     if (!current) return <Text dimColor>agentview: waiting for the session to start</Text>
     latestRoom = roomFor(e.viewport?.rows ?? DEFAULT_PANE_ROWS)
     const view = buildPaneView({
-      session: current, view: state.view, selId: state.selId, spin: state.spin,
+      session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol, spin: state.spin,
       now: await $.clock.now(), columns: e.props.bodyColumns, rows: e.viewport?.rows ?? DEFAULT_PANE_ROWS, ascii: isAscii, win: state.win,
     })
     const label = (text: string): string => (isAscii ? toPlainAscii(text) : text)
@@ -243,9 +256,39 @@ export const register: Register = (on, options) => {
       const target = stepId(view.order, state.selId, offset)
       await update($, ui, latest => ({ ...latest, selId: target }))
     }
+    const setMode = (mode: 'tree' | 'graph') => async (): Promise<void> => {
+      await update($, ui, latest => ({ ...latest, mode }))
+    }
+    const pan = (offset: number) => async (): Promise<void> => {
+      const columns = view.hiddenColumns
+      if (columns) await update($, ui, latest => ({ ...latest, graphCol: panColumn(latest.graphCol, offset, columns) }))
+    }
+    const isGraph = state.mode === 'graph'
+    const toggle = (
+      <Box>
+        <Button key={TREE_MODE_KEY} plain hotkey="t" onPress={setMode('tree')}>
+          <Text inverse={!isGraph || undefined} weight={isGraph ? undefined : 'bold'} dimColor={isGraph || undefined}>
+            {label(' tree ')}
+          </Text>
+        </Button>
+        <Text> </Text>
+        <Button key={GRAPH_MODE_KEY} plain hotkey="g" onPress={setMode('graph')}>
+          <Text inverse={isGraph || undefined} weight={isGraph ? 'bold' : undefined} dimColor={!isGraph || undefined}>
+            {label(' graph ')}
+          </Text>
+        </Button>
+      </Box>
+    )
+    const isBeside = e.props.bodyColumns >= TOGGLE_BESIDE_HEADER_COLUMNS
+    const headLines = state.view === 'tree' ? view.head.slice(1) : view.head
     return (
       <Box flexDirection="column">
-        {view.head.map(paintLine)}
+        {state.view === 'tree' && (
+          isBeside
+            ? <Box>{paintLine(view.head[0])}<Text>  </Text>{toggle}</Box>
+            : <Box flexDirection="column">{paintLine(view.head[0])}{toggle}</Box>
+        )}
+        {headLines.map(paintLine)}
         {view.agentLines.map(entry => (
           <Button
             key={entry.id}
@@ -257,6 +300,29 @@ export const register: Register = (on, options) => {
           </Button>
         ))}
         {view.tail.map(paintLine)}
+        {state.view === 'tree' && isGraph && (
+          <Box>
+            <Button key={GRAPH_PREV_KEY} plain onPress={step(-1)}><Text dimColor>{label('◂ prev')}</Text></Button>
+            <Text>  </Text>
+            <Button key={GRAPH_NEXT_KEY} plain autoFocus onPress={step(1)}><Text dimColor>{label('next ▸')}</Text></Button>
+            <Text>  </Text>
+            <Button
+              key={GRAPH_DETAILS_KEY}
+              plain
+              onPress={async () => { await update($, ui, latest => ({ ...latest, view: 'detail' })) }}
+            >
+              <Text dimColor>{label('⏎ details')}</Text>
+            </Button>
+            {view.hiddenColumns && (
+              <Box>
+                <Text>  </Text>
+                <Button key={PAN_LEFT_KEY} plain onPress={pan(-1)}><Text dimColor>{label('◂◂')}</Text></Button>
+                <Text> </Text>
+                <Button key={PAN_RIGHT_KEY} plain onPress={pan(1)}><Text dimColor>{label('▸▸')}</Text></Button>
+              </Box>
+            )}
+          </Box>
+        )}
         {state.view === 'detail' && (
           <Box>
             <Button key={PREV_KEY} plain onPress={step(-1)}><Text dimColor>{label('◂ prev agent')}</Text></Button>

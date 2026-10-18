@@ -25,3 +25,11 @@ test('nextWindow does not shift above the first row', () => assert.deepEqual(nex
 test('nextWindow does not shift below the last row', () => assert.deepEqual(nextWindow(many, 'a19', [12, 20], 8), [12, 20]))
 test('nextWindow clamps a stale window', () => assert.deepEqual(nextWindow(many, 'a15', [30, 38], 8), [12, 20]))
 test('nextWindow brings an outside focus into view', () => assert.deepEqual(nextWindow(many, 'a10', [0, 8], 8), [3, 11]))
+
+import { panColumn } from '../../src/mod/graph-pane'
+
+const columns = { total: 5, visible: 2, first: 0 }
+test('panColumn moves by one worker column', () => assert.equal(panColumn(1, 1, columns), 2))
+test('panColumn stops at the first column', () => assert.equal(panColumn(0, -1, columns), 0))
+test('panColumn stops where the last worker is the last visible column', () => assert.equal(panColumn(3, 1, columns), 3))
+test('panColumn pulls a stale column back into range', () => assert.equal(panColumn(9, 0, columns), 3))
