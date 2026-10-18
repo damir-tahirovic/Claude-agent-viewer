@@ -48,7 +48,25 @@ export const toolStart = (e: ToolCallInput, at: number): AgentEvent[] => {
   return events
 }
 
-/** A tool call finished: tool.end, plus agent.end for a foreground Agent/Task result. */
+const TASK_STATUSES: ReadonlyArray<string> = [...TODO_STATUSES, 'deleted']
+
+/** Task list changes from a finished TaskCreate/TaskUpdate; only a successful call counts, and the id is the engine's own. */
+const taskEvents = (e: ToolCallInput, r: ToolCallResult, at: number): AgentEvent[] => {
+  if (r.isError || r.deny) return []
+  if (e.tool === 'TaskCreate') {
+    const task = isRecord(r.result) ? r.result.task : undefined
+    if (!isRecord(task) || typeof task.id !== 'string' || typeof e.subject !== 'string') return []
+    return [{ kind: 'task.add', at, agentId: e.agentId ?? MAIN, id: task.id, content: e.subject }]
+  }
+  if (e.tool === 'TaskUpdate') {
+    if (isRecord(r.result) && r.result.success === false) return []
+    if (typeof e.taskId !== 'string' || typeof e.status !== 'string' || !TASK_STATUSES.includes(e.status)) return []
+    return [{ kind: 'task.set', at, id: e.taskId, status: e.status as Todo['status'] | 'deleted' }]
+  }
+  return []
+}
+
+/** A tool call finished: tool.end, plus agent.end for a foreground Agent/Task result and task list changes. */
 export const toolEnd = (e: ToolCallInput, r: ToolCallResult, at: number): AgentEvent[] => {
   const events: AgentEvent[] = [
     {
@@ -63,6 +81,7 @@ export const toolEnd = (e: ToolCallInput, r: ToolCallResult, at: number): AgentE
   if (isAgentTool(e.tool) && isRecord(r.result) && typeof r.result.agentId === 'string' && r.result.status === 'completed') {
     events.push({ kind: 'agent.end', at, id: r.result.agentId, ok: !r.isError && !r.deny })
   }
+  events.push(...taskEvents(e, r, at))
   return events
 }
 

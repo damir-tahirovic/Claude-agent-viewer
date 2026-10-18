@@ -20,3 +20,15 @@ export const planOf = (todos: ReadonlyArray<Todo> | undefined): Plan | null => {
     todos[todos.length - 1]
   return { done, total: todos.length, cur: current.content }
 }
+
+/** Finished and total counts of one agent's own todo list. */
+export type Progress = { readonly done: number; readonly total: number }
+
+/** Progress of a todo list, or null when there is no list (shown as a dash, never estimated). */
+export const progressOf = (todos: ReadonlyArray<Todo> | undefined): Progress | null => {
+  const plan = planOf(todos)
+  return plan ? { done: plan.done, total: plan.total } : null
+}
+
+/** Whole-number percent of a progress. */
+export const progressPercent = (progress: Progress): number => Math.round(progress.done / progress.total * 100)

@@ -140,3 +140,23 @@ test('no rate limits mean API billing after a completed turn and unknown before 
   assert.deepEqual(billingEvent({ rateLimits: [] }, true, 5), [{ kind: 'billing', at: 5, billing: { kind: 'api' } }])
   assert.deepEqual(billingEvent({ rateLimits: [] }, false, 5), [{ kind: 'billing', at: 5, billing: { kind: 'unknown' } }])
 })
+
+const created = { tool: 'TaskCreate', tool_use_id: 't', subject: 'write tests', agentId: 'a1' }
+
+test('a finished TaskCreate adds the task under the engine id, in the calling agent', () => {
+  const events = toolEnd(created, { result: { task: { id: '7', subject: 'write tests' } } }, 1)
+  assert.deepEqual(events[1], { kind: 'task.add', at: 1, agentId: 'a1', id: '7', content: 'write tests' })
+})
+
+test('a failed or id-less TaskCreate adds nothing', () => {
+  assert.equal(toolEnd(created, { isError: true, result: { task: { id: '7' } } }, 1).length, 1)
+  assert.equal(toolEnd(created, { result: {} }, 1).length, 1)
+})
+
+test('a successful TaskUpdate with a status sets it; a failed one or a status-less one does not', () => {
+  const update = { tool: 'TaskUpdate', tool_use_id: 't', taskId: '7', status: 'completed' }
+  assert.deepEqual(toolEnd(update, { result: { success: true } }, 2)[1], { kind: 'task.set', at: 2, id: '7', status: 'completed' })
+  assert.equal(toolEnd(update, { result: { success: false } }, 2).length, 1)
+  assert.equal(toolEnd({ ...update, status: undefined }, { result: { success: true } }, 2).length, 1)
+  assert.equal(toolEnd({ ...update, status: 'bogus' }, { result: { success: true } }, 2).length, 1)
+})

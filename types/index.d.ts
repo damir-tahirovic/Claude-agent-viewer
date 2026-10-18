@@ -47,6 +47,7 @@ export type AgentviewSession = {
   readonly startedAt: number
   readonly agents: Readonly<Record<string, AgentviewAgent>>
   readonly todos: Readonly<Record<string, ReadonlyArray<{
+    readonly id?: string
     readonly content: string
     readonly status: 'pending' | 'in_progress' | 'completed'
   }>>>

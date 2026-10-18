@@ -20,6 +20,8 @@ export type Action = {
 
 /** One entry of the agent's todo list. */
 export type Todo = {
+  /** Task id from TaskCreate; absent for TodoWrite items. */
+  readonly id?: string
   readonly content: string
   readonly status: 'pending' | 'in_progress' | 'completed'
 }
@@ -106,6 +108,13 @@ export type AgentEvent =
       readonly tokens: Tokens
     }
   | { readonly kind: 'todos'; readonly at: number; readonly agentId: string; readonly todos: ReadonlyArray<Todo> }
+  | { readonly kind: 'task.add'; readonly at: number; readonly agentId: string; readonly id: string; readonly content: string }
+  | {
+      readonly kind: 'task.set'
+      readonly at: number
+      readonly id: string
+      readonly status: Todo['status'] | 'deleted'
+    }
   | { readonly kind: 'waiting'; readonly at: number; readonly agentId: string }
   | { readonly kind: 'heartbeat'; readonly at: number; readonly agentId: string }
   | { readonly kind: 'turn'; readonly at: number; readonly agentId: typeof MAIN; readonly phase: 'start' | 'end' }

@@ -1,4 +1,4 @@
-import { HEARTBEAT_MIN_MS, MAIN, RECENT_MAX, UNKNOWN_AFTER_MS, ZERO, type AgentEvent, type AgentNode, type SessionState, type ToolCall } from './model'
+import { HEARTBEAT_MIN_MS, MAIN, RECENT_MAX, UNKNOWN_AFTER_MS, ZERO, type AgentEvent, type AgentNode, type SessionState, type Todo, type ToolCall } from './model'
 import { isSameBilling } from './billing'
 import { summarize } from './summary'
 
@@ -129,6 +129,29 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
       }))
     case 'todos':
       return { ...state, todos: { ...state.todos, [event.agentId]: event.todos } }
+    case 'task.add': {
+      const list = state.todos[event.agentId] ?? []
+      if (list.some(todo => todo.id === event.id)) return state
+      const added: Todo = { id: event.id, content: event.content, status: 'pending' }
+      return { ...state, todos: { ...state.todos, [event.agentId]: [...list, added] } }
+    }
+    case 'task.set': {
+      // Task ids belong to one task list, so the update goes to whichever agent's list holds the id.
+      const todos: Record<string, ReadonlyArray<Todo>> = {}
+      let isChanged = false
+      for (const [agentId, list] of Object.entries(state.todos)) {
+        const hit = list.find(todo => todo.id === event.id)
+        if (!hit || (event.status !== 'deleted' && hit.status === event.status)) {
+          todos[agentId] = list
+          continue
+        }
+        isChanged = true
+        todos[agentId] = event.status === 'deleted'
+          ? list.filter(todo => todo.id !== event.id)
+          : list.map(todo => (todo.id === event.id ? { ...todo, status: event.status as Todo['status'] } : todo))
+      }
+      return isChanged ? { ...state, todos } : state
+    }
     case 'waiting':
       return withAgent(state, event.agentId, event.at, agent => ({
         ...agent,

@@ -302,3 +302,23 @@ test('a subscription ignores a later api or unknown billing event', () => {
   assert.equal(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'api' } }), once)
   assert.equal(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'unknown' } }), once)
 })
+
+test('task.add appends a pending item to that agent and ignores a repeated id', () => {
+  const added = { kind: 'task.add', at: 1, agentId: 'a1', id: '7', content: 'write tests' } as const
+  const once = run([added])
+  assert.deepEqual(once.todos.a1, [{ id: '7', content: 'write tests', status: 'pending' }])
+  assert.equal(reduce(once, added), once)
+})
+
+test('task.set updates the item wherever its id lives, and deleted removes it', () => {
+  const start = run([{ kind: 'task.add', at: 1, agentId: 'a1', id: '7', content: 'x' }])
+  const done = reduce(start, { kind: 'task.set', at: 2, id: '7', status: 'completed' })
+  assert.equal(done.todos.a1[0].status, 'completed')
+  assert.equal(reduce(done, { kind: 'task.set', at: 3, id: '7', status: 'completed' }), done)
+  assert.deepEqual(reduce(done, { kind: 'task.set', at: 4, id: '7', status: 'deleted' }).todos.a1, [])
+})
+
+test('task.set for an unknown id changes nothing', () => {
+  const start = run([{ kind: 'task.add', at: 1, agentId: 'a1', id: '7', content: 'x' }])
+  assert.equal(reduce(start, { kind: 'task.set', at: 2, id: '99', status: 'completed' }), start)
+})
