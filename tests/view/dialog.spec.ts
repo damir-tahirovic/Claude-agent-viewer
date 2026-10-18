@@ -1,22 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { GOLDEN } from '../../src/view/spec-golden'
 import { renderDialog, windowFor } from '../../src/view/dialog'
 import { colorize, dim, stripCodes } from '../../src/view/lines'
 import type { Row } from '../../src/view/rows'
 import { specRows } from '../fixtures/spec-rows'
+import { frameOf } from './frame'
 
-// First line whose plain text starts with ╭ or "+-", through the first later line
-// whose plain text starts with ╰ (or, in ASCII, the last line that starts with "+-").
-const frameOf = (id: string): string[] => {
-  const plain = GOLDEN[id].map(stripCodes)
-  const first = plain.findIndex(l => l.startsWith('╭') || l.startsWith('+-'))
-  let last = plain.findIndex((l, i) => i > first && l.startsWith('╰'))
-  if (last < 0) {
-    last = plain.map((l, i) => (i > first && l.startsWith('+-') ? i : -1)).reduce((m, i) => Math.max(m, i), -1)
-  }
-  return GOLDEN[id].slice(first, last + 1)
-}
 const plan = { done: 6, total: 10, cur: 'Add token refresh to auth.ts' }
 
 const manyAgents: Row[] = [

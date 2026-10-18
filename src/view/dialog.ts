@@ -2,6 +2,7 @@
 import { fmtCost, fmtK, fmtT } from '../core/format'
 import type { Plan } from '../core/progress'
 import { colorize, dim, fitText, padLeft, padRight, stripCodes, toAscii, visibleLength } from './lines'
+import { bottomBorder, progressBar, renderHints, rule, textLine, topBorder } from './frame'
 import type { Row, RowStatus } from './rows'
 
 export type DialogOpts = {
@@ -62,32 +63,6 @@ const treePrefixes = (list: Row[]): string[] => list.map((a, i) => {
   chain.forEach(j => { s += hasNextSibling(j) ? '│  ' : '   ' })
   return s + (hasNextSibling(i) ? '├─ ' : '└─ ')
 })
-
-/** Top border with a left and a right title. (spec `top`) */
-const topBorder = (W: number, left: string, right: string): string =>
-  dim('╭─ ') + left + dim(' ' + '─'.repeat(Math.max(1, W - 8 - visibleLength(left) - visibleLength(right))) + ' ') +
-  right + dim(' ─╮')
-
-/** Bottom border. (spec `bottom`) */
-const bottomBorder = (W: number): string => dim('╰' + '─'.repeat(W - 2) + '╯')
-
-/** Horizontal rule; without a frame it has no corner pieces. (spec `rule`) */
-const rule = (W: number, hasFrame: boolean): string =>
-  hasFrame ? dim('├' + '─'.repeat(W - 2) + '┤') : dim('─'.repeat(W - 2))
-
-/** One text line inside the frame. (spec `txt`) */
-const textLine = (W: number, s: string, hasFrame: boolean): string =>
-  hasFrame ? dim('│') + ' ' + padRight(s, W - 4) + ' ' + dim('│') : ' ' + padRight(s, W - 4) + ' '
-
-/** Progress bar of filled and empty blocks. (spec `bar`) */
-const progressBar = (n: number, total: number, width: number, codes: string): string => {
-  const filled = Math.round(n / total * width)
-  return colorize(codes, '█'.repeat(filled)) + dim('░'.repeat(width - filled))
-}
-
-/** Key hints joined by gaps. (spec `hints`) */
-const renderHints = (list: [string, string][]): string =>
-  list.map(([key, label]) => colorize('B', key) + dim(' ' + label)).join('   ')
 
 /** Status cell codes and text. (spec `stCell`) */
 const statusCell = (st: RowStatus, spin: string): [string, string] => {
