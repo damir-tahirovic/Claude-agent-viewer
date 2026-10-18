@@ -76,6 +76,8 @@ const statusCell = (st: RowStatus, spin: string): [string, string] => {
   }
 }
 
+const NARROW_BELOW = 60
+
 const ACT_CODES: Partial<Record<RowStatus, string>> = { waiting: 'y', failed: 'r', done: 'd', unknown: 'd' }
 
 /** Renders the agent dialog as coded lines. (spec `dialog`) */
@@ -85,15 +87,21 @@ export const renderDialog = (o: DialogOpts): string[] => {
   const hasFrame = o.frame ?? true
   const spin = o.spin ?? '⠋'
   const tier = W < 100 ? 1 : W < 140 ? 2 : 3
+  // Below this width only name, a one-glyph status and TIME fit; not in the generator, added for narrow panes.
+  const isNarrow = W < NARROW_BELOW
   const t = totalsOf(a)
   const px = treePrefixes(a)
-  const cd: Column[] = ([
+  const wideColumns: Column[] = ([
     { k: 'name', w: W >= 100 ? 18 : 16, h: 'AGENT' }, { k: 'st', w: 9, h: 'STATUS' },
     { k: 'model', w: 10, h: 'MODEL', p: 2 }, { k: 'task', f: 1, p: 2, h: 'TASK' }, { k: 'act', f: 1, h: 'NOW' },
     { k: 'tok', w: 6, r: 1, h: 'TOK' }, { k: 'io', w: 11, r: 1, p: 3, h: 'IN/OUT' },
     { k: 'cost', w: 7, r: 1, p: 2, h: 'COST' }, { k: 'calls', w: 5, r: 1, p: 3, h: 'CALLS' },
     { k: 'time', w: 7, r: 1, h: 'TIME' },
   ] as Column[]).filter(c => (c.p || 1) <= tier)
+  const narrowColumns: Column[] = [
+    { k: 'name', f: 1, h: 'AGENT' }, { k: 'st', w: 1, h: 'S' }, { k: 'time', w: 7, r: 1, h: 'TIME' },
+  ]
+  const cd = isNarrow ? narrowColumns : wideColumns
   const fixed = cd.filter(c => c.w).reduce((s, c) => s + (c.w as number), 0)
   const flex = W - 5 - fixed - (cd.length - 1) * 2
   const hasTask = cd.some(c => c.k === 'task')
@@ -110,7 +118,10 @@ export const renderDialog = (o: DialogOpts): string[] => {
           ? colorize(dm, fitText(ag.name, w - px[i].length))
           : colorize('B', fitText(ag.name, w - px[i].length)))
       // The generator also prepends an empty colorize() call here; it always yields ''.
-      case 'st': return colorize(...statusCell(ag.st, spin))
+      case 'st': {
+        const [codes, text] = statusCell(ag.st, spin)
+        return colorize(codes, isNarrow ? [...text][0] : text)
+      }
       case 'model': return dim(fitText(ag.model, w))
       case 'task': return colorize(dm, fitText(ag.task, w))
       case 'act': return colorize(ACT_CODES[ag.st] || '', fitText(ag.act || '—', w))
@@ -134,21 +145,26 @@ export const renderDialog = (o: DialogOpts): string[] => {
   const idl = o.sid || '7f3a9c2e'
   const line = (s: string): string => textLine(W, s, hasFrame)
   if (hasFrame) {
-    out.push(topBorder(
-      W,
-      colorize('B', 'agentview') + dim(' · session ') + idl + (o.path ? dim(' · ') + o.path : ''),
-      dim(`${fmtK(t.tok)} tok · ${fmtCost(t.cost)} · plan `) + colorize('B', pct),
-    ))
+    out.push(isNarrow
+      ? topBorder(W, colorize('B', 'agentview'), dim(`${fmtK(t.tok)} tok · plan `) + colorize('B', pct))
+      : topBorder(
+        W,
+        colorize('B', 'agentview') + dim(' · session ') + idl + (o.path ? dim(' · ') + o.path : ''),
+        dim(`${fmtK(t.tok)} tok · ${fmtCost(t.cost)} · plan `) + colorize('B', pct),
+      ))
   }
   const summary: [string, string, string, number][] = [
     ['c', spin, 'running', t.running], ['y', '◔', 'waiting', t.waiting],
     ['g', '✓', 'done', t.done], ['r', '✗', 'failed', t.failed],
   ]
   if (t.unknown) summary.push(['d', '?', 'unknown', t.unknown])
+  const summaryCell = ([c, g, w, n]: [string, string, string, number]): string => {
+    const label = isNarrow ? `${g} ${n}` : `${g} ${n} ${w}`
+    return n ? colorize(c, label) : dim(label)
+  }
   out.push(line(o.ended
     ? colorize('g', '✓ session finished') + dim(` · ${t.n} agents · ${o.ended}`)
-    : summary.map(([c, g, w, n]) => n ? colorize(c, `${g} ${n} ${w}`) : dim(`${g} ${n} ${w}`)).join('   ') +
-      dim(`   ·  ${t.n} agents`)))
+    : summary.map(summaryCell).join(isNarrow ? '  ' : '   ') + dim(isNarrow ? ` · ${t.n}` : `   ·  ${t.n} agents`)))
   out.push(rule(W, hasFrame))
   // Header row patch from render-spec.js: dim edges around the heads, not the txt() helper.
   const heads = cd.map(c => c.r ? padLeft(c.h, c.w as number) : fitText(c.h, c.w as number)).join('  ')
@@ -184,9 +200,12 @@ export const renderDialog = (o: DialogOpts): string[] => {
         ? colorize('g', '✓ ') + dim(p.cur)
         : colorize('c', '▸ ') + fitText(p.cur, W - 4 - [...planPrefix].length).trimEnd()),
     ))
-  } else out.push(line('plan ' + dim('░'.repeat(barWidth) + '  —   no todo list in this session')))
+  } else {
+    out.push(line('plan ' + dim('░'.repeat(barWidth) + (isNarrow ? '  —' : '  —   no todo list in this session'))))
+  }
   out.push(rule(W, hasFrame))
-  const hintList = o.hints || [['↑↓', 'select'], ['⏎', 'details'], ['esc', 'close'], ['q', 'quit']]
+  const hintList = o.hints ||
+    (isNarrow ? [['↑↓', 'select'], ['⏎', 'details'], ['esc', 'close']] : [['↑↓', 'select'], ['⏎', 'details'], ['esc', 'close'], ['q', 'quit']])
   const right = o.ended ? dim('ended') : colorize('g', '●') + dim(' live')
   out.push(line(padRight(renderHints(hintList), W - 4 - visibleLength(right)) + right))
   if (hasFrame) out.push(bottomBorder(W))

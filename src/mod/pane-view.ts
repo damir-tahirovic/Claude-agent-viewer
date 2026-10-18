@@ -28,12 +28,14 @@ export type PaneView = {
   readonly tail: ReadonlyArray<string>
 }
 
-const MIN_TREE_COLUMNS = 60
+// Below 60 columns the dialog switches to its narrow mode; 50 is the narrowest width the hint and plan lines fit.
+const MIN_TREE_COLUMNS = 50
 const MIN_DETAIL_COLUMNS = 90
 /** Lines of the dialog that are not agent rows: header, summary, rules, plan and hints. */
 const CHROME_ROWS = 10
 const MIN_AGENT_ROWS = 3
 const NO_SUBAGENTS_LINE = dim('  ◌ no subagents yet — they appear here as soon as main delegates')
+const NO_SUBAGENTS_NARROW = dim('  ◌ no subagents yet')
 
 /** HH:MM:SS of an epoch-ms timestamp (UTC), the detail view's clock column. */
 const clockOf = (ms: number): string => new Date(ms).toISOString().slice(11, 19)
@@ -67,7 +69,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const lines = renderDialog({
     W: Math.max(opts.columns, MIN_TREE_COLUMNS), agents: rows, sel: selected,
     sid: session.sessionId.slice(0, 8), plan, win, spin, ascii: opts.ascii, frame: false,
-    after: rows.length === 1 ? [NO_SUBAGENTS_LINE] : undefined,
+    after: rows.length === 1 ? [opts.columns < 60 ? NO_SUBAGENTS_NARROW : NO_SUBAGENTS_LINE] : undefined,
   })
   const [first, last] = win ?? [0, rows.length]
   // Frameless layout: summary, rule and column heads, then an optional "more above" line.

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { renderDialog, windowFor } from '../../src/view/dialog'
-import { colorize, dim, stripCodes } from '../../src/view/lines'
+import { colorize, dim, stripCodes, visibleLength } from '../../src/view/lines'
 import type { Row } from '../../src/view/rows'
 import { specRows } from '../fixtures/spec-rows'
 import { frameOf } from './frame'
@@ -116,4 +116,20 @@ test('windowFor scrolls one row up when the selection passes the top edge', () =
 })
 test('windowFor starts at the top without a previous window', () => {
   assert.deepEqual(windowFor(17, 0, 10), [0, 10])
+})
+
+test('below 60 columns every line is exactly W wide, with and without the frame', () => {
+  for (const [label, sample, sampleAgents] of [['plan', plan, manyAgents], ['no plan', null, specRows()]] as const) {
+    for (const [W, frame] of [[50, true], [50, false], [59, true], [59, false]] as const) {
+      const lines = renderDialog({ W, agents: [...sampleAgents], sel: 1, plan: sample, frame })
+      lines.forEach(rendered => assert.equal(visibleLength(rendered), frame ? W : W - 2, `${label} W=${W} frame=${frame}: ${stripCodes(rendered)}`))
+    }
+  }
+})
+
+test('narrow mode shows only name, a status glyph and time', () => {
+  const text = renderDialog({ W: 50, agents: [...specRows()], plan }).map(stripCodes).join('\n')
+  assert.match(text, /AGENT/)
+  assert.match(text, /TIME/)
+  assert.doesNotMatch(text, /MODEL|TASK|NOW|COST|running/)
 })

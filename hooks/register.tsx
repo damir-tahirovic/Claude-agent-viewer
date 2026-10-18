@@ -6,6 +6,7 @@ import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete } f
 import { buildPaneView } from '../src/mod/pane-view'
 import { decideClose, stepId } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
+import { statusFor } from '../src/mod/status-text'
 import type { AgentviewSession, AgentviewUi } from '../types'
 
 /** Session snapshot atom; SessionState and AgentviewSession describe the same shape. */
@@ -26,6 +27,23 @@ const NEXT_KEY = '>next<'
 const FALLBACK_SESSION_ID = 'session'
 const POLL_MS = 1000
 
+/** Last status line sent, so `$.ui.status` is called only when the text changes. A reload re-sends it. */
+let lastStatus: string | undefined
+
+/** Sends the status line when it differs from the last one sent. Never throws. */
+const publishStatus = async ($: EngineInterface): Promise<void> => {
+  try {
+    const current = await read($, session)
+    if (!current) return
+    const text = statusFor(current, await $.clock.now())
+    if (text === lastStatus) return
+    lastStatus = text
+    $.ui.status(text)
+  } catch {
+    // The status line is a nicety; failing to draw it must not matter.
+  }
+}
+
 /** Folds events into the session atom. Never throws: a bug here must not touch the host's work. */
 const apply = async ($: EngineInterface, events: ReadonlyArray<AgentEvent>): Promise<void> => {
   if (events.length === 0) return
@@ -35,6 +53,7 @@ const apply = async ($: EngineInterface, events: ReadonlyArray<AgentEvent>): Pro
       const base: SessionState = current ?? initialState(FALLBACK_SESSION_ID, at)
       return events.reduce(reduce, base)
     })
+    await publishStatus($)
   } catch {
     // Our own state failing is not the host's problem.
   }
