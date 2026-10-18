@@ -1,0 +1,44 @@
+# Phase 1 follow-ups
+
+Deferred minor findings and controller rulings from the Phase 1 reviews (ledger export, 2026-10-18).
+
+- | T3 ↔ T4 | reducer imports summarize | T4 must land first or stub. Ruling: run T4 before T3. |
+- | Global ↔ snippets | CLAUDE.md overrides (readonly, no any, descriptive names) | Ruling: implementers adapt snippets; reviewers check against CLAUDE.md |
+- | T5 self | PRICES filled from claude-api skill | Ruling: controller fetches prices, passes in dispatch — subagent may lack skill |
+- Ruling: T1 (spike) runs in controller session — needs hot-reload approval and user key presses in this session — cost if wrong: none, throwaway.
+- Ruling: execution order T1, T2, T4, T3, T5…T13.
+- Ruling: agent.end comes from turn.complete with agentId (ok = !isAborted) and from $.agent.list status; Agent tool.end emits agent.end only when result.status !== 'async_launched' — why: async agents return immediately — cost if wrong: done shown early/late, fixable in adapter.
+- Ruling: session id from $.session (grep at T10) else 'session' — cost: cosmetic header.
+- Ruling: rows are plain Buttons keyed by agent id with Text children; selection = ui.focus element — cost if wrong: switch to hotkeys j/k.
+- Ruling: T11 decides frame on screen: if engine chrome duplicates our border, use frame:false but keep the top header (title + totals) as a plain first line — cost: cosmetic.
+- Task 2: review — spec ❌ only for unquoted glob. Ruling: accept unquoted glob — Node 20 test runner has no glob expansion — cost: specs nested >1 level skipped (layout is 1 level).
+- Task 2: minor (deferred): use `find tests -name '*.spec.ts'` in test script for nesting robustness.
+- Ruling: T4+T3 in one dispatch (two commits, one review) — T3 imports T4, both fully specified — cost: larger review unit
+- Task 3: minor (deferred, MUST triage in final review): agent.start with id 'main' self-parents main → orderTree infinite recursion; guard parentId for MAIN.
+- Task 3: minor (deferred): orphan parentId hides agent from orderTree; tool.start revives done/failed agents; long lines >110; missing edge tests (60_000 exact, tick on waiting/done, unknown toolUseId, summarize fallbacks).
+- Ruling: T5+T6 in one dispatch (T6 consumes T5) — cost: larger review unit
+- Ruling: commit trailer = model that wrote the commit (CLAUDE.md updated) — honest attribution — cost: none
+- Task 6: minor (deferred): depthOf no cycle guard (with T3 self-parent finding → fix together in final wave).
+- Task 7: minor (deferred): minRows under frame:false pads one less; no tier-boundary tests (99/100, 139/140); DialogOpts/SPIN not readonly; casts at dialog.ts:133-139; long lines lines.ts:259 & spec; windowFor doc on prev length; no unknown-status unit test.
+- Ruling: T8+T9 in one dispatch (both pure view renderers, independent) — cost: larger review unit
+- Ruling: frame helpers extracted to src/view/frame.ts — shared by dialog+detail, DRY — cost: none.
+- Ruling: DetailOpts gains optional title/cost/sessionCost — golden hardcodes them, costOf can't reproduce — cost: mod must pass session cost.
+- Ruling: status "all done" = all d>0 rows done + plan complete, main ignored — reducer has no idle for main — cost: shows ✓ while main still finishing last turn.
+- Task 8: minor (deferred): golden clock special-case; missing tests (done agent "on this action", title fallback, wrap 3-line cap); param `o` naming.
+- Task 9: minor (deferred): plan.total 0 guard.
+- Task 10: minor (deferred): known updated even if apply failed; open tool when next rejects; types/index.d.ts duplicates SessionState (add type-equality check); long lines adapter.ts:195, adapter.spec.ts:365,377.
+- Ruling: paint mapping in hooks accepted — I allowed this fallback in dispatch (no h factory outside hooks) — cost: ~15 lines of mapping in hooks.
+- Ruling: stateless scroll window accepted for now — avoids writes in render — cost: window may jump; deferred minor.
+- Ruling: Minor 1 (prev/next order uses Object.keys not tree order) enters fix round — user-visible navigation bug, one-line fix.
+- Task 11: minor (deferred): ui.open=true set before $.ui.open; close/spinner hook bodies untested; decideClose('tree') first call confusing; win not persisted; Esc not engine-tested; missing keys on mapped Text arrays; AgentviewUi.open semantics.
+- Ruling: Minor NO_SUBAGENTS_LINE width at W=60 ruled into fix round — spec requires exact width — cost: small.
+- Task 12: minor (deferred): W floor 50 overflows narrower panes; 65s vs 61s engine test; dialog.ts:398 long line.
+- Task 12: minor (deferred): COMPACT_SUMMARY_BELOW should be 67 (+W=66 test); clock failure persists startedAt 0; no test for second session.start cancel.
+- Ruling: T13 split — README now (subagent), then final whole-branch review + one fix wave, then the user's manual live check on the final code, then the tag — the user tests the final code, not pre-fix code — cost: one extra ordering step.
+- Ruling: in-session dialog footer must not advertise "q quit" — spec keys table (AGENTVIEW §3.5) says q does nothing in the dialog; q quit is CLI-only — fix in final wave by passing hints without q from the mod — cost: footer differs from golden 1a (which shows CLI-style hints).
+- Ruling: #9 main shows `done` between turns, `running` on turn.start — stops perpetual spinner — cost: main reads "done" while waiting at prompt.
+- Ruling: #11 scrolling via persisted ui.win updated in ui.focus (nextWindow helper) — makes spec 7b reachable — cost: window shifts only at edges.
+- Ruling: #13 accept button-based detail navigation; hints say "◂ ▸ prev / next" — truthful hint — cost: deviates from spec ↑↓-steps-agent.
+- Ruling: #12 detail below 90 cols: render at 90 and clip lines; add status badge to pane header — proper narrow layout deferred to Phase 1b — cost: right column cut on 80-col.
+- Ruling: #8 waiting text neutral ("waiting") — engine waiting ≠ permission prompt — cost: less specific message.
+- Ruling: CAN-WAIT items per reviewer triage table stay deferred.
