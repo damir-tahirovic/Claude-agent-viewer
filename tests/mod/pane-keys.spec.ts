@@ -26,10 +26,20 @@ test('nextWindow does not shift below the last row', () => assert.deepEqual(next
 test('nextWindow clamps a stale window', () => assert.deepEqual(nextWindow(many, 'a15', [30, 38], 8), [12, 20]))
 test('nextWindow brings an outside focus into view', () => assert.deepEqual(nextWindow(many, 'a10', [0, 8], 8), [3, 11]))
 
-import { panColumn } from '../../src/mod/graph-pane'
+import { panColumn, panToInclude } from '../../src/mod/graph-pane'
 
 const columns = { total: 5, visible: 2, first: 0 }
 test('panColumn moves by one worker column', () => assert.equal(panColumn(1, 1, columns), 2))
 test('panColumn stops at the first column', () => assert.equal(panColumn(0, -1, columns), 0))
 test('panColumn stops where the last worker is the last visible column', () => assert.equal(panColumn(3, 1, columns), 3))
 test('panColumn pulls a stale column back into range', () => assert.equal(panColumn(9, 0, columns), 3))
+
+const outline = [
+  { id: 'main', d: 0 }, { id: 'a', d: 1 }, { id: 'a1', d: 2 }, { id: 'b', d: 1 }, { id: 'c', d: 1 }, { id: 'c1', d: 2 },
+]
+test('panToInclude keeps the column when the selection is visible', () => assert.equal(panToInclude(outline, 'b', 0, 2), 0))
+test('panToInclude ignores main', () => assert.equal(panToInclude(outline, 'main', 2, 1), 2))
+test('panToInclude moves right just enough', () => assert.equal(panToInclude(outline, 'c', 0, 2), 1))
+test('panToInclude uses the worker of a grandchild', () => assert.equal(panToInclude(outline, 'c1', 0, 1), 2))
+test('panToInclude moves left to a hidden earlier worker', () => assert.equal(panToInclude(outline, 'a1', 2, 1), 0))
+test('panToInclude leaves an unknown id alone', () => assert.equal(panToInclude(outline, 'zz', 1, 1), 1))

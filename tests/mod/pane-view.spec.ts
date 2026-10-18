@@ -116,7 +116,7 @@ test('graph mode draws cards, the pane header first and the real controls as the
   assert.match(stripCodes(built.head[0]), /^agentview · session abcdef12/)
   assert.match(stripCodes(built.head.join('\n')), /╔═ main/)
   assert.equal(built.agentLines.length, 0)
-  assert.match(stripCodes(built.tail.join('\n')), /◂ ▸ select\s+⏎ details\s+t\/g view\s+esc close/)
+  assert.match(stripCodes(built.tail.join('\n')), /p\/n select {3}d details {3}t\/g view {3}esc close/)
   assert.doesNotMatch(stripCodes(built.head.join('\n')), /tab tree|live/)
 })
 
@@ -197,4 +197,50 @@ test('ascii graph leaves no character above U+007F', () => {
 test('detail view wins over graph mode', () => {
   const built = buildPaneView({ ...graphBase, view: 'detail', selId: 'w1', columns: 120, session: withWorkers(1) })
   assert.match(stripCodes(built.head.join('\n')), /TASK/)
+})
+
+test('the graph hint adds h/l columns only when columns are hidden', () => {
+  const hidden = buildPaneView({ ...graphBase, columns: 110, session: withWorkers(5) })
+  assert.match(stripCodes(hidden.tail.join('\n')), /esc close {3}h\/l columns/)
+  const shown = buildPaneView({ ...graphBase, columns: 160, session: withWorkers(3) })
+  assert.doesNotMatch(stripCodes(shown.tail.join('\n')), /h\/l/)
+})
+
+test('tree content plus chrome fits the viewport rows, with the toggle beside the header or below it', () => {
+  for (const columns of [60, 80, 160]) {
+    const rows = 20
+    const built = buildPaneView({ ...base, columns, rows, session: withWorkers(12) })
+    const total = built.head.length + built.agentLines.length + built.tail.length + (built.isToggleBeside ? 0 : 1)
+    assert.ok(total <= rows, `${columns}: ${total} > ${rows}`)
+  }
+})
+
+test('graph folding counts the footer Buttons row and a separate toggle row as chrome', () => {
+  let session = withWorkers(2)
+  for (const id of ['g1', 'g2', 'g3']) {
+    session = reduce(session, { kind: 'agent.start', id, parentId: 'w1', type: 'helper', description: id, at: NOW })
+    session = reduce(session, { kind: 'agent.end', id, ok: true, at: NOW })
+  }
+  session = reduce(session, { kind: 'agent.end', id: 'w1', ok: true, at: NOW })
+  for (const columns of [120, 160]) {
+    const open = buildPaneView({ ...graphBase, columns, rows: 200, session })
+    const chrome = 1 + open.tail.length + 1 + (open.isToggleBeside ? 0 : 1)
+    const unfolded = open.head.length - 1 + chrome
+    const tight = buildPaneView({ ...graphBase, columns, rows: unfolded - 1, session })
+    const total = tight.head.length + tight.tail.length + 1 + (tight.isToggleBeside ? 0 : 1)
+    assert.ok(total <= unfolded - 1, `${columns}: ${total} > ${unfolded - 1}`)
+    assert.doesNotMatch(stripCodes(tight.head.join('\n')), /╭─ helper/)
+  }
+})
+
+test('the toggle takes its own row when the header is too long to share one at 80 columns', () => {
+  let session = withWorkers(1)
+  session = reduce(session, {
+    kind: 'usage', at: NOW, agentId: 'main', model: 'claude-opus-4-1',
+    tokens: { input: 9_000_000_000_000, output: 9_000_000_000_000, cacheRead: 0, cacheWrite: 0 },
+  })
+  const long = buildPaneView({ ...base, columns: 80, session })
+  assert.ok(visibleLength(long.head[0]) + 2 + 14 > 80, stripCodes(long.head[0]))
+  assert.equal(long.isToggleBeside, false)
+  assert.equal(buildPaneView({ ...base, columns: 80, session: withWorkers(1) }).isToggleBeside, true)
 })

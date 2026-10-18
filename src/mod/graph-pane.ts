@@ -14,12 +14,11 @@ const WORKER_COLUMN_WIDTH = 40
 const BORDER_COLUMNS = 2
 /** Lines the frame adds below the body: rule, hints and bottom border. */
 const FOOTER_FRAME_LINES = 3
-/** Lines the pane adds around the graph: its header and the hint line. */
-const PANE_CHROME_LINES = 2
 const WAITING_TEXT = '◔ waiting'
 const GRAPH_HINTS: ReadonlyArray<readonly [string, string]> = [
-  ['◂ ▸', 'select'], ['⏎', 'details'], ['t/g', 'view'], ['esc', 'close'],
+  ['p/n', 'select'], ['d', 'details'], ['t/g', 'view'], ['esc', 'close'],
 ]
+const COLUMN_HINT: readonly [string, string] = ['h/l', 'columns']
 
 /** Worker columns of a wide graph: how many exist, how many show and which one is first. */
 export type GraphColumns = { readonly total: number; readonly visible: number; readonly first: number }
@@ -39,14 +38,37 @@ export type GraphLinesOpts = {
   readonly sessionId: string
   readonly spin: string
   readonly columns: number
-  /** Viewport rows of the pane, header and hint line included. */
+  /** Viewport rows of the pane. */
   readonly paneRows: number
+  /** Rows the pane adds around the graph: header, hint line, footer Buttons and a separate toggle row. */
+  readonly chromeLines: number
   readonly ascii: boolean
 }
 
 /** Moves the first visible worker column by `offset`, clamped to the columns that exist. */
 export const panColumn = (current: number, offset: number, columns: GraphColumns): number =>
   Math.min(Math.max(0, current + offset), Math.max(0, columns.total - columns.visible))
+
+/**
+ * The first worker column after the selection moves to `selectedId`: unchanged when it is visible (or main),
+ * else the smallest move that shows the selected agent's worker column.
+ */
+export const panToInclude = (
+  outline: ReadonlyArray<{ readonly id: string; readonly d: number }>,
+  selectedId: string,
+  graphCol: number,
+  visible: number,
+): number => {
+  let workerIndex = -1
+  for (const entry of outline) {
+    if (entry.d === 1) workerIndex += 1
+    if (entry.id !== selectedId) continue
+    if (entry.d === 0 || workerIndex < 0) return graphCol
+    if (workerIndex < graphCol) return workerIndex
+    return workerIndex >= graphCol + visible ? workerIndex - visible + 1 : graphCol
+  }
+  return graphCol
+}
 
 /** Drops the frame: top and bottom borders, the rule and hints, and the first and last column. */
 const deframe = (lines: ReadonlyArray<string>, width: number): string[] =>
@@ -66,7 +88,7 @@ const foldableIds = (root: GraphNode, selectedId: string): string[] => {
 
 /** Hint line under the graph: the real controls, then the worker range when columns are hidden. */
 const hintLine = (middle: string | undefined): string => {
-  const keys = GRAPH_HINTS.map(([key, label]) => colorize('B', key) + dim(' ' + label)).join('   ')
+  const keys = (middle ? [...GRAPH_HINTS, COLUMN_HINT] : GRAPH_HINTS).map(([key, label]) => colorize('B', key) + dim(' ' + label)).join('   ')
   return middle ? keys + '   ' + dim(middle) : keys
 }
 
@@ -96,7 +118,7 @@ export const buildGraphLines = (opts: GraphLinesOpts): GraphLines => {
   const collapsed = new Set<string>()
   let lines = draw(collapsed)
   for (const id of foldable) {
-    if (lines.length + PANE_CHROME_LINES <= opts.paneRows) break
+    if (lines.length + opts.chromeLines <= opts.paneRows) break
     collapsed.add(id)
     lines = draw(collapsed)
   }

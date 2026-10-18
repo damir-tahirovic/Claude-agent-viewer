@@ -4,7 +4,7 @@ import type { SessionState } from '../core/model'
 import { planOf } from '../core/progress'
 import { renderDetail, statusBadge } from '../view/detail'
 import { renderDialog, windowFor } from '../view/dialog'
-import { clipLine, colorize, dim, fitText, SPIN, toPlainAscii } from '../view/lines'
+import { clipLine, colorize, dim, fitText, SPIN, toPlainAscii, visibleLength } from '../view/lines'
 import { buildRows } from '../view/rows'
 import { buildGraphLines } from './graph-pane'
 import type { GraphColumns } from './graph-pane'
@@ -34,6 +34,10 @@ export type PaneView = {
   readonly head: ReadonlyArray<string>
   readonly agentLines: ReadonlyArray<{ readonly id: string; readonly line: string }>
   readonly tail: ReadonlyArray<string>
+  /** Whether the view toggle shares the header's row; otherwise it takes a row of its own. */
+  readonly isToggleBeside: boolean
+  /** Depth of every agent in order, for panning the graph to the selection. */
+  readonly outline: ReadonlyArray<{ readonly id: string; readonly d: number }>
   /** Worker columns of the graph when some are hidden; the pan Buttons need them. */
   readonly hiddenColumns?: GraphColumns
 }
@@ -54,13 +58,21 @@ const NO_SUBAGENTS_TEXT = '  ◌ no subagents yet — they appear here as soon a
 const clockOf = (ms: number): string => new Date(ms).toISOString().slice(11, 19)
 
 /** How many agent rows fit in a pane of `paneRows` lines. */
-export const roomFor = (paneRows: number): number => Math.max(MIN_AGENT_ROWS, paneRows - CHROME_ROWS)
+export const roomFor = (paneRows: number, extraRows = 0): number =>
+  Math.max(MIN_AGENT_ROWS, paneRows - CHROME_ROWS - extraRows)
+
+/** Width of the `tree` and `graph` toggle Buttons side by side. */
+const TOGGLE_WIDTH = 14
+const TOGGLE_GAP = 2
+/** Graph chrome besides the header: the hint line and the footer Buttons row. */
+const GRAPH_CHROME_ROWS = 3
 
 /** Builds the pane for the tree view or the detail of the selected agent. */
 export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const { session, selId, now } = opts
   const rows = buildRows(session, now)
   const order = rows.map(row => row.id)
+  const outline = rows.map(row => ({ id: row.id, d: row.d }))
   const spin = opts.ascii ? ASCII_SPIN : SPIN[opts.spin % SPIN.length]
   const finish = (line: string): string => (opts.ascii ? toPlainAscii(line) : line)
   const sessionCost = rows.reduce((sum, row) => sum + row.cost, 0)
@@ -79,7 +91,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
     })
     // Below 90 columns the detail is cut, not reflowed; the narrow layout waits for Phase 1b.
     const body = [header, ...lines].map(line => finish(clipLine(line, opts.columns)))
-    return { order, head: body, agentLines: [], tail: [] }
+    return { order, outline, isToggleBeside: true, head: body, agentLines: [], tail: [] }
   }
 
   const plan = planOf(session.todos.main)
@@ -87,13 +99,17 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const header = colorize('B', 'agentview') + dim(` · session ${session.sessionId.slice(0, 8)} · ` +
     `${fmtK(sessionTokens)} tok · ${fmtCost(sessionCost)} · plan `) + colorize('B', percent)
 
+  const isToggleBeside = visibleLength(finish(header)) + TOGGLE_GAP + TOGGLE_WIDTH <= opts.columns
+  const toggleRows = isToggleBeside ? 0 : 1
+
   if (opts.mode === 'graph') {
     const graph = buildGraphLines({
       rows, selectedId: rows[selected]?.id ?? 'main', graphCol: opts.graphCol ?? 0, plan,
-      sessionId: session.sessionId.slice(0, 8), spin, columns: opts.columns, paneRows: opts.rows, ascii: opts.ascii,
+      sessionId: session.sessionId.slice(0, 8), spin, columns: opts.columns, paneRows: opts.rows,
+      chromeLines: GRAPH_CHROME_ROWS + toggleRows, ascii: opts.ascii,
     })
     return {
-      order,
+      order, outline, isToggleBeside,
       head: [header, ...graph.lines].map(line => finish(clipLine(line, opts.columns))),
       agentLines: [],
       tail: [finish(clipLine(graph.hint, opts.columns))],
@@ -101,7 +117,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
     }
   }
 
-  const room = roomFor(opts.rows)
+  const room = roomFor(opts.rows, toggleRows)
   // The stored window is clamped to valid bounds; windowFor then keeps the selection inside it.
   const storedStart = opts.win ? Math.min(Math.max(0, opts.win[0]), Math.max(0, rows.length - room)) : undefined
   const stored: [number, number] | undefined = storedStart === undefined ? undefined : [storedStart, storedStart + room]
@@ -116,7 +132,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   // Frameless layout: summary, rule and column heads, then an optional "more above" line.
   const firstRowLine = 3 + (win && first > 0 ? 1 : 0)
   return {
-    order,
+    order, outline, isToggleBeside,
     head: [header, ...lines.slice(0, firstRowLine)].map(finish),
     agentLines: rows.slice(first, last).map((row, offset) => ({ id: row.id, line: finish(lines[firstRowLine + offset]) })),
     tail: lines.slice(firstRowLine + (last - first)).map(finish),
