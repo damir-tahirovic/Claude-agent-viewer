@@ -1,4 +1,5 @@
 // Agent card and collapsed chip. A typed port of `card` and `chip` in docs/design/graph-generator.js.
+import { isExpensive } from '../../core/cost'
 import { fmtCost, fmtK, fmtT } from '../../core/format'
 import type { Plan } from '../../core/progress'
 import { fitNoPad, SPIN } from '../lines'
@@ -11,6 +12,8 @@ export type CardOpts = {
   readonly isSelected?: boolean
   readonly plan?: Plan | null
   readonly sessionCost: number
+  /** Agents with a cost above zero; the share rule of the expensive mark needs at least two. */
+  readonly costedAgents?: number
   readonly isRich?: boolean
   readonly waitingText?: string
   readonly error?: string
@@ -91,14 +94,14 @@ export const drawCard = (
   canvas.text(innerX, y + 2, fitNoPad(row.task, innerWidth), row.st === 'done' ? 'd' : '')
   canvas.text(innerX, y + 3, fitNoPad('▸ ' + row.act, innerWidth), ACTION_CODE[row.st])
 
-  const isExpensive = row.cost >= 0.5 || row.cost / (opts.sessionCost || 1.1) >= 0.4
+  const isCostly = isExpensive(row.cost, opts.sessionCost || 1.1, opts.costedAgents ?? 0)
   let position = innerX
   const segment = (text: string, codes: string): void => {
     canvas.text(position, y + 4, text, codes)
     position += [...text].length
   }
   segment(opts.isRich ? `in ${fmtK(row.i)} · out ${fmtK(row.o)} · ` : `${fmtK(row.i + row.o)} tok · `, 'd')
-  segment(fmtCost(row.cost) + (isExpensive ? '▲' : ''), isExpensive ? 'yB' : 'd')
+  segment(fmtCost(row.cost) + (isCostly ? '▲' : ''), isCostly ? 'yB' : 'd')
   segment(` · ${row.calls} calls`, 'd')
   if (opts.isMain) drawPlanRow(canvas, innerX, y + 5, innerWidth, opts.plan)
   return height

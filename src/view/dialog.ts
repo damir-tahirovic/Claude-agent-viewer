@@ -1,4 +1,5 @@
 // Dialog renderer. A typed port of `dialog` and its helpers in docs/design/spec-generator.js.
+import { isExpensive } from '../core/cost'
 import { fmtCost, fmtK, fmtT } from '../core/format'
 import type { Plan } from '../core/progress'
 import { colorize, dim, fitText, padLeft, padRight, stripCodes, toAscii, visibleLength } from './lines'
@@ -34,12 +35,12 @@ type Column = {
   p?: number
   h: string
 }
-type Totals = Record<RowStatus, number> & { tok: number; cost: number; n: number }
+type Totals = Record<RowStatus, number> & { tok: number; cost: number; n: number; costed: number }
 
 /** Sums tokens, cost and per-status counts. (spec `totals`) */
 const totalsOf = (agents: Row[]): Totals => {
-  const t: Totals = { tok: 0, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: agents.length }
-  agents.forEach(x => { t.tok += x.i + x.o; t.cost += x.cost; t[x.st]++ })
+  const t: Totals = { tok: 0, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: agents.length, costed: 0 }
+  agents.forEach(x => { t.tok += x.i + x.o; t.cost += x.cost; t[x.st]++; if (x.cost > 0) t.costed++ })
   return t
 }
 
@@ -114,7 +115,7 @@ export const renderDialog = (o: DialogOpts): string[] => {
   const cell = (c: Column, ag: Row, i: number): string => {
     const w = c.w as number
     const dm = ag.st === 'done' ? 'd' : ''
-    const isExpensive = ag.cost >= 0.5 || ag.cost / t.cost >= 0.4
+    const isCostly = isExpensive(ag.cost, t.cost, t.costed)
     switch (c.k) {
       case 'name':
         return dim(px[i]) + (ag.d
@@ -131,7 +132,7 @@ export const renderDialog = (o: DialogOpts): string[] => {
       case 'tok': return colorize(dm, padLeft(fmtK(ag.i + ag.o), w))
       case 'io': return dim(padLeft(fmtK(ag.i) + '/' + fmtK(ag.o), w))
       case 'cost':
-        return isExpensive
+        return isCostly
           ? colorize('yB', padLeft(fmtCost(ag.cost) + '▲', w))
           : colorize(dm, padLeft(fmtCost(ag.cost) + ' ', w))
       case 'calls': return colorize(dm, padLeft(String(ag.calls), w))

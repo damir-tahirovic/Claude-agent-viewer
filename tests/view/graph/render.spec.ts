@@ -29,7 +29,12 @@ test('ascii fallback matches golden 4', () => {
 test('main alone with a stub and no plan matches golden 5a', () => {
   const rows = graphEmptyRows()
   const lines = renderGraph({ width: 120, tree: buildGraphTree(rows), selectedId: 'e0', plan: null })
-  assert.deepEqual(lines, graphGolden('5a'))
+  // The generator marks this lone $0.04 agent with ▲; v0.2.2 drops the mark for a single agent under $0.05
+  // (the share rule needs a second agent with cost), so only that segment differs from the golden file.
+  const expected = graphGolden('5a').map(line =>
+    line.replace('{d|2.5k tok · }{yB|~$0.04▲}{d| · 3 calls}', '{d|2.5k tok · ~$0.04 · 3 calls} '))
+  assert.notDeepEqual(expected, graphGolden('5a'))
+  assert.deepEqual(lines, expected)
 })
 
 test('waiting for permission matches golden 5b', () => {

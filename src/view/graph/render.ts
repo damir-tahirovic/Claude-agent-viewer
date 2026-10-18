@@ -47,6 +47,7 @@ export const renderGraph = (opts: GraphOpts): string[] => {
       ...opts,
       mainWidth: isRich ? 80 : 60,
       sessionCost: graphTotals(rows).cost,
+      costedAgents: graphTotals(rows).costed,
       isRich,
     }))
   return opts.ascii ? lines.map(graphAscii) : lines
@@ -59,6 +60,8 @@ export type NarrowGraphOpts = Omit<GraphOpts, 'tree' | 'columns' | 'firstColumn'
 /** Renders the folded graph for narrow terminals: tree list, selected row as card. (graph spec `compact`) */
 export const renderGraphNarrow = (opts: NarrowGraphOpts): string[] => {
   const lines = frameGraph(opts.width, opts, canvas =>
-    layoutNarrow(canvas, opts.rows, { ...opts, sessionCost: graphTotals(opts.rows).cost }))
+    layoutNarrow(canvas, opts.rows, {
+      ...opts, sessionCost: graphTotals(opts.rows).cost, costedAgents: graphTotals(opts.rows).costed,
+    }))
   return opts.ascii ? lines.map(graphAscii) : lines
 }

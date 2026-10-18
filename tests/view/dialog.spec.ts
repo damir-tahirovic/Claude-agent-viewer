@@ -133,3 +133,17 @@ test('narrow mode shows only name, a status glyph and time', () => {
   assert.match(text, /TIME/)
   assert.doesNotMatch(text, /MODEL|TASK|NOW|COST|running/)
 })
+
+const costRow = (id: string, d: number, cost: number): Row => ({ ...mainOnly[0], id, d, cost, st: 'done' })
+const dialogText = (agents: Row[]): string => renderDialog({ W: 120, agents, sel: 0, plan: null }).map(stripCodes).join('\n')
+
+test('a single agent costing $0.00 shows no expensive mark', () => {
+  assert.ok(!dialogText([costRow('a', 0, 0)]).includes('▲'))
+})
+
+test('the first of two agents at $0.06 and $0.02 shows the expensive mark', () => {
+  const lines = renderDialog({ W: 120, agents: [costRow('a', 0, 0.06), costRow('b', 1, 0.02)], sel: 0, plan: null })
+    .map(stripCodes)
+  assert.equal(lines.filter(line => line.includes('▲')).length, 1)
+  assert.ok(lines.find(line => line.includes('▲'))?.includes('~$0.06▲'))
+})

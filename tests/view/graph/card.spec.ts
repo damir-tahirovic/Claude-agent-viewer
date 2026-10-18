@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { stripCodes } from '../../../src/view/lines'
 import { Canvas } from '../../../src/view/graph/canvas'
 import { drawCard } from '../../../src/view/graph/card'
 import { graphBaseRows, graphGolden } from '../../fixtures/graph-fixtures'
@@ -25,4 +26,18 @@ test('legend screen matches golden 0', () => {
   legend.runs(x, 7, [['! ▲', 'y'], ['  ', ''], ['stuck > 3 min · expensive (same rules as the tree)', '']])
   legend.runs(x, 9, [['✓ done · result returned', 'g'], ['  ', ''], ['= the child finished and handed its result up', '']])
   assert.deepEqual(legend.lines(11), graphGolden('0'))
+})
+
+const cardText = (cost: number, opts: { sessionCost: number; costedAgents: number }): string => {
+  const canvas = new Canvas(60, 8)
+  drawCard(canvas, 0, 0, 50, { ...graphBaseRows()[3], cost, st: 'running' }, opts)
+  return canvas.lines(8).map(stripCodes).join('\n')
+}
+
+test('a card of a lone agent costing $0.00 shows no expensive mark', () => {
+  assert.ok(!cardText(0, { sessionCost: 0, costedAgents: 0 }).includes('▲'))
+})
+
+test('a card holding the larger part of two costed agents shows the mark', () => {
+  assert.ok(cardText(0.06, { sessionCost: 0.08, costedAgents: 2 }).includes('▲'))
 })

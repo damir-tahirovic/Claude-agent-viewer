@@ -45,6 +45,7 @@ export type WideLayoutOpts = {
   readonly plan?: Plan | null
   readonly selectedId?: string
   readonly sessionCost: number
+  readonly costedAgents: number
   readonly isRich: boolean
   readonly columns?: number
   readonly firstColumn?: number
@@ -67,6 +68,7 @@ export const layoutWide = (canvas: Canvas, root: GraphNode, opts: WideLayoutOpts
   const cardOpts = (node: GraphNode) => ({
     isSelected: opts.selectedId === node.row.id,
     sessionCost: opts.sessionCost,
+    costedAgents: opts.costedAgents,
     isRich: opts.isRich,
     spin: opts.spin,
     waitingText: opts.waitingText,
@@ -166,6 +168,7 @@ const treePrefixes = (rows: ReadonlyArray<Row>): TreePrefix[] =>
 export type NarrowLayoutOpts = {
   readonly selectedId?: string
   readonly sessionCost: number
+  readonly costedAgents: number
   readonly spin?: string
   readonly waitingText?: string
 }
@@ -213,7 +216,7 @@ export const layoutNarrow = (canvas: Canvas, rows: ReadonlyArray<Row>, opts: Nar
       for (let r = 0; r < 6; r++) canvas.put(left + 3 * (row.d - 1), y + r, '│', 'd')
     }
     drawCard(canvas, startX, y, cardWidth, row, {
-      isSelected: true, sessionCost: opts.sessionCost, isRich: true, spin: opts.spin,
+      isSelected: true, sessionCost: opts.sessionCost, costedAgents: opts.costedAgents, isRich: true, spin: opts.spin,
       waitingText: opts.waitingText, error: row.err,
     })
     y += 6

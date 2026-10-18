@@ -5,16 +5,17 @@ import { SPIN } from '../lines'
 import type { Row, RowStatus } from '../rows'
 import { Canvas } from './canvas'
 
-export type GraphTotals = Record<RowStatus, number> & { tok: number; cost: number; n: number }
+export type GraphTotals = Record<RowStatus, number> & { tok: number; cost: number; n: number; costed: number }
 
 /** Sums tokens, cost and per-status counts. (graph spec `totals`) */
 export const graphTotals = (rows: ReadonlyArray<Row>): GraphTotals => {
   const totals: GraphTotals = {
-    tok: 0, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: rows.length,
+    tok: 0, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: rows.length, costed: 0,
   }
   rows.forEach(row => {
     totals.tok += row.i + row.o
     totals.cost += row.cost
+    if (row.cost > 0) totals.costed += 1
     totals[row.st] += 1
   })
   return totals
