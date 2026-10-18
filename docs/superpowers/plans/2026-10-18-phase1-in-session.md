@@ -12,6 +12,12 @@
 
 ## Global Constraints
 
+- **`agentview/CLAUDE.md` overrides the code snippets in this plan.** The snippets show behavior; adapt them to the standards. In particular:
+  - add `readonly` to the domain types;
+  - no `any`: use the engine types or narrow local types;
+  - give the spec helpers descriptive names (`C`→`colorize`, `D`→`dim`, `vl`→`visibleLength`, `padR`→`padRight`, `padL`→`padLeft`, `fit`→`fitText`, `strip`→`stripCodes`, `ascii`→`toAscii`) and use those names consistently in later tasks;
+  - write exhaustive switches with a `never` check.
+
 - UI text is English, exactly as in the spec (`running`, `waiting`, `done`, `failed`, `unknown`).
 - Colors: only the 8 basic ANSI colors + dim + bold + inverse. Never gray. Codes used in lines: `d` dim, `B` bold, `c` cyan, `y` yellow, `g` green, `r` red, `b` blue, `I` inverse. Codes combine (`yB`, `rB`, `IB`).
 - Width tiers: tier 1 below 100 columns, tier 2 for 100–139, tier 3 from 140.
