@@ -607,10 +607,16 @@ test('billing reaches the session only when it changes', async ($, on) => {
   on('session.usage', () => ({ value: PLAN_USAGE }))
   on('turn.complete', () => ({ text: '' }))
   await startAndOpen($, on, [])
+  let writesAfterFirst = 0
   for (const turnId of ['t1', 't2', 't3']) {
     await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId, reason: 'end_turn' })
     await settle()
+    if (turnId === 't1') writesAfterFirst = writes.sessions.length
   }
+  // Turns themselves write the session, so count billing changes: unchanged readings after the first add none.
+  const billingAfterFirst = writes.sessions.slice(writesAfterFirst).map(state => JSON.stringify(state.billing))
+  expect(billingAfterFirst.length).toBeGreaterThan(0)
+  expect(new Set([JSON.stringify(writes.sessions[writesAfterFirst - 1].billing), ...billingAfterFirst]).size).toBe(1)
   const kinds = writes.sessions.map(state => JSON.stringify(state.billing))
   expect(kinds.filter((kind, index) => index > 0 && kind !== kinds[index - 1]).length).toBeLessThanOrEqual(1)
   expect(writes.sessions.at(-1)?.billing?.kind).toBe('subscription')

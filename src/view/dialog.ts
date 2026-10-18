@@ -43,6 +43,7 @@ type Totals = Record<RowStatus, number> & { tok: number; cost: number; n: number
 
 /** Sums tokens, cost and per-status counts. (spec `totals`) */
 const totalsOf = (agents: Row[]): Totals => {
+  // `costed`: agents with a nonzero estimated cost; an unknown model counts as 0.
   const t: Totals = { tok: 0, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: agents.length, costed: 0 }
   agents.forEach(x => { t.tok += x.i + x.o; t.cost += x.cost; t[x.st]++; if (x.cost > 0) t.costed++ })
   return t

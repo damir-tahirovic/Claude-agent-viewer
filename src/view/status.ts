@@ -45,7 +45,10 @@ export const statusLine = (
   }
   const running = rows.filter(row => row.st === 'running').length
   const progress = plan ? Math.round(plan.done / plan.total * 100) + '%' : '—'
+  const unknown = rows.filter(row => row.st === 'unknown').length
   if (running > 0) return `⠋ ${running} running · ${tokens} tok · ${progress}   ${HINT}`
+  // Unknown agents may still be working, so idle would hide them.
+  if (unknown > 0) return `? ${unknown} unknown · ${tokens} tok · ${progress}   ${HINT}`
   // Nothing running: a spinner would mislead, so say idle and show what the header's cost slot shows.
   const slot = costSlot(billing, rows.reduce((sum, row) => sum + row.cost, 0))
   return `idle · ${tokens} tok · ${progress}${slot === '—' ? '' : ` · ${slot}`}   ${HINT}`

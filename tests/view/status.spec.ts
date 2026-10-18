@@ -77,3 +77,8 @@ test('running agents keep the spinner count even on a subscription', () => {
   const running = [{ ...idleRows()[0], st: 'running' as const }]
   assert.match(statusLine(running, plan, {}, sub), /^⠋ 1 running · \S+ tok · 60%   \/agentview$/)
 })
+
+test('unknown agents are shown instead of idle', () => {
+  const rows = [{ ...idleRows()[0], st: 'unknown' as const }]
+  assert.match(statusLine(rows, plan, {}, { kind: 'unknown' }), /^\? 1 unknown · \S+ tok · 60%   \/agentview$/)
+})

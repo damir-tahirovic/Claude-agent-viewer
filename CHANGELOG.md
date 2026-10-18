@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The status line is drawn as the dim tail of the prompt hint, not as an engine warning.
 
 ### Changed
+- Status text says `idle` when nothing runs, with plan limits on a subscription.
 - Cost (`~$`) is shown only with API-key billing. On a subscription the header shows the plan's usage limits (`5h 71% · 7d 21%`) and no cost or `▲` anywhere; while billing is not yet known the cost total shows `—`.
 
 ## [0.2.1] - 2026-10-18

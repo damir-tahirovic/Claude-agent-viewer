@@ -58,3 +58,13 @@ test('an idle session on api billing shows the cost total before the hint', () =
   const state = fold([{ kind: 'billing', at: AT, billing: { kind: 'api' } }])
   assert.equal(statusFor(state, AT), 'idle · 0 tok · — · ~$0.00   /agentview')
 })
+
+test('a subscription stays a subscription after an empty reading and shows no cost', () => {
+  const state = fold([
+    { kind: 'billing', at: AT, billing: { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }] } },
+    { kind: 'billing', at: AT, billing: { kind: 'api' } },
+    { kind: 'billing', at: AT, billing: { kind: 'unknown' } },
+  ])
+  assert.equal(state.billing?.kind, 'subscription')
+  assert.doesNotMatch(statusFor(state, AT), /~\$/)
+})

@@ -158,6 +158,8 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
       return { ...state, agents }
     }
     case 'billing':
+      // A subscription never reverts: an empty rate-limit reading must not flip it to api and show cost.
+      if (state.billing?.kind === 'subscription' && event.billing.kind !== 'subscription') return state
       // The same object back means nothing changed, so the poll-free path writes nothing.
       return state.billing && isSameBilling(state.billing, event.billing) ? state : { ...state, billing: event.billing }
     default: {

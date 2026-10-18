@@ -293,5 +293,12 @@ test('a billing event with the same value returns the same state', () => {
   const plan = { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }] } as const
   const once = run([{ kind: 'billing', at: 1, billing: plan }])
   assert.equal(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }] } }), once)
-  assert.notEqual(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'api' } }), once)
+  assert.notEqual(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 72 }] } }), once)
+})
+
+test('a subscription ignores a later api or unknown billing event', () => {
+  const plan = { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }] } as const
+  const once = run([{ kind: 'billing', at: 1, billing: plan }])
+  assert.equal(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'api' } }), once)
+  assert.equal(reduce(once, { kind: 'billing', at: 2, billing: { kind: 'unknown' } }), once)
 })
