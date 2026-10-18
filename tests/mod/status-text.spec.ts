@@ -12,8 +12,8 @@ test('a session with only main shows the running count and the hint during a tur
   assert.match(statusFor(state, AT), /^⠋ 1 running · 0 tok · —   \/agentview$/)
 })
 
-test('a fresh session at the prompt counts no running agent', () => {
-  assert.match(statusFor(initialState('s', AT), AT), /^⠋ 0 running · 0 tok · —   \/agentview$/)
+test('a fresh session at the prompt is idle', () => {
+  assert.match(statusFor(initialState('s', AT), AT), /^idle · 0 tok · —   \/agentview$/)
 })
 
 test('a silent subagent past 60 s is counted unknown, not running, and never done', () => {
@@ -44,4 +44,17 @@ test('the all-done line shows cost on API billing and leaves it out on a subscri
   assert.match(statusFor(api, AT), /^✓ all 2 agents done · 1000k tok · ~\$\d/)
   for (const state of [plan, unknown]) assert.doesNotMatch(statusFor(state, AT), /~\$/)
   assert.match(statusFor(plan, AT), /^✓ all 2 agents done · .* tok · 100%$/)
+})
+
+test('an idle session on a subscription shows the plan limits before the hint', () => {
+  const state = fold([{
+    kind: 'billing', at: AT,
+    billing: { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 84 }, { kind: 'seven_day', percentUsed: 23 }] },
+  }])
+  assert.equal(statusFor(state, AT), 'idle · 0 tok · — · 5h 84% · 7d 23%   /agentview')
+})
+
+test('an idle session on api billing shows the cost total before the hint', () => {
+  const state = fold([{ kind: 'billing', at: AT, billing: { kind: 'api' } }])
+  assert.equal(statusFor(state, AT), 'idle · 0 tok · — · ~$0.00   /agentview')
 })

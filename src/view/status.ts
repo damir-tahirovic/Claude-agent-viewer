@@ -1,6 +1,6 @@
 // Attention-first status line. A port of variant C in the status-line section of
 // docs/design/spec-generator.js (`statusLines`), as plain text for `$.ui.status`.
-import { showsCost } from '../core/billing'
+import { costSlot, showsCost } from '../core/billing'
 import { fmtCost, fmtK, fmtT } from '../core/format'
 import type { Billing } from '../core/model'
 import type { Plan } from '../core/progress'
@@ -14,7 +14,7 @@ export type StatusReasons = {
 
 const HINT = '/agentview'
 
-/** The one line that matters now: waiting, then stuck, then failed, then done, else counts. */
+/** The one line that matters now: waiting, then stuck, then failed, then done, else running counts or idle. */
 export const statusLine = (
   rows: ReadonlyArray<Row>,
   plan: Plan | null,
@@ -45,5 +45,8 @@ export const statusLine = (
   }
   const running = rows.filter(row => row.st === 'running').length
   const progress = plan ? Math.round(plan.done / plan.total * 100) + '%' : '—'
-  return `⠋ ${running} running · ${tokens} tok · ${progress}   ${HINT}`
+  if (running > 0) return `⠋ ${running} running · ${tokens} tok · ${progress}   ${HINT}`
+  // Nothing running: a spinner would mislead, so say idle and show what the header's cost slot shows.
+  const slot = costSlot(billing, rows.reduce((sum, row) => sum + row.cost, 0))
+  return `idle · ${tokens} tok · ${progress}${slot === '—' ? '' : ` · ${slot}`}   ${HINT}`
 }
