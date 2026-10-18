@@ -17,6 +17,8 @@ export type PaneViewOpts = {
   readonly columns: number
   readonly rows: number
   readonly ascii: boolean
+  /** Window of rows kept by the pane's focus hook; absent shows the selected row's neighbourhood. */
+  readonly win?: readonly [number, number]
 }
 
 /** A pane split into lines around the selectable agent rows. */
@@ -42,6 +44,9 @@ const NO_SUBAGENTS_TEXT = '  ◌ no subagents yet — they appear here as soon a
 
 /** HH:MM:SS of an epoch-ms timestamp (UTC), the detail view's clock column. */
 const clockOf = (ms: number): string => new Date(ms).toISOString().slice(11, 19)
+
+/** How many agent rows fit in a pane of `paneRows` lines. */
+export const roomFor = (paneRows: number): number => Math.max(MIN_AGENT_ROWS, paneRows - CHROME_ROWS)
 
 /** Builds the pane for the tree view or the detail of the selected agent. */
 export const buildPaneView = (opts: PaneViewOpts): PaneView => {
@@ -70,8 +75,11 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   }
 
   const plan = planOf(session.todos.main)
-  const room = Math.max(MIN_AGENT_ROWS, opts.rows - CHROME_ROWS)
-  const win = rows.length > room ? windowFor(rows.length, selected, room) : undefined
+  const room = roomFor(opts.rows)
+  // The stored window is clamped to valid bounds; windowFor then keeps the selection inside it.
+  const storedStart = opts.win ? Math.min(Math.max(0, opts.win[0]), Math.max(0, rows.length - room)) : undefined
+  const stored: [number, number] | undefined = storedStart === undefined ? undefined : [storedStart, storedStart + room]
+  const win = rows.length > room ? windowFor(rows.length, selected, room, stored) : undefined
   const width = Math.max(opts.columns, MIN_TREE_COLUMNS)
   const lines = renderDialog({
     W: width, agents: rows, sel: selected,

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import type { AgentEvent } from '../../src/core/model'
 import { reduce, initialState } from '../../src/core/reducer'
 import { buildPaneView } from '../../src/mod/pane-view'
 import { stripCodes, visibleLength } from '../../src/view/lines'
@@ -70,4 +71,28 @@ test('detail at 80 columns is clipped to the body and its header shows the statu
   const built = buildPaneView({ ...base, columns: 80, view: 'detail', selId: 'a1', session: twoAgents })
   built.head.forEach(line => assert.ok(visibleLength(line) <= 80, stripCodes(line)))
   assert.match(stripCodes(built.head[0]), /^agentview › worker · .* · .*running$/)
+})
+
+const crowded = Array.from({ length: 19 }, (_, i): AgentEvent => ({
+  kind: 'agent.start', id: 'w' + i, type: 'worker', description: 't' + i, at: NOW + i,
+})).reduce(reduce, initialState('abcdef123456', NOW))
+
+test('20 rows in a pane with room for 8 show the stored window with more-above and more-below lines', () => {
+  const built = buildPaneView({ ...base, rows: 18, selId: 'w6', win: [4, 12], session: crowded })
+  assert.equal(built.agentLines.length, 8)
+  assert.deepEqual(built.agentLines.map(entry => entry.id), ['w3', 'w4', 'w5', 'w6', 'w7', 'w8', 'w9', 'w10'])
+  assert.match(stripCodes(built.head.join('\n')), /↑ 4 more above/)
+  assert.match(stripCodes(built.tail.join('\n')), /↓ 8 more below/)
+})
+
+test('a stored window out of bounds is clamped', () => {
+  const built = buildPaneView({ ...base, rows: 18, selId: 'w18', win: [99, 107], session: crowded })
+  assert.deepEqual(built.agentLines.map(entry => entry.id).slice(-1), ['w18'])
+  assert.equal(built.agentLines.length, 8)
+  assert.doesNotMatch(stripCodes(built.tail.join('\n')), /more below/)
+})
+
+test('without a stored window the selection decides', () => {
+  const built = buildPaneView({ ...base, rows: 18, selId: 'w15', session: crowded })
+  assert.ok(built.agentLines.some(entry => entry.id === 'w15'))
 })

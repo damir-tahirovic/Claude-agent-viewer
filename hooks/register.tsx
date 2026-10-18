@@ -1,10 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import type { AgentEvent, SessionState } from '../src/core/model'
-import { initialState, reduce } from '../src/core/reducer'
+import { initialState, orderTree, reduce } from '../src/core/reducer'
 import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
-import { buildPaneView } from '../src/mod/pane-view'
-import { decideClose, stepId, type CloseDecision } from '../src/mod/pane-keys'
+import { buildPaneView, roomFor } from '../src/mod/pane-view'
+import { decideClose, nextWindow, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
 import { toPlainAscii } from '../src/view/lines'
 import { statusFor } from '../src/mod/status-text'
@@ -27,6 +27,10 @@ const PREV_KEY = '<prev>'
 const NEXT_KEY = '>next<'
 const FALLBACK_SESSION_ID = 'session'
 const POLL_MS = 1000
+const DEFAULT_PANE_ROWS = 24
+
+/** Agent rows that fit in the pane as last drawn; the focus hook has no viewport, so render leaves it here. */
+let latestRoom = roomFor(DEFAULT_PANE_ROWS)
 
 /** Last status line sent, so `$.ui.status` is called only when the text changes. A reload re-sends it. */
 let lastStatus: string | undefined
@@ -151,7 +155,7 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'agentview' }, async $ => {
     try {
-      await update($, ui, current => ({ ...current, open: true, view: 'tree', selId: 'main' }))
+      await update($, ui, current => ({ ...current, open: true, view: 'tree', selId: 'main', win: undefined }))
       await $.ui.open({ id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true })
     } catch (err) {
       logOnce($, 'command.run', err)
@@ -178,7 +182,9 @@ export const register: Register = (on, options) => {
       const key = e.element
       const state = await read($, ui)
       if (e.requestId === PANE_ID && key && state.view === 'tree' && key !== state.selId) {
-        await update($, ui, current => ({ ...current, selId: key }))
+        const order = orderTree((await read($, session)) ?? initialState(FALLBACK_SESSION_ID, 0)).map(entry => entry.id)
+        const win = nextWindow(order, key, state.win ?? [0, latestRoom], latestRoom)
+        await update($, ui, current => ({ ...current, selId: key, win }))
       }
     } catch (err) {
       logOnce($, 'ui.focus', err)
@@ -227,9 +233,10 @@ export const register: Register = (on, options) => {
       </Text>
     )
     if (!current) return <Text dimColor>agentview: waiting for the session to start</Text>
+    latestRoom = roomFor(e.viewport?.rows ?? DEFAULT_PANE_ROWS)
     const view = buildPaneView({
       session: current, view: state.view, selId: state.selId, spin: state.spin,
-      now: await $.clock.now(), columns: e.props.bodyColumns, rows: e.viewport?.rows ?? 24, ascii: isAscii,
+      now: await $.clock.now(), columns: e.props.bodyColumns, rows: e.viewport?.rows ?? DEFAULT_PANE_ROWS, ascii: isAscii, win: state.win,
     })
     const label = (text: string): string => (isAscii ? toPlainAscii(text) : text)
     const step = (offset: number) => async (): Promise<void> => {

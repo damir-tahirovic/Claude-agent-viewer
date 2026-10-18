@@ -15,3 +15,29 @@ export const stepId = (order: ReadonlyArray<string>, current: string, offset: nu
   const at = Math.max(0, order.indexOf(current))
   return order[(at + offset % order.length + order.length) % order.length]
 }
+
+/**
+ * The visible window of rows after focus lands on `focusedId`: it moves by one when the focus is on its
+ * first or last row and more rows lie beyond, so the arrows can walk past the edge. All rows fit: no window.
+ */
+export const nextWindow = (
+  order: ReadonlyArray<string>,
+  focusedId: string,
+  win: readonly [number, number],
+  room: number,
+): [number, number] => {
+  const total = order.length
+  if (total <= room) return [0, total]
+  const start = Math.min(Math.max(0, win[0]), total - room)
+  const at = order.indexOf(focusedId)
+  const placed = (first: number): [number, number] => {
+    const clamped = Math.min(Math.max(0, first), total - room)
+    return [clamped, clamped + room]
+  }
+  if (at < 0) return placed(start)
+  if (at < start) return placed(at)
+  if (at >= start + room) return placed(at - room + 1)
+  if (at === start && start > 0) return placed(start - 1)
+  if (at === start + room - 1 && start + room < total) return placed(start + 1)
+  return placed(start)
+}
