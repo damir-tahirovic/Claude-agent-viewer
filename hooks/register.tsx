@@ -6,7 +6,6 @@ import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, tu
 import { appendBounded } from '../src/mod/event-batch'
 import { openArgsFor } from '../src/mod/open-args'
 import { buildPaneView, roomFor } from '../src/mod/pane-view'
-import { createViewMemo } from '../src/mod/view-memo'
 import { graphColumnsFor, panColumn, panToInclude } from '../src/mod/graph-pane'
 import { decideClose, nextWindow, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
@@ -40,6 +39,8 @@ const FALLBACK_SESSION_ID = 'session'
 const POLL_MS = 1000
 /** Recorded events reach the session atom at most this often, as one write. */
 const FLUSH_MS = 250
+/** Wrap of the redraw counter; it only has to differ from one second to the next. */
+const REDRAW_WRAP = 1000
 /** Events kept while flushes fail; the oldest are dropped past this. */
 const MAX_QUEUED_EVENTS = 1000
 const DEFAULT_PANE_ROWS = 24
@@ -88,29 +89,34 @@ let queued: ReadonlyArray<AgentEvent> = []
 let flushTimer: { cancel: () => void } | undefined
 
 /** Folds the queued events plus `extra` into the session atom in one write, or writes nothing when nothing changes. */
-const flushOnce = async ($: EngineInterface, extra: ReadonlyArray<AgentEvent>): Promise<void> => {
+const flushOnce = async ($: EngineInterface, extra: ReadonlyArray<AgentEvent>): Promise<boolean> => {
   const taken = queued
   queued = []
   const events = [...taken, ...extra]
-  if (events.length === 0) return
+  if (events.length === 0) return true
   try {
     const at = await $.clock.now()
     const current = await read($, session)
     // The same object back from the reducer means nothing changed, so nothing is written.
-    if (current && events.reduce(reduce, current as SessionState) === current) return
+    if (current && events.reduce(reduce, current as SessionState) === current) return true
     await update($, session, latest => events.reduce(reduce, (latest ?? initialState(FALLBACK_SESSION_ID, at)) as SessionState))
     await publishStatus($)
+    return true
   } catch (err) {
     // A failed flush keeps the recorded events for the next one; poll-only events are rebuilt by the next poll.
     queued = appendBounded(taken, queued, MAX_QUEUED_EVENTS)
     logOnce($, 'flush', err)
+    // Retry does not wait for the poll.
+    scheduleFlush($)
+    return false
   }
 }
 
-/** Applies the queued events plus `extra`, after any flush already running. Never throws. */
-const flush = ($: EngineInterface, extra: ReadonlyArray<AgentEvent> = []): Promise<void> => {
-  flushing = flushing.then(() => flushOnce($, extra)).catch(() => {})
-  return flushing
+/** Applies the queued events plus `extra`, after any flush already running; resolves false when the write failed. Never throws. */
+const flush = ($: EngineInterface, extra: ReadonlyArray<AgentEvent> = []): Promise<boolean> => {
+  const result = flushing.then(() => flushOnce($, extra)).catch(() => false)
+  flushing = result.then(() => undefined)
+  return result
 }
 
 /** Arms the flush timer unless one is pending. */
@@ -140,18 +146,24 @@ const record = ($: EngineInterface, build: (at: number) => AgentEvent[]): void =
   }).catch(() => {})
 }
 
-/** Moves the spinner one frame when the pane is open and an agent runs; otherwise writes nothing. */
+/**
+ * Redraws once a second while the pane is open and an agent has not ended, since elapsed time keeps moving for
+ * waiting and unknown agents too. The spinner frame moves only while an agent runs; otherwise `redraw` is bumped.
+ */
 const advanceSpinner = async ($: EngineInterface): Promise<void> => {
   const [state, current] = await Promise.all([read($, ui), read($, session)])
   if (!state.open) return
-  if (!Object.values(current?.agents ?? {}).some(agent => agent.status === 'running')) return
-  await update($, ui, latest => ({ ...latest, spin: (latest.spin + 1) % SPIN_FRAMES }))
+  const agents = Object.values(current?.agents ?? {})
+  if (!agents.some(agent => agent.endedAt === undefined)) return
+  const isRunning = agents.some(agent => agent.status === 'running')
+  await update($, ui, latest => (isRunning
+    ? { ...latest, spin: (latest.spin + 1) % SPIN_FRAMES }
+    : { ...latest, redraw: ((latest.redraw ?? 0) + 1) % REDRAW_WRAP }))
 }
 
 export const register: Register = (on, options) => {
   const known: Record<string, string> = {}
   const isAscii = options.ascii === true
-  const memoizedView = createViewMemo<ReturnType<typeof buildPaneView>>()
   // One poll per mod: a repeated session.start replaces it instead of doubling it.
   let poll: { cancel: () => void } | undefined
 
@@ -180,12 +192,17 @@ export const register: Register = (on, options) => {
     }
     try {
       poll?.cancel()
+      // A reload must not inherit a flush timer of the old environment.
+      flushTimer?.cancel()
+      flushTimer = undefined
       poll = $.clock.every(POLL_MS, async () => {
         try {
           const now = await $.clock.now()
           const list = await $.agent.list()
-          await flush($, [...listStatus(list, now, known), { kind: 'tick', at: now }])
-          for (const agent of list) known[agent.id] = agent.status
+          // `known` moves only after the transitions are stored, so a failed flush cannot lose one.
+          if (await flush($, [...listStatus(list, now, known), { kind: 'tick', at: now }])) {
+            for (const agent of list) known[agent.id] = agent.status
+          }
           await advanceSpinner($)
         } catch (err) {
           logOnce($, 'poll', err)
@@ -283,13 +300,10 @@ export const register: Register = (on, options) => {
     const now = await $.clock.now()
     const columns = e.props.bodyColumns
     const rows = e.viewport?.rows ?? DEFAULT_PANE_ROWS
-    const view = memoizedView({
-      session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol,
-      spin: state.spin, win: state.win, columns, rows, ascii: isAscii, second: Math.floor(now / 1000),
-    }, () => buildPaneView({
+    const view = buildPaneView({
       session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol, spin: state.spin,
       now, columns, rows, ascii: isAscii, win: state.win,
-    }))
+    })
     latestRoom = roomFor(e.viewport?.rows ?? DEFAULT_PANE_ROWS, view.isToggleBeside ? 0 : 1)
     const label = (text: string): string => (isAscii ? toPlainAscii(text) : text)
     const step = (offset: number) => async (): Promise<void> => {

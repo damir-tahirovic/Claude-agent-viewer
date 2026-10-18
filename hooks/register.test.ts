@@ -460,3 +460,62 @@ test('the command opens the pane with a size request', async ($, on) => {
   await $.command.run({ command: 'agentview', args: '' })
   expect(opened?.columns !== undefined || opened?.rows !== undefined).toBe(true)
 })
+
+const unknownAbsent = async ($: Parameters<Parameters<typeof test>[1]>[0]): Promise<boolean> => {
+  const pane = await mountPane($)
+  const found = await pane.find({ type: 'Text', text: /unknown/ })
+  await pane.unmount()
+  return found === undefined
+}
+
+test('a subagent is done in the state within one flush after its turn completes', async ($, on) => {
+  const clock = useClock(on)
+  const writes = countWrites(on)
+  on('tool.call', readTool)
+  on('turn.complete', () => ({ text: '' }))
+  await startAndOpen($, on, [])
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a', agentId: 'sub1' })
+  await settle()
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'end_turn', agentId: 'sub1' })
+  await new Promise(resolve => setTimeout(resolve, 20))
+  await clock.advance(FLUSH_MS)
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(writes.sessions.at(-1)?.agents.sub1?.status).toBe('done')
+})
+
+test('a running subagent the engine lists stays running across 30 s, 59 s and 61 s of silence', async ($, on) => {
+  const clock = useClock(on)
+  on('tool.call', readTool)
+  await startAndOpen($, on, [{ id: 'sub1', type: 'worker', description: 'w', status: 'running' }])
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a', agentId: 'sub1' })
+  await settle()
+  await clock.advance(30_000)
+  expect(await unknownAbsent($)).toBe(true)
+  await clock.advance(29_000)
+  expect(await unknownAbsent($)).toBe(true)
+  await clock.advance(2_000)
+  expect(await unknownAbsent($)).toBe(true)
+})
+
+test('the elapsed time of a waiting agent keeps redrawing every second', async ($, on) => {
+  const clock = useClock(on)
+  const writes = countWrites(on)
+  on('tool.call', readTool)
+  on('turn.complete', () => ({ text: '' }))
+  await startAndOpen($, on, [{ id: 'sub1', type: 'worker', description: 'w', status: 'waiting' }])
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a', agentId: 'sub1' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'end_turn' })
+  await settle()
+  await clock.advance(1000)
+  const pane = await mountPane($)
+  const before = await pane.find({ type: 'Text', text: /waiting.*\d+s/ })
+  expect(before).toBeDefined()
+  const uiBefore = writes.ui
+  const timeBefore = JSON.stringify(before)
+  await clock.advance(3000)
+  const after = await pane.find({ type: 'Text', text: /waiting.*\d+s/ })
+  expect(JSON.stringify(after)).not.toBe(timeBefore)
+  console.log(`WRITES waiting agent 3 s: ui=${writes.ui - uiBefore}`)
+  expect(writes.ui - uiBefore).toBe(3)
+  await pane.unmount()
+})

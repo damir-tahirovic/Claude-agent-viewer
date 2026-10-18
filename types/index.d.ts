@@ -63,6 +63,8 @@ export type AgentviewUi = {
   readonly graphCol: number
   readonly win?: readonly [number, number]
   readonly spin: number
+  /** Bumped once a second while only non-running agents are live, so their elapsed time redraws. */
+  readonly redraw?: number
 }
 
 declare module 'claude-code' {
