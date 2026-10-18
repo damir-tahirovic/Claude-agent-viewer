@@ -1,4 +1,4 @@
-import { MAIN, RECENT_MAX, UNKNOWN_AFTER_MS, ZERO, type AgentEvent, type AgentNode, type SessionState, type ToolCall } from './model'
+import { HEARTBEAT_MIN_MS, MAIN, RECENT_MAX, UNKNOWN_AFTER_MS, ZERO, type AgentEvent, type AgentNode, type SessionState, type ToolCall } from './model'
 import { summarize } from './summary'
 
 const node = (id: string, at: number, overrides: Partial<AgentNode> = {}): AgentNode => ({
@@ -135,7 +135,10 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
       }))
     case 'heartbeat': {
       // The engine's own list says this agent runs: refresh it, but never invent an unseen agent.
-      if (!state.agents[event.agentId]) return state
+      const known = state.agents[event.agentId]
+      if (!known) return state
+      // A running agent with a tool in flight or a fresh signal needs nothing; the same object means no write.
+      if (known.status === 'running' && (hasOpenCalls(known) || event.at - known.lastSignal < HEARTBEAT_MIN_MS)) return state
       return withAgent(state, event.agentId, event.at, agent => alive(agent, event.at))
     }
     case 'turn':

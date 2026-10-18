@@ -111,3 +111,6 @@ export const RECENT_MAX = 20
 
 /** Silence after which a running subagent is marked unknown, in ms. */
 export const UNKNOWN_AFTER_MS = 60_000
+
+/** A heartbeat refreshes a running agent's signal only after this much silence, so the poll writes rarely. */
+export const HEARTBEAT_MIN_MS = 30_000

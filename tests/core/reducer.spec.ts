@@ -247,3 +247,27 @@ test('main is done between turns and running again on the next turn', () => {
   assert.equal(started.agents.main.status, 'running')
   assert.equal(started.agents.main.endedAt, undefined)
 })
+
+test('a heartbeat for a running agent with a recent signal returns the same state', () => {
+  const state = run([{ kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' }])
+  assert.equal(reduce(state, { kind: 'heartbeat', at: 10_000, agentId: 'a' }), state)
+})
+
+test('a heartbeat for a running agent with a tool in flight returns the same state', () => {
+  const state = run([
+    { kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' },
+    TOOL(1, 't1', 'a'),
+  ])
+  assert.equal(reduce(state, { kind: 'heartbeat', at: 500_000, agentId: 'a' }), state)
+})
+
+test('a heartbeat for a running agent silent for 30 s refreshes its signal', () => {
+  const state = run([{ kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' }])
+  const next = reduce(state, { kind: 'heartbeat', at: 30_000, agentId: 'a' })
+  assert.equal(next.agents.a.lastSignal, 30_000)
+})
+
+test('a tick that marks nothing unknown returns the same state', () => {
+  const state = run([{ kind: 'agent.start', at: 0, id: 'a', type: 'x', description: '' }])
+  assert.equal(reduce(state, { kind: 'tick', at: 5_000 }), state)
+})
