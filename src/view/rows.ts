@@ -28,6 +28,8 @@ export type Row = {
   /** Seconds on the current action; absent when no tool is running. */
   readonly actionSecs?: number
   readonly stuck?: 1
+  /** Error text of a failed agent; the graph card shows it, and falls back to `exit 1` when absent. */
+  readonly err?: string
 }
 
 /** A running agent on the same action for longer than this is flagged as stuck, in ms. */

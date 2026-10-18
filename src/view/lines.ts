@@ -32,6 +32,12 @@ export const fitText = (text: string, width: number): string => {
     : chars.slice(0, Math.max(0, width - 1)).join('') + '…'
 }
 
+/** Cuts plain text with an ellipsis when it is too long, without padding it. (graph generator `fit`) */
+export const fitNoPad = (text: string, width: number): string => {
+  const chars = [...text]
+  return chars.length <= width ? text : chars.slice(0, Math.max(0, width - 1)).join('') + '…'
+}
+
 /** Cuts a coded line to at most `width` visible characters, keeping the codes of what stays. */
 export const clipLine = (line: string, width: number): string => {
   if (visibleLength(line) <= width) return line
