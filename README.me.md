@@ -200,7 +200,8 @@ U fullscreen prikazu Claude Code kači plugin panele pored transkripta. agentvie
   | `haiku-5-5` | $0.10 | $0.50 | $0.01 | $0.125 |
   | `fable-5-1` | $10 | $50 | $0.25 | $12.50 |
 
-- **`▲`** poslije troška označava skupog agenta: najmanje $0.50 ili najmanje 40% procijenjenog troška sesije.
+- **`▲`** poslije troška označava skupog agenta: najmanje $0.50 ili najmanje 40% procijenjenog troška sesije, kada je on barem $0.05 i kada i drugi agent ima trošak.
+- **Naplata.** Trošak (`~$`) i `▲` prikazuju se samo kada se sesija naplaćuje po tokenu preko API ključa. Na pretplati (Claude Pro ili Max) tokeni se ne naplaćuju pojedinačno, pa agentview sakriva sav trošak i u zaglavlju prikazuje ograničenja korišćenja plana, na primjer `5h 71% · 7d 21%` (petosatni i sedmodnevni prozor, kako ih javlja Claude Code). Podaci dolaze iz `$.session.usage()`, očitanog jednom pri startu sesije i jednom poslije svakog glavnog turna; sesija bez očitanja ograničenja poslije prvog završenog turna smatra se API naplatom. Do tada naplata nije poznata, trošak je skriven, a zaglavlje umjesto njega prikazuje `—`.
 - **`!`** poslije vremena označava agenta koji je duže od 3 minuta na istoj radnji.
 - **`unknown`** znači da subagent nije poslao signal duže od 60 sekundi i da nema alata u toku. Na sljedeći signal ponovo postaje `running`. Glavni agent nikad nije `unknown`.
 - **Plan %** dolazi samo iz liste zadataka glavnog agenta (završeno podijeljeno sa ukupno). Bez liste zadataka prikazuje `—`. Liste zadataka subagenata se za to ne koriste.

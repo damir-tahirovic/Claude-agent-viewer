@@ -3,6 +3,17 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.2] - 2026-10-18
+
+### Fixed
+- `/agentview` typed while Claude is working now opens at once instead of waiting for the turn to end.
+- A fresh session no longer shows `main` as running before any turn.
+- The expensive mark `▲` no longer appears on `~$0.00` or on a lone agent: the share rule needs at least $0.05 and two agents with cost.
+- The status line is drawn as the dim tail of the prompt hint, not as an engine warning.
+
+### Changed
+- Cost (`~$`) is shown only with API-key billing. On a subscription the header shows the plan's usage limits (`5h 71% · 7d 21%`) and no cost or `▲` anywhere; while billing is not yet known the cost total shows `—`.
+
 ## [0.2.1] - 2026-10-18
 
 ### Fixed

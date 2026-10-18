@@ -113,7 +113,7 @@ The mockups show the design. In the plugin the footer hints are the ones listed 
 - Tree and graph views of the agents, switched with `t` and `g`.
 - Agent detail: task, recent actions, token breakdown and the agent's todo list.
 - A status line under the prompt that names what needs attention first.
-- Tokens and estimated cost (`~$`) per agent and for the whole session.
+- Tokens and estimated cost (`~$`) per agent and for the whole session; on a subscription, the plan usage limits instead.
 - Plan progress in percent, taken from the todo list.
 - Markers for agents that are stuck (`!`), expensive (`▲`) or `unknown`.
 - ASCII mode for terminals without box-drawing characters.
@@ -200,7 +200,8 @@ In fullscreen, Claude Code docks plugin panes beside the transcript. agentview a
   | `haiku-5-5` | $0.10 | $0.50 | $0.01 | $0.125 |
   | `fable-5-1` | $10 | $50 | $0.25 | $12.50 |
 
-- **`▲`** after a cost marks an expensive agent: at least $0.50, or at least 40% of the session's estimated cost.
+- **`▲`** after a cost marks an expensive agent: at least $0.50, or at least 40% of the session's estimated cost when that is at least $0.05 and a second agent has cost too.
+- **Billing.** Cost (`~$`) and `▲` are shown only when the session is billed per token through an API key. On a subscription (Claude Pro or Max) tokens are not billed one by one, so agentview hides all cost and shows the plan's usage limits in the header instead, for example `5h 71% · 7d 21%` (the five-hour and seven-day windows, as Claude Code reports them). The data comes from `$.session.usage()`, read once at session start and once after each main turn; a session with no limit readings after its first completed turn is treated as API billing. Until then billing is unknown, cost is hidden and the header shows `—` in its place.
 - **`!`** after the time marks an agent that has been on the same action for more than 3 minutes.
 - **`unknown`** means a subagent has sent no signal for more than 60 seconds and has no tool in flight. It becomes `running` again on its next signal. The main agent is never `unknown`.
 - **Plan %** comes only from the main agent's todo list (done divided by total). Without a todo list it shows `—`. Subagent todo lists are not used for it.
