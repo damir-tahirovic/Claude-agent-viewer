@@ -52,10 +52,10 @@ test('the status line is sent after an event and again only when its text change
   expect(sent.length).toBe(1)
 })
 
-test('a broken session atom never breaks the tool call', async ($, on) => {
+test('a throwing session atom never breaks the tool call', async ($, on) => {
   mock.clock(on, { now: AT })
-  // The plugin's own state is rewritten to null on every write, as if it were corrupted.
-  on('state.set', { plugin: 'agentview', key: 'session' }, ($, e, next) => next({ ...e, value: null }))
+  on('state.get', { plugin: 'agentview', key: 'session' }, () => { throw new Error('corrupt') })
+  on('state.set', { plugin: 'agentview', key: 'session' }, () => { throw new Error('corrupt') })
   on('tool.call', () => ({ result: { type: 'text', file: { filePath: 'ok', content: '' } }, text: 'still here' }))
   const result = await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
   expect(result.text).toBe('still here')
@@ -120,3 +120,18 @@ for (const bodyColumns of [50, 59, 60, 79]) {
     await pane.unmount()
   })
 }
+
+test('the poll still turns a silent subagent unknown when session.id fails', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  on('session.id', () => { throw new Error('no id') })
+  on('command.register', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '/tmp' }))
+  on('tool.call', readTool)
+  on('agent.list', () => ({ value: [{ id: 'sub1', type: 'worker', description: 'w', status: 'running' }] }))
+  await $.session.start(SESSION_START)
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
+  await clock.advance(65_000)
+  const pane = await mountPane($)
+  expect(await pane.find({ type: 'Text', text: /unknown/ })).toBeDefined()
+  await pane.unmount()
+})

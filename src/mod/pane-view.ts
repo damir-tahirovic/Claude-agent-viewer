@@ -4,7 +4,7 @@ import type { SessionState } from '../core/model'
 import { planOf } from '../core/progress'
 import { renderDetail } from '../view/detail'
 import { renderDialog, windowFor } from '../view/dialog'
-import { colorize, dim, SPIN } from '../view/lines'
+import { colorize, dim, fitText, SPIN } from '../view/lines'
 import { buildRows } from '../view/rows'
 
 /** Inputs for one pane render. */
@@ -34,8 +34,7 @@ const MIN_DETAIL_COLUMNS = 90
 /** Lines of the dialog that are not agent rows: header, summary, rules, plan and hints. */
 const CHROME_ROWS = 10
 const MIN_AGENT_ROWS = 3
-const NO_SUBAGENTS_LINE = dim('  ◌ no subagents yet — they appear here as soon as main delegates')
-const NO_SUBAGENTS_NARROW = dim('  ◌ no subagents yet')
+const NO_SUBAGENTS_TEXT = '  ◌ no subagents yet — they appear here as soon as main delegates'
 
 /** HH:MM:SS of an epoch-ms timestamp (UTC), the detail view's clock column. */
 const clockOf = (ms: number): string => new Date(ms).toISOString().slice(11, 19)
@@ -66,10 +65,11 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const plan = planOf(session.todos.main)
   const room = Math.max(MIN_AGENT_ROWS, opts.rows - CHROME_ROWS)
   const win = rows.length > room ? windowFor(rows.length, selected, room) : undefined
+  const width = Math.max(opts.columns, MIN_TREE_COLUMNS)
   const lines = renderDialog({
-    W: Math.max(opts.columns, MIN_TREE_COLUMNS), agents: rows, sel: selected,
+    W: width, agents: rows, sel: selected,
     sid: session.sessionId.slice(0, 8), plan, win, spin, ascii: opts.ascii, frame: false,
-    after: rows.length === 1 ? [opts.columns < 60 ? NO_SUBAGENTS_NARROW : NO_SUBAGENTS_LINE] : undefined,
+    after: rows.length === 1 ? [dim(fitText(NO_SUBAGENTS_TEXT, width - 4).trimEnd())] : undefined,
   })
   const [first, last] = win ?? [0, rows.length]
   // Frameless layout: summary, rule and column heads, then an optional "more above" line.

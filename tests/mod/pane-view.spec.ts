@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { reduce, initialState } from '../../src/core/reducer'
 import { buildPaneView } from '../../src/mod/pane-view'
-import { stripCodes } from '../../src/view/lines'
+import { stripCodes, visibleLength } from '../../src/view/lines'
 
 const NOW = 1_700_000_000_000
 const base = {
@@ -28,4 +28,12 @@ test('detail view shows the TASK section of the selected agent', () => {
   const view = buildPaneView({ ...base, session: twoAgents, view: 'detail', selId: 'a1' })
   assert.match(stripCodes(view.head.join('\n')), /TASK/)
   assert.equal(view.agentLines.length, 0)
+})
+
+test('no line is wider than the body, including the no-subagents line', () => {
+  for (const columns of [50, 59, 60, 79]) {
+    const view = buildPaneView({ ...base, columns, session: initialState('s', NOW) })
+    const all = [...view.head, ...view.agentLines.map(entry => entry.line), ...view.tail]
+    all.forEach(line => assert.ok(visibleLength(line) <= columns, `${columns}: ${stripCodes(line)}`))
+  }
 })

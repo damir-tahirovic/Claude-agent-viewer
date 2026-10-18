@@ -72,6 +72,8 @@ export const register: Register = (on, options) => {
   const known: Record<string, string> = {}
   const isAscii = options.ascii === true
   let spinner: { cancel: () => void } | undefined
+  // One poll per mod: a repeated session.start replaces it instead of doubling it.
+  let poll: { cancel: () => void } | undefined
 
   const stopSpinner = (): void => {
     spinner?.cancel()
@@ -79,11 +81,27 @@ export const register: Register = (on, options) => {
   }
 
   on('session.start', async ($, e, next) => {
+    // Each step has its own try: one failing must not skip the poll, the command or next(e).
+    let at = 0
     try {
-      const at = await $.clock.now()
-      const id = await $.session.id()
-      await update($, session, current => current ?? initialState(id || FALLBACK_SESSION_ID, at))
-      $.clock.every(POLL_MS, async () => {
+      at = await $.clock.now()
+    } catch {
+      // Falls back to 0; the first event re-creates state with a real clock reading.
+    }
+    let id = FALLBACK_SESSION_ID
+    try {
+      id = (await $.session.id()) || FALLBACK_SESSION_ID
+    } catch {
+      // No session id: the fallback is fine.
+    }
+    try {
+      await update($, session, current => current ?? initialState(id, at))
+    } catch {
+      // The hooks below create the state on first event.
+    }
+    try {
+      poll?.cancel()
+      poll = $.clock.every(POLL_MS, async () => {
         try {
           const now = await $.clock.now()
           const list = await $.agent.list()
@@ -94,9 +112,13 @@ export const register: Register = (on, options) => {
         }
       })
     } catch {
-      // Setup failed; the hooks below still create the state on first event.
+      // No timer: state still updates on events.
     }
-    await $.command.register({ name: 'agentview', description: 'Live view of agents and subagents' })
+    try {
+      await $.command.register({ name: 'agentview', description: 'Live view of agents and subagents' })
+    } catch {
+      // The command is missing; the session still works.
+    }
     return next(e)
   })
 

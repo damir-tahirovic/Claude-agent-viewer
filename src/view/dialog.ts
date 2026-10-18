@@ -77,6 +77,7 @@ const statusCell = (st: RowStatus, spin: string): [string, string] => {
 }
 
 const NARROW_BELOW = 60
+const COMPACT_SUMMARY_BELOW = 66
 
 const ACT_CODES: Partial<Record<RowStatus, string>> = { waiting: 'y', failed: 'r', done: 'd', unknown: 'd' }
 
@@ -89,6 +90,8 @@ export const renderDialog = (o: DialogOpts): string[] => {
   const tier = W < 100 ? 1 : W < 140 ? 2 : 3
   // Below this width only name, a one-glyph status and TIME fit; not in the generator, added for narrow panes.
   const isNarrow = W < NARROW_BELOW
+  // The full summary is about 60 characters wide, so it needs a frameless width of at least 66.
+  const isCompactSummary = W < COMPACT_SUMMARY_BELOW
   const t = totalsOf(a)
   const px = treePrefixes(a)
   const wideColumns: Column[] = ([
@@ -159,12 +162,12 @@ export const renderDialog = (o: DialogOpts): string[] => {
   ]
   if (t.unknown) summary.push(['d', '?', 'unknown', t.unknown])
   const summaryCell = ([c, g, w, n]: [string, string, string, number]): string => {
-    const label = isNarrow ? `${g} ${n}` : `${g} ${n} ${w}`
+    const label = isCompactSummary ? `${g} ${n}` : `${g} ${n} ${w}`
     return n ? colorize(c, label) : dim(label)
   }
   out.push(line(o.ended
     ? colorize('g', '✓ session finished') + dim(` · ${t.n} agents · ${o.ended}`)
-    : summary.map(summaryCell).join(isNarrow ? '  ' : '   ') + dim(isNarrow ? ` · ${t.n}` : `   ·  ${t.n} agents`)))
+    : summary.map(summaryCell).join(isCompactSummary ? '  ' : '   ') + dim(isCompactSummary ? ` · ${t.n}` : `   ·  ${t.n} agents`)))
   out.push(rule(W, hasFrame))
   // Header row patch from render-spec.js: dim edges around the heads, not the txt() helper.
   const heads = cd.map(c => c.r ? padLeft(c.h, c.w as number) : fitText(c.h, c.w as number)).join('  ')
