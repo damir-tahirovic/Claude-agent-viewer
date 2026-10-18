@@ -1,0 +1,105 @@
+/** Lifecycle state of one agent as shown in the tree. */
+export type AgentStatus = 'running' | 'waiting' | 'done' | 'failed' | 'unknown'
+
+/** Token counts for one agent or one usage report. */
+export type Tokens = {
+  readonly input: number
+  readonly output: number
+  readonly cacheRead: number
+  readonly cacheWrite: number
+}
+
+/** One finished tool call in an agent's recent history. */
+export type Action = {
+  readonly tool: string
+  readonly summary: string
+  readonly at: number
+  readonly ok: boolean | null
+  readonly ms?: number
+}
+
+/** One entry of the agent's todo list. */
+export type Todo = {
+  readonly content: string
+  readonly status: 'pending' | 'in_progress' | 'completed'
+}
+
+/** One agent (the main session or a subagent) with its live state. */
+export type AgentNode = {
+  readonly id: string
+  readonly parentId?: string
+  readonly type: string
+  readonly description: string
+  readonly model?: string
+  readonly status: AgentStatus
+  readonly startedAt: number
+  readonly endedAt?: number
+  readonly lastSignal: number
+  readonly current?: {
+    readonly toolUseId: string
+    readonly tool: string
+    readonly summary: string
+    readonly since: number
+  }
+  readonly recent: ReadonlyArray<Action>
+  readonly toolCount: number
+  readonly tokens: Tokens
+}
+
+/** Whole session snapshot: every agent and every agent's todos. */
+export type SessionState = {
+  readonly sessionId: string
+  readonly startedAt: number
+  readonly agents: Readonly<Record<string, AgentNode>>
+  readonly todos: Readonly<Record<string, ReadonlyArray<Todo>>>
+}
+
+/** Normalized input event; the only thing the reducer consumes. */
+export type AgentEvent =
+  | {
+      readonly kind: 'agent.start'
+      readonly at: number
+      readonly id: string
+      readonly parentId?: string
+      readonly type: string
+      readonly description: string
+      readonly model?: string
+    }
+  | { readonly kind: 'agent.end'; readonly at: number; readonly id: string; readonly ok: boolean }
+  | {
+      readonly kind: 'tool.start'
+      readonly at: number
+      readonly agentId: string
+      readonly toolUseId: string
+      readonly tool: string
+      readonly input: unknown
+    }
+  | {
+      readonly kind: 'tool.end'
+      readonly at: number
+      readonly agentId: string
+      readonly toolUseId: string
+      readonly ok: boolean
+    }
+  | {
+      readonly kind: 'usage'
+      readonly at: number
+      readonly agentId: string
+      readonly model?: string
+      readonly tokens: Tokens
+    }
+  | { readonly kind: 'todos'; readonly at: number; readonly agentId: string; readonly todos: ReadonlyArray<Todo> }
+  | { readonly kind: 'waiting'; readonly at: number; readonly agentId: string }
+  | { readonly kind: 'tick'; readonly at: number }
+
+/** Id of the main session agent. */
+export const MAIN = 'main'
+
+/** All-zero token counts. */
+export const ZERO: Tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+
+/** How many finished actions each agent keeps. */
+export const RECENT_MAX = 20
+
+/** Silence after which a running subagent is marked unknown, in ms. */
+export const UNKNOWN_AFTER_MS = 60_000
