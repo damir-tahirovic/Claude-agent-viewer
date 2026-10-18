@@ -2,9 +2,9 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, reduce } from '../src/core/reducer'
-import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete } from '../src/mod/adapter'
+import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
 import { buildPaneView } from '../src/mod/pane-view'
-import { decideClose, stepId } from '../src/mod/pane-keys'
+import { decideClose, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
 import { statusFor } from '../src/mod/status-text'
 import type { AgentviewSession, AgentviewUi } from '../types'
@@ -30,6 +30,28 @@ const POLL_MS = 1000
 /** Last status line sent, so `$.ui.status` is called only when the text changes. A reload re-sends it. */
 let lastStatus: string | undefined
 
+/** Wheres already logged in this load; each is logged once so a hot hook cannot flood the transcript. */
+const logged = new Set<string>()
+
+/** Logs a swallowed error through `$.ui.log` once per `where`. Never throws. */
+const logOnce = ($: EngineInterface, where: string, err: unknown): void => {
+  if (logged.has(where)) return
+  logged.add(where)
+  try {
+    $.ui.log(`agentview: ${where}: ${err instanceof Error ? err.message : String(err)}`)
+  } catch {
+    // Logging is best effort.
+  }
+}
+
+/** Tail of the recording queue; one queue keeps events in the order the hooks saw them. */
+let pending: Promise<void> = Promise.resolve()
+
+/** Queues a recording job so it never delays the host's work; a failing job does not stop the queue. */
+const enqueue = (job: () => Promise<void>): void => {
+  pending = pending.then(job).catch(() => {})
+}
+
 /** Sends the status line when it differs from the last one sent. Never throws. */
 const publishStatus = async ($: EngineInterface): Promise<void> => {
   try {
@@ -39,8 +61,8 @@ const publishStatus = async ($: EngineInterface): Promise<void> => {
     if (text === lastStatus) return
     lastStatus = text
     $.ui.status(text)
-  } catch {
-    // The status line is a nicety; failing to draw it must not matter.
+  } catch (err) {
+    logOnce($, 'status', err)
   }
 }
 
@@ -54,8 +76,8 @@ const apply = async ($: EngineInterface, events: ReadonlyArray<AgentEvent>): Pro
       return events.reduce(reduce, base)
     })
     await publishStatus($)
-  } catch {
-    // Our own state failing is not the host's problem.
+  } catch (err) {
+    logOnce($, 'apply', err)
   }
 }
 
@@ -63,8 +85,8 @@ const apply = async ($: EngineInterface, events: ReadonlyArray<AgentEvent>): Pro
 const record = async ($: EngineInterface, build: (at: number) => AgentEvent[]): Promise<void> => {
   try {
     await apply($, build(await $.clock.now()))
-  } catch {
-    // Adapter or clock failure: skip this update.
+  } catch (err) {
+    logOnce($, 'record', err)
   }
 }
 
@@ -82,22 +104,26 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     // Each step has its own try: one failing must not skip the poll, the command or next(e).
-    let at = 0
+    let at: number | undefined
     try {
       at = await $.clock.now()
-    } catch {
-      // Falls back to 0; the first event re-creates state with a real clock reading.
+    } catch (err) {
+      logOnce($, 'session.start clock', err)
     }
     let id = FALLBACK_SESSION_ID
     try {
       id = (await $.session.id()) || FALLBACK_SESSION_ID
-    } catch {
-      // No session id: the fallback is fine.
+    } catch (err) {
+      logOnce($, 'session.start id', err)
     }
-    try {
-      await update($, session, current => current ?? initialState(id, at))
-    } catch {
-      // The hooks below create the state on first event.
+    // Without a clock reading the state is left to the first event, which reads the clock itself.
+    if (at !== undefined) {
+      const startedAt = at
+      try {
+        await update($, session, current => current ?? initialState(id, startedAt))
+      } catch (err) {
+        logOnce($, 'session.start state', err)
+      }
     }
     try {
       poll?.cancel()
@@ -107,24 +133,29 @@ export const register: Register = (on, options) => {
           const list = await $.agent.list()
           await apply($, [...listStatus(list, now, known), { kind: 'tick', at: now }])
           for (const agent of list) known[agent.id] = agent.status
-        } catch {
-          // Polling is best effort.
+        } catch (err) {
+          logOnce($, 'poll', err)
         }
       })
-    } catch {
-      // No timer: state still updates on events.
+    } catch (err) {
+      logOnce($, 'session.start poll', err)
     }
     try {
       await $.command.register({ name: 'agentview', description: 'Live view of agents and subagents' })
-    } catch {
-      // The command is missing; the session still works.
+    } catch (err) {
+      logOnce($, 'session.start command', err)
     }
     return next(e)
   })
 
   on('command.run', { command: 'agentview' }, async $ => {
-    await update($, ui, current => ({ ...current, open: true, view: 'tree', selId: 'main' }))
-    await $.ui.open({ id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true })
+    try {
+      await update($, ui, current => ({ ...current, open: true, view: 'tree', selId: 'main' }))
+      await $.ui.open({ id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true })
+    } catch (err) {
+      logOnce($, 'command.run', err)
+      return { text: 'agentview could not open' }
+    }
     // Started only once the pane is open; it ends itself when the pane is no longer open.
     stopSpinner()
     const timer = $.clock.every(SPIN_MS, async () => {
@@ -132,37 +163,45 @@ export const register: Register = (on, options) => {
         const state = await read($, ui)
         if (!state.open) timer.cancel()
         else await update($, ui, current => ({ ...current, spin: (current.spin + 1) % SPIN_FRAMES }))
-      } catch {
-        // A missed frame is harmless.
+      } catch (err) {
+        logOnce($, 'spinner', err)
       }
     })
     spinner = timer
-    return { text: 'agentview opened' }
+    // `text` undefined means the command showed no text: the pane is its output.
+    return {}
   })
 
   on('ui.focus', async ($, e, next) => {
-    const key = e.element
-    const state = await read($, ui)
-    if (e.requestId === PANE_ID && key && state.view === 'tree' && key !== state.selId) {
-      await update($, ui, current => ({ ...current, selId: key }))
+    try {
+      const key = e.element
+      const state = await read($, ui)
+      if (e.requestId === PANE_ID && key && state.view === 'tree' && key !== state.selId) {
+        await update($, ui, current => ({ ...current, selId: key }))
+      }
+    } catch (err) {
+      logOnce($, 'ui.focus', err)
     }
     return next(e)
   }).catch(($, e, next) => next(e))
 
   on('ui.close', async ($, e, next) => {
-    let decision = decideClose('tree', e.id === PANE_ID, e.origin.kind === 'person')
-    if (decision === 'pass') return next(e)
+    let decision: CloseDecision = 'close'
     try {
-      decision = decideClose((await read($, ui)).view, true, e.origin.kind === 'person')
-      if (decision === 'back') {
-        await update($, ui, current => ({ ...current, view: 'tree' }))
-        return { deny: 'back' }
+      decision = decideClose('tree', e.id === PANE_ID, e.origin?.kind === 'person')
+      if (decision !== 'pass') {
+        decision = decideClose((await read($, ui)).view, true, e.origin?.kind === 'person')
+        if (decision === 'back') {
+          await update($, ui, current => ({ ...current, view: 'tree' }))
+          return { deny: 'back' }
+        }
+        await update($, ui, current => ({ ...current, open: false }))
       }
-      await update($, ui, current => ({ ...current, open: false }))
-    } catch {
+    } catch (err) {
       // Our state failing must never keep a pane open.
+      logOnce($, 'ui.close', err)
     }
-    stopSpinner()
+    if (decision !== 'pass') stopSpinner()
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -221,27 +260,38 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => next(e))
 
   on('tool.call', async ($, e, next) => {
-    await record($, at => toolStart(e, at))
-    const result = await next(e)
-    await record($, at => toolEnd(e, result, at))
-    return result
+    enqueue(() => record($, at => toolStart(e, at)))
+    // The call is not awaited by the recorder; the end is recorded however it finishes.
+    let result: Awaited<ReturnType<typeof next>> | undefined
+    try {
+      result = await next(e)
+      return result
+    } finally {
+      const finished = result
+      enqueue(() => record($, at => toolEnd(e, finished ?? { isError: true }, at)))
+    }
   }).catch(($, e, next) => next(e))
 
   on('agent.spawn', async ($, e, next) => {
     const result = await next(e)
-    await record($, at => spawnStart(e, result, at))
+    enqueue(() => record($, at => spawnStart(e, result ?? {}, at)))
     return result
   }).catch(($, e, next) => next(e))
 
+  on('turn.start', async ($, e, next) => {
+    enqueue(() => record($, at => turnStart(e, at)))
+    return next(e)
+  })
+
   on('turn.step', async function* ($, e, next) {
     const result = yield* next(e)
-    await record($, at => stepUsage(e, result.usage, at))
+    enqueue(() => record($, at => stepUsage(e, result?.usage ?? null, at)))
     return result
   })
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    await record($, at => turnComplete(e, at))
+    enqueue(() => record($, at => turnComplete(e, at)))
     return result
   })
 }

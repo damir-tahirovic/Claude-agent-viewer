@@ -59,8 +59,8 @@ export const toolEnd = (e: ToolCallInput, r: ToolCallResult, at: number): AgentE
       ok: !r.isError && !r.deny,
     },
   ]
-  // A background agent returns async_launched at once; it is still running then.
-  if (isAgentTool(e.tool) && isRecord(r.result) && typeof r.result.agentId === 'string' && r.result.status !== 'async_launched') {
+    // Only a completed result is an end: async_launched, remote_launched and teammate_spawned are not.
+  if (isAgentTool(e.tool) && isRecord(r.result) && typeof r.result.agentId === 'string' && r.result.status === 'completed') {
     events.push({ kind: 'agent.end', at, id: r.result.agentId, ok: !r.isError && !r.deny })
   }
   return events
@@ -120,6 +120,8 @@ export const listStatus = (
 ): AgentEvent[] => {
   const events: AgentEvent[] = []
   for (const agent of list) {
+    // A running agent is proof of life on every poll; it is not a status transition.
+    if (agent.status === 'running') events.push({ kind: 'heartbeat', at, agentId: agent.id })
     if (known[agent.id] === agent.status) continue
     if (agent.status === 'completed') events.push({ kind: 'agent.end', at, id: agent.id, ok: true })
     else if (agent.status === 'failed' || agent.status === 'killed')
@@ -129,6 +131,12 @@ export const listStatus = (
   return events
 }
 
-/** A turn finished: a subagent's turn ends that agent; main's own turn ends nothing. */
+/** A turn started: main's own turn makes main running; a subagent's start is its spawn. */
+export const turnStart = (e: { agentId?: string }, at: number): AgentEvent[] =>
+  e.agentId === undefined ? [{ kind: 'turn', at, agentId: MAIN, phase: 'start' }] : []
+
+/** A turn finished: a subagent's turn ends that agent; main's own turn leaves main done until the next. */
 export const turnComplete = (e: { agentId?: string; isAborted: boolean }, at: number): AgentEvent[] =>
-  e.agentId === undefined ? [] : [{ kind: 'agent.end', at, id: e.agentId, ok: !e.isAborted }]
+  e.agentId === undefined
+    ? [{ kind: 'turn', at, agentId: MAIN, phase: 'end' }]
+    : [{ kind: 'agent.end', at, id: e.agentId, ok: !e.isAborted }]

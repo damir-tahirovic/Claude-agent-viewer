@@ -11,10 +11,14 @@ test('a Read tool call is counted in the session state', async ($, on) => {
   })
   on('tool.call', () => ({ result: { type: 'text', file: { filePath: 'a', content: '' } }, text: '' }))
   await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+  await settle()
   expect(latest?.agents.main?.toolCount).toBe(1)
 })
 
 const AT = 1_700_000_000_000
+
+/** Recording is queued behind the tool call, so a test waits for the queue to drain before it looks. */
+const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 20))
 
 for (const surface of ['terminal', 'desktop'] as const) {
   test(`the agentview pane lists agents and opens a detail view on ${surface}`, async ($, on) => {
@@ -22,6 +26,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     on('tool.call', () => ({ result: { type: 'text', file: { filePath: 'a', content: '' } }, text: '' }))
     // Two agents: main (first call) and a subagent (a call carrying its agentId).
     await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+    await settle()
     await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
     const pane = await $.ui.mount({
       plugin: 'agentview', surface, component: 'Pane', requestId: 'agentview',
@@ -45,10 +50,12 @@ test('the status line is sent after an event and again only when its text change
   on('ui.status', ($, e, next) => { sent.push(e.text); return next(e) })
   on('tool.call', readTool)
   await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+  await settle()
   expect(sent.length).toBe(1)
   expect(sent[0]).toMatch(/running .*\/agentview/)
   // The text counts tokens, not calls, so a second identical-looking state sends nothing.
   await $.tool.call({ tool: 'Read', file_path: '/tmp/b' })
+  await settle()
   expect(sent.length).toBe(1)
 })
 
@@ -72,9 +79,10 @@ test('a subagent silent for more than 60 s shows unknown in the pane', async ($,
   on('command.register', () => ({ value: undefined }))
   on('session.start', () => ({ cwd: '/tmp' }))
   on('tool.call', readTool)
-  on('agent.list', () => ({ value: [{ id: 'sub1', type: 'worker', description: 'w', status: 'running' }] }))
+  on('agent.list', () => ({ value: [] }))
   await $.session.start(SESSION_START)
   await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+  await settle()
   await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
   const before = await mountPane($)
   expect(await before.find({ type: 'Text', text: /unknown/ })).toBeUndefined()
@@ -92,12 +100,16 @@ test('after main finishes, running subagents are not faked done; the tick turns 
   on('session.start', () => ({ cwd: '/tmp' }))
   on('tool.call', readTool)
   on('turn.complete', () => ({ text: '' }))
-  on('agent.list', () => ({ value: [{ id: 'sub1', type: 'worker', description: 'w', status: 'running' }] }))
+  on('agent.list', () => ({ value: [] }))
   await $.session.start(SESSION_START)
   await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
+  await settle()
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'end_turn' })
+  await settle()
   const stays = await mountPane($)
-  expect(await stays.find({ type: 'Text', text: /✓ done|✓ [1-9]/ })).toBeUndefined()
+  // Only main is done between turns; the running subagent is not faked done.
+  expect(await stays.find({ type: 'Text', text: /✓ 1 done/ })).toBeDefined()
+  expect(await stays.find({ type: 'Text', text: /✓ 2 done/ })).toBeUndefined()
   await stays.unmount()
   await clock.advance(65_000)
   const later = await mountPane($)
@@ -110,6 +122,7 @@ for (const bodyColumns of [50, 59, 60, 79]) {
     mock.clock(on, { now: AT })
     on('tool.call', readTool)
     await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+    await settle()
     await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
     const pane = await $.ui.mount({
       plugin: 'agentview', surface: 'terminal', component: 'Pane', requestId: 'agentview',
@@ -127,11 +140,41 @@ test('the poll still turns a silent subagent unknown when session.id fails', asy
   on('command.register', () => ({ value: undefined }))
   on('session.start', () => ({ cwd: '/tmp' }))
   on('tool.call', readTool)
-  on('agent.list', () => ({ value: [{ id: 'sub1', type: 'worker', description: 'w', status: 'running' }] }))
+  on('agent.list', () => ({ value: [] }))
   await $.session.start(SESSION_START)
   await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
+  await settle()
   await clock.advance(65_000)
   const pane = await mountPane($)
   expect(await pane.find({ type: 'Text', text: /unknown/ })).toBeDefined()
   await pane.unmount()
+})
+
+test('an agent the engine lists as running is never marked unknown, however silent', async ($, on) => {
+  const clock = mock.clock(on, { now: AT })
+  on('session.id', () => ({ value: 'sess-1' }))
+  on('command.register', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '/tmp' }))
+  on('tool.call', readTool)
+  on('agent.list', () => ({ value: [{ id: 'sub1', type: 'worker', description: 'w', status: 'running' }] }))
+  await $.session.start(SESSION_START)
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
+  await settle()
+  await clock.advance(65_000)
+  const pane = await mountPane($)
+  expect(await pane.find({ type: 'Text', text: /unknown/ })).toBeUndefined()
+  await pane.unmount()
+})
+
+test('a rejected tool still answers and the end is recorded as failed', async ($, on) => {
+  mock.clock(on, { now: AT })
+  let latest: AgentviewSession | undefined
+  on('state.set', { plugin: 'agentview', key: 'session' }, ($, e, next) => {
+    if (e.value) latest = e.value
+    return next(e)
+  })
+  on('tool.call', () => { throw new Error('tool exploded') })
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a' }).catch(() => undefined)
+  await settle()
+  expect(latest?.agents.main?.recent[0]?.ok).toBe(false)
 })

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { toolStart, toolEnd, spawnStart, stepUsage, listStatus, turnComplete } from '../../src/mod/adapter'
+import { toolStart, toolEnd, spawnStart, stepUsage, listStatus, turnComplete, turnStart } from '../../src/mod/adapter'
 
 test('tool start in main and in a subagent', () => {
   assert.deepEqual(toolStart({ tool: 'Read', tool_use_id: 't', file_path: 'a' }, 1)[0], {
@@ -39,7 +39,7 @@ test('errors and denies are not ok', () => {
 })
 
 test('foreground Agent result ends the subagent', () => {
-  const events = toolEnd({ tool: 'Agent', tool_use_id: 't' }, { result: { agentId: 'a1' } }, 5)
+  const events = toolEnd({ tool: 'Agent', tool_use_id: 't' }, { result: { status: 'completed', agentId: 'a1' } }, 5)
   assert.deepEqual(events[1], { kind: 'agent.end', at: 5, id: 'a1', ok: true })
 })
 
@@ -50,6 +50,13 @@ test('background Agent result does not end the subagent', () => {
     5,
   )
   assert.deepEqual(events.map(event => event.kind), ['tool.end'])
+})
+
+test('only a completed Agent result ends the subagent', () => {
+  for (const status of ['async_launched', 'remote_launched', 'teammate_spawned', undefined]) {
+    const events = toolEnd({ tool: 'Agent', tool_use_id: 't' }, { result: { status, agentId: 'a1' } }, 5)
+    assert.deepEqual(events.map(event => event.kind), ['tool.end'], String(status))
+  }
 })
 
 test('spawn without an id emits nothing', () => {
@@ -98,11 +105,22 @@ test('list status maps failed, killed and waiting', () => {
     { kind: 'agent.end', at: 1, id: 'a', ok: false },
     { kind: 'agent.end', at: 1, id: 'b', ok: false },
     { kind: 'waiting', at: 1, agentId: 'c' },
+    { kind: 'heartbeat', at: 1, agentId: 'd' },
   ])
 })
 
-test('turn complete ends only subagents', () => {
+test('every poll heartbeats a running agent, even when its status did not change', () => {
+  const known = { a: 'running' }
+  assert.deepEqual(listStatus([{ id: 'a', status: 'running' }], 2, known), [{ kind: 'heartbeat', at: 2, agentId: 'a' }])
+})
+
+test('turn start of main maps to a main turn start; a subagent turn start maps to nothing', () => {
+  assert.deepEqual(turnStart({}, 7), [{ kind: 'turn', at: 7, agentId: 'main', phase: 'start' }])
+  assert.deepEqual(turnStart({ agentId: 'a1' }, 7), [])
+})
+
+test('turn complete ends subagents; main turn complete ends main\'s turn', () => {
   assert.deepEqual(turnComplete({ agentId: 'a1', isAborted: false }, 4), [{ kind: 'agent.end', at: 4, id: 'a1', ok: true }])
   assert.deepEqual(turnComplete({ agentId: 'a1', isAborted: true }, 4), [{ kind: 'agent.end', at: 4, id: 'a1', ok: false }])
-  assert.deepEqual(turnComplete({ isAborted: false }, 4), [])
+  assert.deepEqual(turnComplete({ isAborted: false }, 4), [{ kind: 'turn', at: 4, agentId: 'main', phase: 'end' }])
 })
