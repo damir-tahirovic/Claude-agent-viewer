@@ -35,7 +35,9 @@ const statusLine = (row: Row, opts: CardOpts): readonly [string, string] => {
 }
 
 /** Draws the plan progress row of the main card. */
-const drawPlanRow = (canvas: Canvas, x: number, y: number, innerWidth: number, plan: Plan | null | undefined): void => {
+const drawPlanRow = (
+  canvas: Canvas, x: number, y: number, innerWidth: number, plan: Plan | null | undefined,
+): void => {
   if (!plan) {
     canvas.text(x, y, 'plan ░░░░░░░░░░░░░░░░  —  no todo list', 'd')
     return
@@ -57,7 +59,9 @@ const drawPlanRow = (canvas: Canvas, x: number, y: number, innerWidth: number, p
 }
 
 /** Draws one agent card and returns its height. (graph spec `card`) */
-export const drawCard = (canvas: Canvas, x: number, y: number, width: number, row: Row, opts: CardOpts): number => {
+export const drawCard = (
+  canvas: Canvas, x: number, y: number, width: number, row: Row, opts: CardOpts,
+): number => {
   const borderCodes = opts.isMain && row.st === 'running' ? '' : STATUS_CODE[row.st]
   const frame = opts.isSelected ? DOUBLE_FRAME : SINGLE_FRAME
   const height = opts.isMain ? 7 : 6

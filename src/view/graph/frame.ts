@@ -35,7 +35,7 @@ const DEFAULT_HINTS: ReadonlyArray<readonly [string, string]> = [
   ['←→↑↓', 'move'], ['⏎', 'details'], ['tab', 'tree'], ['esc', 'close'],
 ]
 
-/** Draws `body` on a canvas and wraps it with header, summary, note, hints and borders. (graph spec `frame`) */
+/** Draws `body` on a canvas and wraps it with header, summary, note, hints, borders. (graph spec `frame`) */
 export const frameGraph = (width: number, opts: FrameOpts, body: (canvas: Canvas) => number): string[] => {
   const canvas = new Canvas(width, 100)
   const lastY = body(canvas)
@@ -64,7 +64,9 @@ export const frameGraph = (width: number, opts: FrameOpts, body: (canvas: Canvas
   const percent = opts.plan ? Math.round(opts.plan.done / opts.plan.total * 100) + '%' : '—'
   const rightText = `${fmtK(totals.tok)} tok · ${fmtCost(totals.cost)} · plan `
   const rightLength = [...rightText].length + [...percent].length
-  canvas.runs(2, 0, [[' agentview', 'B'], [' · session ', 'd'], [opts.sessionId || '7f3a9c2e', ''], [' ', '']])
+  canvas.runs(2, 0, [
+    [' agentview', 'B'], [' · session ', 'd'], [opts.sessionId || '7f3a9c2e', ''], [' ', ''],
+  ])
   canvas.runs(width - 3 - rightLength, 0, [[rightText, 'd'], [percent, 'B']])
 
   const spin = opts.spin ?? SPIN[0]

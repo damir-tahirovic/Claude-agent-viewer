@@ -11,3 +11,12 @@ test('graph at 80 columns folds into a tree with the selected card, matching gol
   })
   assert.deepEqual(lines, graphGolden('3'))
 })
+
+test('narrow graph shows a custom waiting text on the selected waiting card', () => {
+  const rows = graphBaseRows()
+  const text = renderGraphNarrow({
+    width: 80, rows, selectedId: 'g5', plan: graphPlan, waitingText: '◔ needs your OK',
+  }).join('\n')
+  assert.ok(text.includes('needs your OK'))
+  assert.ok(!text.includes('waiting for permission'))
+})

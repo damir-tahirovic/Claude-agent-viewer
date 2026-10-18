@@ -28,10 +28,12 @@ const RICH_WIDTH = 140
 /** Swaps every graph glyph for one ASCII character. (graph spec `asc`) */
 export const graphAscii = (line: string): string =>
   line
-    .replace(/[╭╮╰╯├┤┬┴┼└┣┗╔╗╚╝]/g, '+').replace(/[│║]/g, '|').replace(/[─]/g, '-').replace(/[━═]/g, '=')
+    .replace(/[╭╮╰╯├┤┬┴┼└┣┗╔╗╚╝]/g, '+').replace(/[│║]/g, '|').replace(/[─]/g, '-')
+    .replace(/[━═]/g, '=')
     .replace(/┃/g, '#').replace(/┆/g, ':').replace(/╌/g, '.').replace(/▸/g, '>').replace(/⠋/g, '*')
     .replace(/◔/g, '!').replace(/✓/g, '+').replace(/✗/g, 'x').replace(/█/g, '#').replace(/░/g, '-')
-    .replace(/…/g, '~').replace(/·/g, '.').replace(/●/g, '*').replace(/▲/g, '^').replace(/[↑◂]/g, '^')
+    .replace(/…/g, '~').replace(/·/g, '.').replace(/●/g, '*').replace(/▲/g, '^')
+    .replace(/[↑◂]/g, '^')
     .replace(/↓/g, 'v').replace(/—/g, '-').replace(/[←]/g, '<').replace(/[→]/g, '>')
 
 /** Renders the side-by-side graph as `{codes|text}` lines. (graph spec `graph`) */
@@ -53,7 +55,7 @@ export type NarrowGraphOpts = Omit<GraphOpts, 'tree' | 'columns' | 'firstColumn'
   readonly rows: ReadonlyArray<Row>
 }
 
-/** Renders the folded graph for narrow terminals: a tree list with the selected row as a card. (graph spec `compact`) */
+/** Renders the folded graph for narrow terminals: tree list, selected row as card. (graph spec `compact`) */
 export const renderGraphNarrow = (opts: NarrowGraphOpts): string[] => {
   const lines = frameGraph(opts.width, opts, canvas =>
     layoutNarrow(canvas, opts.rows, { ...opts, sessionCost: graphTotals(opts.rows).cost }))

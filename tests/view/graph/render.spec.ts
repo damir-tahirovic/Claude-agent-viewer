@@ -71,3 +71,11 @@ test('finished session matches golden 5e', () => {
   })
   assert.deepEqual(lines, graphGolden('5e'))
 })
+
+test('wide graph shows a custom waiting text instead of the default', () => {
+  const text = renderGraph({
+    width: 120, tree: buildGraphTree(base), selectedId: 'g5', plan: graphPlan, waitingText: '◔ needs your OK',
+  }).join('\n')
+  assert.ok(text.includes('needs your OK'))
+  assert.ok(!text.includes('waiting for permission'))
+})

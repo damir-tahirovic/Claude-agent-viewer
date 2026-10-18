@@ -6,7 +6,7 @@ export const STATUS_CODE: Record<RowStatus, string> = {
   running: 'c', waiting: 'y', done: 'd', failed: 'r', unknown: 'd',
 }
 
-/** Vertical edge glyph: heavy for running and failed, dashed for waiting, light for done. (graph spec `EV`) */
+/** Vertical edge glyph: heavy running/failed, dashed waiting, light done. (graph spec `EV`) */
 export const EDGE_VERTICAL: Record<RowStatus, string> = {
   running: '┃', waiting: '┆', done: '│', failed: '┃', unknown: '│',
 }

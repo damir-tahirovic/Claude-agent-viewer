@@ -14,8 +14,13 @@ export type GraphNode = {
   readonly isCollapsed?: boolean
 }
 
-/** Builds the agent tree from rows in depth-first order with depth `d`. */
-export const buildGraphTree = (rows: ReadonlyArray<Row>, collapsedIds: ReadonlySet<string> = new Set()): GraphNode => {
+/**
+ * Builds the agent tree from rows in depth-first order with depth `d`.
+ * Precondition: the first row is the root (d 0) and depth never grows by more than 1 between rows.
+ */
+export const buildGraphTree = (
+  rows: ReadonlyArray<Row>, collapsedIds: ReadonlySet<string> = new Set(),
+): GraphNode => {
   type Draft = { row: Row; kids: Draft[] }
   const drafts: Draft[] = rows.map(row => ({ row, kids: [] }))
   const path: Draft[] = []
@@ -47,7 +52,10 @@ export type WideLayoutOpts = {
   readonly waitingText?: string
 }
 
-/** Draws main on top, children on a bus line and grandchildren under their parent; returns the last row used. (graph spec `layoutH`) */
+/**
+ * Draws main on top, children on a bus line and grandchildren under their parent; returns the last
+ * row used. (graph spec `layoutH`)
+ */
 export const layoutWide = (canvas: Canvas, root: GraphNode, opts: WideLayoutOpts): number => {
   const width = canvas.width
   const first = opts.firstColumn || 0
@@ -107,7 +115,9 @@ export const layoutWide = (canvas: Canvas, root: GraphNode, opts: WideLayoutOpts
       const grandRow = grand.row
       const isLast = j === kid.kids.length - 1
       const crossing = grandY + 1
-      for (let r = from; r < crossing; r++) canvas.put(trunk, r, EDGE_VERTICAL[grandRow.st], EDGE_CODE[grandRow.st])
+      for (let r = from; r < crossing; r++) {
+        canvas.put(trunk, r, EDGE_VERTICAL[grandRow.st], EDGE_CODE[grandRow.st])
+      }
       const joint = EDGE_JOINT[grandRow.st]
       canvas.put(trunk, crossing, isLast ? joint[1] : joint[0], EDGE_CODE[grandRow.st])
       canvas.put(trunk + 1, crossing, joint[2], EDGE_CODE[grandRow.st])
@@ -157,9 +167,13 @@ export type NarrowLayoutOpts = {
   readonly selectedId?: string
   readonly sessionCost: number
   readonly spin?: string
+  readonly waitingText?: string
 }
 
-/** Draws the folded tree list with the selected row expanded as a card; returns the last row used. (graph spec `layoutV`) */
+/**
+ * Draws the folded tree list with the selected row expanded as a card; returns the last row used.
+ * (graph spec `layoutV`)
+ */
 export const layoutNarrow = (canvas: Canvas, rows: ReadonlyArray<Row>, opts: NarrowLayoutOpts): number => {
   const width = canvas.width
   const spin = opts.spin ?? SPIN[0]
@@ -195,9 +209,12 @@ export const layoutNarrow = (canvas: Canvas, rows: ReadonlyArray<Row>, opts: Nar
     prefix.continues.forEach((isOpen, level) => {
       if (isOpen) for (let r = 0; r < 6; r++) canvas.put(left + 3 * level, y + r, '│', 'd')
     })
-    if (prefix.hasNextSibling) for (let r = 0; r < 6; r++) canvas.put(left + 3 * (row.d - 1), y + r, '│', 'd')
+    if (prefix.hasNextSibling) {
+      for (let r = 0; r < 6; r++) canvas.put(left + 3 * (row.d - 1), y + r, '│', 'd')
+    }
     drawCard(canvas, startX, y, cardWidth, row, {
-      isSelected: true, sessionCost: opts.sessionCost, isRich: true, spin: opts.spin, error: row.err,
+      isSelected: true, sessionCost: opts.sessionCost, isRich: true, spin: opts.spin,
+      waitingText: opts.waitingText, error: row.err,
     })
     y += 6
   })
