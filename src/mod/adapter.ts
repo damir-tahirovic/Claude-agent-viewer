@@ -140,3 +140,19 @@ export const turnComplete = (e: { agentId?: string; isAborted: boolean }, at: nu
   e.agentId === undefined
     ? [{ kind: 'turn', at, agentId: MAIN, phase: 'end' }]
     : [{ kind: 'agent.end', at, id: e.agentId, ok: !e.isAborted }]
+
+/**
+ * Billing from `$.session.usage()`: rate-limit windows mean a subscription; none means API billing only after a
+ * main turn has completed, since the windows are empty before the first reading too.
+ */
+export const billingEvent = (
+  usage: { readonly rateLimits: ReadonlyArray<{ readonly kind: string; readonly percentUsed: number }> },
+  hasCompletedTurn: boolean,
+  at: number,
+): AgentEvent[] => [{
+  kind: 'billing',
+  at,
+  billing: usage.rateLimits.length > 0
+    ? { kind: 'subscription', limits: usage.rateLimits.map(({ kind, percentUsed }) => ({ kind, percentUsed })) }
+    : { kind: hasCompletedTurn ? 'api' : 'unknown' },
+}]

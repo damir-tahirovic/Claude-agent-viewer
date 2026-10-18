@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { toolStart, toolEnd, spawnStart, stepUsage, listStatus, turnComplete, turnStart } from '../../src/mod/adapter'
+import { billingEvent, toolStart, toolEnd, spawnStart, stepUsage, listStatus, turnComplete, turnStart } from '../../src/mod/adapter'
 
 test('tool start in main and in a subagent', () => {
   assert.deepEqual(toolStart({ tool: 'Read', tool_use_id: 't', file_path: 'a' }, 1)[0], {
@@ -123,4 +123,20 @@ test('turn complete ends subagents; main turn complete ends main\'s turn', () =>
   assert.deepEqual(turnComplete({ agentId: 'a1', isAborted: false }, 4), [{ kind: 'agent.end', at: 4, id: 'a1', ok: true }])
   assert.deepEqual(turnComplete({ agentId: 'a1', isAborted: true }, 4), [{ kind: 'agent.end', at: 4, id: 'a1', ok: false }])
   assert.deepEqual(turnComplete({ isAborted: false }, 4), [{ kind: 'turn', at: 4, agentId: 'main', phase: 'end' }])
+})
+
+test('rate limits in the usage mean a subscription, keeping kind and percent only', () => {
+  const usage = { rateLimits: [
+    { kind: 'five_hour', percentUsed: 71, resetsAt: '2026-10-18T12:00:00Z' },
+    { kind: 'seven_day', percentUsed: 21 },
+  ] }
+  assert.deepEqual(billingEvent(usage, false, 5), [{
+    kind: 'billing', at: 5,
+    billing: { kind: 'subscription', limits: [{ kind: 'five_hour', percentUsed: 71 }, { kind: 'seven_day', percentUsed: 21 }] },
+  }])
+})
+
+test('no rate limits mean API billing after a completed turn and unknown before one', () => {
+  assert.deepEqual(billingEvent({ rateLimits: [] }, true, 5), [{ kind: 'billing', at: 5, billing: { kind: 'api' } }])
+  assert.deepEqual(billingEvent({ rateLimits: [] }, false, 5), [{ kind: 'billing', at: 5, billing: { kind: 'unknown' } }])
 })

@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, orderTree, reduce } from '../src/core/reducer'
-import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
+import { billingEvent, listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
 import { appendBounded } from '../src/mod/event-batch'
 import { openArgsFor } from '../src/mod/open-args'
 import { buildPaneView, roomFor } from '../src/mod/pane-view'
@@ -123,11 +123,11 @@ const scheduleFlush = ($: EngineInterface, delay = FLUSH_MS): void => {
   }
 }
 
-/** Builds events on a clock reading and queues them; never awaits a flush, so the hook path stays free. */
-const record = ($: EngineInterface, build: (at: number) => AgentEvent[]): void => {
+/** Builds events (possibly after an engine read) on a clock reading and queues them; never awaits a flush, so the hook path stays free. */
+const record = ($: EngineInterface, build: (at: number) => AgentEvent[] | Promise<AgentEvent[]>): void => {
   building = building.then(async () => {
     try {
-      const events = build(await $.clock.now())
+      const events = await build(await $.clock.now())
       if (events.length === 0) return
       queued = appendBounded(queued, events, MAX_QUEUED_EVENTS)
       scheduleFlush($)
@@ -135,6 +135,11 @@ const record = ($: EngineInterface, build: (at: number) => AgentEvent[]): void =
       logOnce($, 'record', err)
     }
   }).catch(() => {})
+}
+
+/** Reads the plan's usage once and queues the billing it shows; it runs on session.start and main turn.complete only. */
+const recordBilling = ($: EngineInterface, hasCompletedTurn: boolean): void => {
+  record($, async at => billingEvent(await $.session.usage(), hasCompletedTurn, at))
 }
 
 /**
@@ -181,6 +186,7 @@ export const register: Register = (on, options) => {
         logOnce($, 'session.start state', err)
       }
     }
+    recordBilling($, false)
     try {
       // The status line moved to the prompt hint's tail; clear any line an older version pinned.
       $.ui.status(undefined)
@@ -451,6 +457,8 @@ export const register: Register = (on, options) => {
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     record($, at => turnComplete(e, at))
+    // Only main's turn says anything about how the session is paid for; a subagent's end does not.
+    if (e.agentId === undefined) recordBilling($, true)
     return result
   })
 }

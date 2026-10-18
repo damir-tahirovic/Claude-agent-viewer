@@ -556,3 +556,62 @@ test('the command is registered as immediate so it runs during a turn', async ($
   expect(registered?.name).toBe('agentview')
   expect(registered?.immediate).toBe(true)
 })
+
+const PLAN_USAGE = {
+  startedAt: AT,
+  context: {},
+  rateLimits: [{ kind: 'five_hour', percentUsed: 71 }, { kind: 'seven_day', percentUsed: 21 }],
+}
+const API_USAGE = { startedAt: AT, context: {}, rateLimits: [] }
+
+test('a subscription shows the plan limits in the pane and no ~$ cost', async ($, on) => {
+  useClock(on)
+  on('session.usage', () => ({ value: PLAN_USAGE }))
+  on('tool.call', readTool)
+  await startAndOpen($, on, [])
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
+  await settle()
+  const pane = await mountPane($)
+  expect(await pane.find({ type: 'Text', text: /5h 71% · 7d 21%/ })).toBeDefined()
+  expect(await pane.find({ type: 'Text', text: /~\$/ })).toBeUndefined()
+  await pane.unmount()
+})
+
+test('billing is unknown before a main turn completes and api after one with no rate limits', async ($, on) => {
+  useClock(on)
+  const writes = countWrites(on)
+  on('session.usage', () => ({ value: API_USAGE }))
+  on('turn.complete', () => ({ text: '' }))
+  await startAndOpen($, on, [])
+  expect(writes.sessions.at(-1)?.billing).toEqual({ kind: 'unknown' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'end_turn' })
+  await settle()
+  expect(writes.sessions.at(-1)?.billing).toEqual({ kind: 'api' })
+})
+
+test('a subagent turn completing reads no usage', async ($, on) => {
+  useClock(on)
+  let reads = 0
+  on('session.usage', () => { reads += 1; return { value: API_USAGE } })
+  on('turn.complete', () => ({ text: '' }))
+  await startAndOpen($, on, [])
+  const afterStart = reads
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'end_turn', agentId: 'sub1' })
+  await settle()
+  expect(reads).toBe(afterStart)
+})
+
+test('billing reaches the session only when it changes', async ($, on) => {
+  useClock(on)
+  const writes = countWrites(on)
+  on('session.usage', () => ({ value: PLAN_USAGE }))
+  on('turn.complete', () => ({ text: '' }))
+  await startAndOpen($, on, [])
+  for (const turnId of ['t1', 't2', 't3']) {
+    await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId, reason: 'end_turn' })
+    await settle()
+  }
+  const kinds = writes.sessions.map(state => JSON.stringify(state.billing))
+  expect(kinds.filter((kind, index) => index > 0 && kind !== kinds[index - 1]).length).toBeLessThanOrEqual(1)
+  expect(writes.sessions.at(-1)?.billing?.kind).toBe('subscription')
+})
