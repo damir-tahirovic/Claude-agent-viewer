@@ -4,7 +4,7 @@ import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, orderTree, reduce } from '../src/core/reducer'
 import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
 import { buildPaneView, roomFor } from '../src/mod/pane-view'
-import { panColumn, panToInclude } from '../src/mod/graph-pane'
+import { graphColumnsFor, panColumn, panToInclude } from '../src/mod/graph-pane'
 import { decideClose, nextWindow, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
 import { toPlainAscii } from '../src/view/lines'
@@ -164,7 +164,11 @@ export const register: Register = (on, options) => {
 
   on('command.run', { command: 'agentview' }, async $ => {
     try {
-      await update($, ui, current => ({ ...current, open: true, view: 'tree', selId: 'main', graphCol: 0, win: undefined }))
+      // A state saved before the graph existed has no mode. The selection is main, which every graph column
+      // layout shows, so the first worker column is 0 and needs no pan.
+      await update($, ui, current => ({
+        ...current, open: true, view: 'tree', selId: 'main', mode: current.mode ?? 'tree', graphCol: 0, win: undefined,
+      }))
       await $.ui.open({ id: PANE_ID, title: 'agentview', focus: true, closeOnEscape: true, holdToasts: true })
     } catch (err) {
       logOnce($, 'command.run', err)
@@ -193,7 +197,7 @@ export const register: Register = (on, options) => {
       const snapshot = (await read($, session)) ?? initialState(FALLBACK_SESSION_ID, 0)
       const order = orderTree(snapshot).map(entry => entry.id)
       // Only agent rows move the selection; the toggle and graph Buttons keep their own keys.
-      if (e.requestId === PANE_ID && key && state.view === 'tree' && state.mode === 'tree' &&
+      if (e.requestId === PANE_ID && key && state.view === 'tree' && state.mode !== 'graph' &&
         order.includes(key) && key !== state.selId) {
         const win = nextWindow(order, key, state.win ?? [0, latestRoom], latestRoom)
         await update($, ui, current => ({ ...current, selId: key, win }))
@@ -253,7 +257,8 @@ export const register: Register = (on, options) => {
     const label = (text: string): string => (isAscii ? toPlainAscii(text) : text)
     const step = (offset: number) => async (): Promise<void> => {
       const target = stepId(view.order, state.selId, offset)
-      const columns = view.hiddenColumns
+      // Not view.hiddenColumns: the detail view draws no graph, so it has none.
+      const columns = graphColumnsFor(view.outline, e.props.bodyColumns)
       await update($, ui, latest => ({
         ...latest,
         selId: target,
@@ -263,7 +268,15 @@ export const register: Register = (on, options) => {
       }))
     }
     const setMode = (mode: 'tree' | 'graph') => async (): Promise<void> => {
-      await update($, ui, latest => ({ ...latest, mode }))
+      const columns = graphColumnsFor(view.outline, e.props.bodyColumns)
+      // The selection may have moved in the tree while the graph was away; bring its column into view.
+      await update($, ui, latest => ({
+        ...latest,
+        mode,
+        graphCol: mode === 'graph' && columns
+          ? panToInclude(view.outline, latest.selId, latest.graphCol, columns.visible)
+          : latest.graphCol,
+      }))
     }
     const pan = (offset: number) => async (): Promise<void> => {
       const columns = view.hiddenColumns

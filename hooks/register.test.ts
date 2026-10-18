@@ -1,5 +1,5 @@
 import { test, expect, mock } from 'claude-code/testing'
-import type { AgentviewSession } from '../types'
+import type { AgentviewSession, AgentviewUi } from '../types'
 
 test('a Read tool call is counted in the session state', async ($, on) => {
   mock.clock(on)
@@ -242,4 +242,72 @@ test('next steps pan the graph to the selected worker and the footer hotkeys are
   expect(await pane.find({ type: 'Text', text: /workers 2–3 of 3/ })).toBeDefined()
   expect(await pane.find({ type: 'Text', text: /p\/n select {3}d details/ })).toBeDefined()
   await pane.unmount()
+})
+
+const UI_STATE = { plugin: 'agentview', key: 'ui' } as const
+
+/** Seeds the ui atom with `seed` (as an older version or the tree would have left it) and follows later writes. */
+const seedUi = (on: Parameters<Parameters<typeof test>[1]>[1], seed: unknown): { latest: () => AgentviewUi } => {
+  let store = seed as AgentviewUi
+  let version = 1
+  on('state.get', UI_STATE, () => ({ value: { value: store, version } }))
+  on('state.set', UI_STATE, (_$, e) => {
+    if (e.value) store = e.value
+    version += 1
+    return { value: { isSet: true, version } }
+  })
+  return { latest: () => store }
+}
+
+test('a worker selected in the tree stays visible when the graph opens', async ($, on) => {
+  mock.clock(on, { now: AT })
+  on('tool.call', readTool)
+  for (const id of ['sub1', 'sub2', 'sub3']) await $.tool.call({ tool: 'Read', file_path: '/tmp/' + id, agentId: id })
+  await settle()
+  const pane = await mountGraphPane($, 110)
+  // The kit cannot raise a ui.focus with an element, so the selection moves through the graph's own next
+  // Button; panning back and returning to the tree leaves worker 3 selected with the first columns shown.
+  await pane.press({ key: 'graph' })
+  for (let step = 0; step < 3; step++) await pane.press({ key: '>graph-next<' })
+  await pane.press({ key: '<pan-left>' })
+  expect(await pane.find({ type: 'Text', text: /workers 1–2 of 3/ })).toBeDefined()
+  await pane.press({ key: 'tree' })
+  await pane.press({ key: 'graph' })
+  expect(await pane.find({ type: 'Text', text: /workers 2–3 of 3/ })).toBeDefined()
+  // Panning stays free afterwards: the render never clamps to the selection.
+  await pane.press({ key: '<pan-left>' })
+  expect(await pane.find({ type: 'Text', text: /workers 1–2 of 3/ })).toBeDefined()
+  await pane.unmount()
+})
+
+test('stepping in the detail view of a graph pans the graph to the new agent', async ($, on) => {
+  mock.clock(on, { now: AT })
+  let graphCol: number | undefined
+  on('state.set', UI_STATE, ($, e, next) => {
+    graphCol = e.value?.graphCol
+    return next(e)
+  })
+  on('tool.call', readTool)
+  for (const id of ['sub1', 'sub2', 'sub3']) await $.tool.call({ tool: 'Read', file_path: '/tmp/' + id, agentId: id })
+  await settle()
+  const pane = await mountGraphPane($, 110)
+  await pane.press({ key: 'graph' })
+  await pane.press({ key: '<graph-details>' })
+  // main -> sub1 -> sub2 -> sub3 by stepping in the detail view, where the pan Buttons are not drawn.
+  for (let step = 0; step < 3; step++) await pane.press({ key: '>next<' })
+  expect(graphCol).toBe(1)
+  await pane.unmount()
+})
+
+test('running the command on a ui state saved without a mode opens the tree', async ($, on) => {
+  mock.clock(on, { now: AT })
+  on('session.id', () => ({ value: 'sess-1' }))
+  on('command.register', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '/tmp' }))
+  on('agent.list', () => ({ value: [] }))
+  on('ui.open', () => ({ value: undefined }))
+  const ui = seedUi(on, { open: false, view: 'tree', selId: 'main', graphCol: 0, spin: 0 })
+  await $.session.start(SESSION_START)
+  await $.command.run({ command: 'agentview', args: '' })
+  expect(ui.latest().mode).toBe('tree')
 })
