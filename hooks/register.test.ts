@@ -374,7 +374,6 @@ test('an open pane with no running agent writes nothing in 10 s', async ($, on) 
   await settle()
   const before = { ui: writes.ui, session: writes.session }
   for (let second = 0; second < 10; second++) await clock.advance(1000)
-  console.log(`WRITES idle 10 s: ui=${writes.ui - before.ui} session=${writes.session - before.session}`)
   expect(writes.ui - before.ui).toBe(0)
   expect(writes.session - before.session).toBe(0)
 })
@@ -388,7 +387,6 @@ test('an open pane with one running agent writes the ui at most once a second', 
   await settle()
   const before = { ui: writes.ui, session: writes.session }
   for (let second = 0; second < 10; second++) await clock.advance(1000)
-  console.log(`WRITES one running agent 10 s: ui=${writes.ui - before.ui} session=${writes.session - before.session}`)
   expect(writes.ui - before.ui).toBeGreaterThan(0)
   expect(writes.ui - before.ui).toBeLessThanOrEqual(10)
   // Heartbeats refresh the signal only every 30 s, so ten seconds write the session at most once.
@@ -406,7 +404,6 @@ test('50 tool calls within 100 ms reach the session in at most 2 writes', async 
     await clock.advance(2)
   }
   await settle()
-  console.log(`WRITES 50 tool calls: session=${writes.session - before}`)
   expect(writes.session - before).toBeLessThanOrEqual(2)
   const total = Object.values(writes.sessions.at(-1)?.agents ?? {}).reduce((sum, agent) => sum + agent.toolCount, 0)
   expect(total).toBe(50)
@@ -515,7 +512,6 @@ test('the elapsed time of a waiting agent keeps redrawing every second', async (
   await clock.advance(3000)
   const after = await pane.find({ type: 'Text', text: /waiting.*\d+s/ })
   expect(JSON.stringify(after)).not.toBe(timeBefore)
-  console.log(`WRITES waiting agent 3 s: ui=${writes.ui - uiBefore}`)
   expect(writes.ui - uiBefore).toBe(3)
   await pane.unmount()
 })

@@ -39,6 +39,8 @@ const FALLBACK_SESSION_ID = 'session'
 const POLL_MS = 1000
 /** Recorded events reach the session atom at most this often, as one write. */
 const FLUSH_MS = 250
+/** Longest wait between retries of a failed flush. */
+const MAX_RETRY_MS = 5000
 /** Wrap of the redraw counter; it only has to differ from one second to the next. */
 const REDRAW_WRAP = 1000
 /** Events kept while flushes fail; the oldest are dropped past this. */
@@ -87,6 +89,8 @@ let flushing: Promise<void> = Promise.resolve()
 let queued: ReadonlyArray<AgentEvent> = []
 /** The pending flush timer; at most one, so a burst of events is one write. */
 let flushTimer: { cancel: () => void } | undefined
+/** Flushes failed in a row; each one doubles the retry delay, up to `MAX_RETRY_MS`. */
+let failedFlushes = 0
 
 /** Folds the queued events plus `extra` into the session atom in one write, or writes nothing when nothing changes. */
 const flushOnce = async ($: EngineInterface, extra: ReadonlyArray<AgentEvent>): Promise<boolean> => {
@@ -98,16 +102,21 @@ const flushOnce = async ($: EngineInterface, extra: ReadonlyArray<AgentEvent>): 
     const at = await $.clock.now()
     const current = await read($, session)
     // The same object back from the reducer means nothing changed, so nothing is written.
-    if (current && events.reduce(reduce, current as SessionState) === current) return true
+    if (current && events.reduce(reduce, current as SessionState) === current) {
+      failedFlushes = 0
+      return true
+    }
     await update($, session, latest => events.reduce(reduce, (latest ?? initialState(FALLBACK_SESSION_ID, at)) as SessionState))
     await publishStatus($)
+    failedFlushes = 0
     return true
   } catch (err) {
     // A failed flush keeps the recorded events for the next one; poll-only events are rebuilt by the next poll.
     queued = appendBounded(taken, queued, MAX_QUEUED_EVENTS)
     logOnce($, 'flush', err)
-    // Retry does not wait for the poll.
-    scheduleFlush($)
+    // Retry does not wait for the poll, and backs off while the write keeps failing.
+    scheduleFlush($, Math.min(FLUSH_MS * 2 ** failedFlushes, MAX_RETRY_MS))
+    failedFlushes += 1
     return false
   }
 }
@@ -120,10 +129,10 @@ const flush = ($: EngineInterface, extra: ReadonlyArray<AgentEvent> = []): Promi
 }
 
 /** Arms the flush timer unless one is pending. */
-const scheduleFlush = ($: EngineInterface): void => {
+const scheduleFlush = ($: EngineInterface, delay = FLUSH_MS): void => {
   if (flushTimer) return
   try {
-    flushTimer = $.clock.after(FLUSH_MS, () => {
+    flushTimer = $.clock.after(delay, () => {
       flushTimer = undefined
       void flush($)
     })
