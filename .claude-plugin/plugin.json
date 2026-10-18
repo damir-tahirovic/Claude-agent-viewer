@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Live terminal view of agents and subagents: tree, tokens, cost, progress",
   "author": { "name": "Damir Tahirovic" },
+  "homepage": "https://github.com/damir-tahirovic/Claude-agent-viewer",
+  "repository": "https://github.com/damir-tahirovic/Claude-agent-viewer",
+  "license": "MIT",
   "types": "./types/index.d.ts",
   "userConfig": {
     "ascii": {

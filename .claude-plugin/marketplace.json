@@ -1,0 +1,6 @@
+{
+  "name": "Claude-agent-viewer",
+  "description": "agentview: a live terminal view of Claude Code agents and subagents",
+  "owner": { "name": "Damir Tahirovic" },
+  "plugins": [{ "name": "agentview", "source": "./" }]
+}
