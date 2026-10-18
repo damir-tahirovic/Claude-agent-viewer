@@ -103,7 +103,7 @@ Prikaz grafa: `main` na vrhu, ispod njega radnici, a između njih linije pokreta
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
 
-Detalji agenta: cio zadatak, nedavne radnje, raspodjela tokena i agentova lista zadataka.
+Detalji agenta: cijeli zadatak, nedavne radnje, raspodjela tokena i agentova lista zadataka.
 
 Mockupi prikazuju dizajn. U pluginu su savjeti u podnožju oni navedeni u odjeljku [Uputstvo](#uputstvo): `q` u dijalogu ne radi ništa, a prikaz grafa koristi `p`/`n` i `t`/`g`.
 
@@ -150,7 +150,7 @@ Da bi se ažuriranje primijenilo, potrebno je ponovo pokrenuti Claude Code.
 
 ## Uputstvo
 
-Ukucajte `/agentview` da otvorite dijalog. Otvara se prikaz stabla sa izabranim agentom `main`.
+Ukucajte `/agentview` da otvorite dijalog. Otvara se prikaz koji ste posljednji koristili (prvi put stablo), a izabran je agent `main`.
 
 **Prikaz stabla**
 
@@ -233,6 +233,7 @@ Ništa ne napušta vaš računar. Plugin ne šalje mrežne pozive i nema runtime
 
 - Radi samo unutar Claude Code sesije u kojoj je instaliran. Samostalni CLI za sve sesije je planiran (Faza 2).
 - Pluginovi ne mogu promijeniti Tab i strelice, zato prikaz grafa i prebacivanje prikaza koriste slovne prečice.
+- U širokom grafu agenti ugniježđeni dublje od unuka nisu nacrtani; za duboke hijerarhije koristite prikaz stabla (`t`).
 - Prikaz detalja se ispod 90 kolona siječe, a ne preslaže.
 - Status `waiting` dolazi iz engine-ove liste agenata, pa nije uvijek zahtjev za dozvolu.
 - Troškovi su procjene iz cjenovnika.

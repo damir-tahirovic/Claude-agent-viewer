@@ -92,7 +92,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
       todos: session.todos[agent.id], now, clock: clockOf, cost: rows[selected].cost, sessionCost,
       spin, ascii: opts.ascii, frame: false, hints: DETAIL_HINTS,
     })
-    // Below 90 columns the detail is cut, not reflowed; the narrow layout waits for Phase 1b.
+    // Below 90 columns the detail is cut, not reflowed; a narrow detail layout is not designed yet.
     const body = [header, ...lines].map(line => finish(clipLine(line, opts.columns)))
     return { order, outline, isToggleBeside: true, head: body, agentLines: [], tail: [] }
   }

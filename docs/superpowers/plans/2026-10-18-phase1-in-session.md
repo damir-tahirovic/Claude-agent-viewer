@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, Claude Code mod API (Claude Code 2.1.302, `claude-code` module), Node 20.19 + `tsx` + `node:test` for core tests, and `claude plugin test` for mod tests.
 
-**Spec:** `../../../../AGENTVIEW.md` (sections 3.1–3.7), `docs/design/tui-spec.txt`, `docs/design/golden/tui/*.spec.txt`, `src/view/spec-golden.ts`, and the spec's own reference generator `docs/design/spec-generator.js`. The view code ports that generator.
+**Spec:** the maintainer's local tracker (not in this repo), sections 3.1–3.7, `docs/design/tui-spec.txt`, `docs/design/golden/tui/*.spec.txt`, `src/view/spec-golden.ts`, and the spec's own reference generator `docs/design/spec-generator.js`. The view code ports that generator.
 
 ## Global Constraints
 
@@ -66,11 +66,11 @@ agentview/
 
 ### Task 1: Spike — verify mod API facts the later tasks rely on
 
-Throwaway code. It goes in the dev-mods folder, not in `agentview/`. The output is findings in `AGENTVIEW.md` §6.
+Throwaway code. It goes in the dev-mods folder, not in `agentview/`. The output is findings in the maintainer's local tracker §6.
 
 **Files:**
 - Create (throwaway): `~/.claude/dev-mods/<session-id>/agentview-spike/` with `.claude-plugin/plugin.json`, `hooks/hooks.json`, `hooks/register.tsx`, `hooks/lib.ts`
-- Modify: `AGENTVIEW.md` §6 (findings), §4 (check 1.1)
+- Modify: the maintainer's local tracker §6 (findings), §4 (check 1.1)
 
 **Interfaces:**
 - Produces: written answers to Q1–Q6 below. Tasks 10–12 follow them.
@@ -136,7 +136,7 @@ If `Button` takes no `onPress`, grep `ButtonProps` and `'ui.press'` in the types
 
 - [ ] **Step 3: Run it.** Accept hot reload. Then, in this session, run an `Agent` call (subagent_type `Explore`, any small search), run `/spike`, and press ↑↓, Enter, then Esc.
 
-- [ ] **Step 4: Record the answers in `AGENTVIEW.md` §6**, one bullet each:
+- [ ] **Step 4: Record the answers in the maintainer's local tracker §6**, one bullet each:
   - Q1: Does the relative import `./lib` work? Does `../../src/x` (outside `hooks/`) work? If not, the fallback is to keep core under `hooks/core/` and `hooks/view/`, with `src/` symlinked or moved.
   - Q2: `tool.call` fields: is `agentId` present inside subagents? How does an error show on the result?
   - Q3: `agent.spawn`: does `next` return `{ agentId, model }`? When does a subagent end: does the Agent `tool.call` resolve at the end? Does `$.agent.list()` `status` reach `completed`/`failed`?
@@ -144,7 +144,7 @@ If `Button` takes no `onPress`, grep `ButtonProps` and `'ui.press'` in the types
   - Q5: Pane: does the engine draw its own border/title (then we render with `frame: false`)? What is `bodyColumns`? Do `inverse`/`weight`/`color` work on `Text`?
   - Q6: Keys: do ↑↓ walk `plain` Buttons and fire `ui.focus` with the button `key`? Does Enter press it? Does Esc fire `ui.close` that a hook can refuse (return without `next`) to go "back" instead of closing?
 
-- [ ] **Step 5: Delete the spike folder.** Mark 1.1 done in `AGENTVIEW.md` with a one-line note.
+- [ ] **Step 5: Delete the spike folder.** Mark 1.1 done in the maintainer's local tracker with a one-line note.
 
 ---
 
@@ -1142,7 +1142,7 @@ Add a pure test `tests/mod/paint.spec.ts` for `runs`: `runs('{d|│} x {IB|sel}'
     - Tree view: `renderDialog({ W, agents: rows, sel, sid, plan, win: rows.length > rowsRoom ? win : undefined, spin: SPIN[spin], ascii: ASCII, frame, after: rows.length === 1 ? [the 7a "no subagents yet" line] : undefined })`.
     - Detail view: `renderDetail(...)` for `selId`.
     - Map each line through `lineToText`.
-    - Navigation follows Q6. Recommended: render each agent row as a `plain` `Button` (`key = row.id`, `onPress` → `view = 'detail'`). A `ui.focus` hook sets `selId` from `e.element`. If Buttons cannot carry styled children, keep the `<Text>` rows for display, and add invisible-label Buttons, or `hotkey` Buttons `j`/`k`/`l` for down/up/enter, whichever Q6 proved works. Note the choice in `AGENTVIEW.md` §5.
+    - Navigation follows Q6. Recommended: render each agent row as a `plain` `Button` (`key = row.id`, `onPress` → `view = 'detail'`). A `ui.focus` hook sets `selId` from `e.element`. If Buttons cannot carry styled children, keep the `<Text>` rows for display, and add invisible-label Buttons, or `hotkey` Buttons `j`/`k`/`l` for down/up/enter, whichever Q6 proved works. Note the choice in the maintainer's local tracker §5.
     - In detail view, ↑↓ step to the previous/next row id.
   - `ui.close` `{ requestId: 'agentview' }` with origin `person`: when `view === 'detail'`, set `view = 'tree'` and refuse the close (return without `next`, exactly as Q6 found). Otherwise set `ui.open = false`, cancel the spinner timer and call `next(e)`.
   - ASCII: `ASCII = options/env AGENTVIEW_ASCII === '1'`. Read it the way the reference shows for options or the environment (`$.process` env or `userConfig`). If neither is reachable in a mod, add a `userConfig` boolean `ascii` to `plugin.json` instead.
@@ -1172,7 +1172,7 @@ Add a pure test `tests/mod/paint.spec.ts` for `runs`: `runs('{d|│} x {IB|sel}'
 
 **Files:**
 - Create: `README.md`
-- Modify: `AGENTVIEW.md` (§4 checkboxes 1.1–1.13, §6, §7)
+- Modify: the maintainer's local tracker (§4 checkboxes 1.1–1.13, §6, §7)
 
 - [ ] **Step 1: Manual run.** `claude --plugin-dir "/path/to/agentview"`. In it, ask for a task that spawns 2–3 subagents (e.g. "use two Explore subagents in parallel to list files in /usr/share/doc and /etc, then summarize"). Then:
   - open `/agentview`;
@@ -1181,7 +1181,7 @@ Add a pure test `tests/mod/paint.spec.ts` for `runs`: `runs('{d|│} x {IB|sel}'
 
   Write down every mismatch with the spec. Fix each one with a failing test first.
 - [ ] **Step 2: README.md** (English): what it is (one paragraph + the 1a mockup as a code block), install for development (`claude --plugin-dir <path>`), usage (`/agentview`, keys), what the numbers mean (TOK, `~` cost estimate, plan % only from the todo list, `unknown` after 60 s), limitations, and license MIT. No marketplace install yet (Phase 3).
-- [ ] **Step 3: Update AGENTVIEW.md.** Check 1.1–1.13 with one-line notes, add findings to §6 and a log line to §7, and set Status to "Faza 1 završena; sljedeće Faza 1b (graph) ili Faza 2 (CLI)". Write these notes in Bosnian, like the rest of that file.
+- [ ] **Step 3: Update the maintainer's local tracker.** Check 1.1–1.13 with one-line notes, add findings to §6 and a log line to §7, and set Status to "Faza 1 završena; sljedeće Faza 1b (graph) ili Faza 2 (CLI)". Write these notes in Bosnian, like the rest of that file.
 - [ ] **Step 4: Commit and tag**
 
 ```bash

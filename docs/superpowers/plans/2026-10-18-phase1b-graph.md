@@ -8,7 +8,7 @@
 
 **Tech Stack:** As in Phase 1. TypeScript, the Claude Code mod API (2.1.302), `node:test` + `tsx`, `claude plugin test`.
 
-**Spec:** `docs/design/graph-spec.txt` (screens 0–5e and the rules at the end), `../AGENTVIEW.md` §3.5 "Graph prikaz", and the code standards in `CLAUDE.md`. For the mod API, see the verified facts carried from Phase 1 in `docs/phase1-followups.md`. The engine types live in the bundled plugin-authoring types file named in each task's dispatch.
+**Spec:** `docs/design/graph-spec.txt` (screens 0–5e and the rules at the end), the maintainer's local tracker (not in this repo), §3.5 "Graph prikaz", and the code standards in `CLAUDE.md`. For the mod API, see the verified facts carried from Phase 1 in `docs/phase1-followups.md`. The engine types live in the bundled plugin-authoring types file named in each task's dispatch.
 
 ## Global Constraints
 

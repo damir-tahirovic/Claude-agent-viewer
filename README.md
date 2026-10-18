@@ -150,7 +150,7 @@ An update needs a restart of Claude Code to apply.
 
 ## Usage
 
-Type `/agentview` to open the dialog. It opens on the tree view with `main` selected.
+Type `/agentview` to open the dialog. It opens on the view you used last (the tree the first time), with `main` selected.
 
 **Tree view**
 
@@ -233,6 +233,7 @@ Nothing leaves your machine. The plugin makes no network calls and has no runtim
 
 - It works only inside the Claude Code session where it is installed. A standalone CLI for all sessions is planned (Phase 2).
 - Plugins cannot rebind Tab and the arrow keys, so the graph view and the view switch use letter hotkeys.
+- In the wide graph, agents nested deeper than grandchildren are not drawn; use the tree view (`t`) for deep hierarchies.
 - The detail view is clipped, not reflowed, below 90 columns.
 - The `waiting` status comes from the engine's agent list, so it is not always a permission prompt.
 - Costs are estimates from list prices.

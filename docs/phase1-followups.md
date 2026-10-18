@@ -35,7 +35,7 @@ Deferred minor findings and controller rulings from the Phase 1 reviews (ledger 
 - Task 12: minor (deferred): W floor 50 overflows narrower panes; 65s vs 61s engine test; dialog.ts:398 long line.
 - Task 12: minor (deferred): COMPACT_SUMMARY_BELOW should be 67 (+W=66 test); clock failure persists startedAt 0; no test for second session.start cancel.
 - Ruling: T13 split — README now (subagent), then final whole-branch review + one fix wave, then the user's manual live check on the final code, then the tag — the user tests the final code, not pre-fix code — cost: one extra ordering step.
-- Ruling: in-session dialog footer must not advertise "q quit" — spec keys table (AGENTVIEW §3.5) says q does nothing in the dialog; q quit is CLI-only — fix in final wave by passing hints without q from the mod — cost: footer differs from golden 1a (which shows CLI-style hints).
+- Ruling: in-session dialog footer must not advertise "q quit" — spec keys table (the maintainer's local tracker §3.5) says q does nothing in the dialog; q quit is CLI-only — fix in final wave by passing hints without q from the mod — cost: footer differs from golden 1a (which shows CLI-style hints).
 - Ruling: #9 main shows `done` between turns, `running` on turn.start — stops perpetual spinner — cost: main reads "done" while waiting at prompt.
 - Ruling: #11 scrolling via persisted ui.win updated in ui.focus (nextWindow helper) — makes spec 7b reachable — cost: window shifts only at edges.
 - Ruling: #13 accept button-based detail navigation; hints say "◂ ▸ prev / next" — truthful hint — cost: deviates from spec ↑↓-steps-agent.
