@@ -152,6 +152,8 @@ Da bi se ažuriranje primijenilo, potrebno je ponovo pokrenuti Claude Code.
 
 Ukucajte `/agentview` da otvorite dijalog. Otvara se prikaz koji ste posljednji koristili (prvi put stablo), a izabran je agent `main`.
 
+U fullscreen prikazu Claude Code kači plugin panele pored transkripta. agentview traži punu širinu terminala, pa panel prekriva transkript kao dijalog, a `Esc` ga zatvara. (`/usage` je ugrađeni dijalog koji plugini ne mogu otvoriti.) Bez fullscreen prikaza panel se otvara iznad prompta, do 30 redova. Veličina na koju sami povučete panel ima prednost nad oba zahtjeva.
+
 **Prikaz stabla**
 
 | Taster | Radnja |
@@ -226,6 +228,8 @@ src/core/   pure domain: model, reducer, summaries, formatting, cost, progress.
 ```
 
 Podaci dolaze iz hook-ova plugina: poziva alata, pokretanja agenata, koraka kruga i engine-ove liste agenata. Adapter ih pretvara u događaje, reducer ih slaže u stanje sesije, a prikaz crta to stanje. agentview samo posmatra; ne mijenja ono što vaši agenti rade.
+
+Da bi bio jeftin, agentview skuplja zabilježene događaje u jedno ažuriranje stanja na svakih 250 ms, ne piše ništa dok je sesija neaktivna, a spinner pomjera jednom u sekundi (1 fps), i to samo dok neki agent radi.
 
 Ništa ne napušta vaš računar. Plugin ne šalje mrežne pozive i nema runtime zavisnosti.
 

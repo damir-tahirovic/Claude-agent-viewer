@@ -152,6 +152,8 @@ An update needs a restart of Claude Code to apply.
 
 Type `/agentview` to open the dialog. It opens on the view you used last (the tree the first time), with `main` selected.
 
+In fullscreen, Claude Code docks plugin panes beside the transcript. agentview asks for the full terminal width, so the pane covers the transcript like a dialog, and `Esc` closes it. (`/usage` itself is a built-in dialog that plugins cannot open.) Without fullscreen the pane opens above the prompt, up to 30 rows. A size you drag the pane to wins over both requests.
+
 **Tree view**
 
 | Key | Action |
@@ -226,6 +228,8 @@ src/core/   pure domain: model, reducer, summaries, formatting, cost, progress.
 ```
 
 The data comes from plugin hooks: tool calls, agent spawns, turn steps and the engine's agent list. The adapter turns them into events, the reducer folds them into a session state, and the view draws that state. agentview only observes; it does not change what your agents do.
+
+To stay cheap, agentview batches the recorded events into one state update every 250 ms, writes nothing while the session is idle, and moves the spinner once a second (1 fps), and only while an agent is running.
 
 Nothing leaves your machine. The plugin makes no network calls and has no runtime dependencies.
 
