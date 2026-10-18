@@ -221,7 +221,8 @@ export const register: Register = (on, options) => {
       logOnce($, 'session.start poll', err)
     }
     try {
-      await $.command.register({ name: 'agentview', description: 'Live view of agents and subagents' })
+      // Immediate: typed while a turn runs, the command must open at once, not queue until the turn ends.
+      await $.command.register({ name: 'agentview', description: 'Live view of agents and subagents', immediate: true })
     } catch (err) {
       logOnce($, 'session.start command', err)
     }

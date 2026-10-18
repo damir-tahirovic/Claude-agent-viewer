@@ -515,3 +515,15 @@ test('the elapsed time of a waiting agent keeps redrawing every second', async (
   expect(writes.ui - uiBefore).toBe(3)
   await pane.unmount()
 })
+
+test('the command is registered as immediate so it runs during a turn', async ($, on) => {
+  useClock(on)
+  let registered: { name?: string; immediate?: true } | undefined
+  on('session.id', () => ({ value: 'sess-1' }))
+  on('command.register', (_$, e) => { registered = e; return { value: undefined } })
+  on('session.start', () => ({ cwd: '/tmp' }))
+  on('agent.list', () => ({ value: [] }))
+  await $.session.start(SESSION_START)
+  expect(registered?.name).toBe('agentview')
+  expect(registered?.immediate).toBe(true)
+})
