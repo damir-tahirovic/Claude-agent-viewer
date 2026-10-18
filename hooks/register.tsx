@@ -50,9 +50,6 @@ const DEFAULT_PANE_ROWS = 24
 /** Agent rows that fit in the pane as last drawn; the focus hook has no viewport, so render leaves it here. */
 let latestRoom = roomFor(DEFAULT_PANE_ROWS)
 
-/** Last status line sent, so `$.ui.status` is called only when the text changes. A reload re-sends it. */
-let lastStatus: string | undefined
-
 /** Wheres already logged in this load; each is logged once so a hot hook cannot flood the transcript. */
 const logged = new Set<string>()
 
@@ -64,20 +61,6 @@ const logOnce = ($: EngineInterface, where: string, err: unknown): void => {
     $.ui.log(`agentview: ${where}: ${err instanceof Error ? err.message : String(err)}`)
   } catch {
     // Logging is best effort.
-  }
-}
-
-/** Sends the status line when it differs from the last one sent. Never throws. */
-const publishStatus = async ($: EngineInterface): Promise<void> => {
-  try {
-    const current = await read($, session)
-    if (!current) return
-    const text = statusFor(current, await $.clock.now())
-    if (text === lastStatus) return
-    lastStatus = text
-    $.ui.status(text)
-  } catch (err) {
-    logOnce($, 'status', err)
   }
 }
 
@@ -107,7 +90,6 @@ const flushOnce = async ($: EngineInterface, extra: ReadonlyArray<AgentEvent>): 
       return true
     }
     await update($, session, latest => events.reduce(reduce, (latest ?? initialState(FALLBACK_SESSION_ID, at)) as SessionState))
-    await publishStatus($)
     failedFlushes = 0
     return true
   } catch (err) {
@@ -198,6 +180,12 @@ export const register: Register = (on, options) => {
       } catch (err) {
         logOnce($, 'session.start state', err)
       }
+    }
+    try {
+      // The status line moved to the prompt hint's tail; clear any line an older version pinned.
+      $.ui.status(undefined)
+    } catch (err) {
+      logOnce($, 'session.start status', err)
     }
     try {
       poll?.cancel()
@@ -413,6 +401,21 @@ export const register: Register = (on, options) => {
         )}
       </Box>
     )
+  }).catch(($, e, next) => next(e))
+
+  // The status text rides on the prompt hint as its dim tail: engine warnings use `$.ui.status`, which reads as an error.
+  // Pure: the text comes from the atom and the clock read in this render, nothing is written.
+  on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
+    try {
+      const current = await read($, session)
+      if (current) {
+        const tail = statusFor(current, await $.clock.now())
+        return next({ ...e, props: { ...e.props, tail } })
+      }
+    } catch (err) {
+      logOnce($, 'status', err)
+    }
+    return next(e)
   }).catch(($, e, next) => next(e))
 
   on('tool.call', async ($, e, next) => {

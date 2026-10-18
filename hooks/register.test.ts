@@ -60,19 +60,48 @@ for (const surface of ['terminal', 'desktop'] as const) {
 const readTool = () => ({ result: { type: 'text', file: { filePath: 'a', content: '' } }, text: '' })
 const SESSION_START = { cwd: '/tmp', surface: 'terminal', isInteractive: true } as const
 
-test('the status line is sent after an event and again only when its text changes', async ($, on) => {
+/** Records the props the engine's own PromptHint would be handed; registered beneath the plugin, before any `$` use. */
+const captureHintProps = (on: Parameters<Parameters<typeof test>[1]>[1]) => {
+  const seen: { props?: Record<string, unknown> } = {}
+  on('ui.render', { component: 'PromptHint' }, ($, e) => {
+    seen.props = e.props as Record<string, unknown>
+    // The base has no drawing of its own in a test, so it answers with a minimal tree.
+    const { Text } = $.ui.resolve(e)
+    return Text({ children: 'hint' })
+  })
+  return seen
+}
+
+test('the prompt hint carries the status text as its tail', async ($, on) => {
   useClock(on)
-  const sent: Array<string | undefined> = []
-  on('ui.status', ($, e, next) => { sent.push(e.text); return next(e) })
+  const seen = captureHintProps(on)
   on('tool.call', readTool)
   await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
   await settle()
-  expect(sent.length).toBe(1)
-  expect(sent[0]).toMatch(/running .*\/agentview/)
-  // The text counts tokens, not calls, so a second identical-looking state sends nothing.
-  await $.tool.call({ tool: 'Read', file_path: '/tmp/b' })
+  const hint = await $.ui.mount({
+    plugin: 'agentview', surface: 'terminal', component: 'PromptHint',
+    props: { isDraft: false, isWorking: false, hint: '? for shortcuts' },
+  })
+  await hint.unmount()
+  expect(seen.props?.tail).toMatch(/running .*\/agentview/)
+  expect(seen.props?.hint).toBe('? for shortcuts')
+})
+
+test('the status line is never pinned with ui.status text, only cleared once at session start', async ($, on) => {
+  useClock(on)
+  const sent: Array<string | undefined> = []
+  on('ui.status', ($, e, next) => { sent.push(e.text); return next(e) })
+  on('session.id', () => ({ value: 'sess-1' }))
+  on('command.register', () => ({ value: undefined }))
+  on('session.start', () => ({ cwd: '/tmp' }))
+  on('agent.list', () => ({ value: [] }))
+  on('tool.call', readTool)
+  await $.session.start(SESSION_START)
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/a' })
   await settle()
-  expect(sent.length).toBe(1)
+  await $.tool.call({ tool: 'Read', file_path: '/tmp/b', agentId: 'sub1' })
+  await settle()
+  expect(sent).toEqual([undefined])
 })
 
 test('a throwing session atom never breaks the tool call', async ($, on) => {
