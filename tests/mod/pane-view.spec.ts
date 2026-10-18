@@ -37,3 +37,37 @@ test('no line is wider than the body, including the no-subagents line', () => {
     all.forEach(line => assert.ok(visibleLength(line) <= columns, `${columns}: ${stripCodes(line)}`))
   }
 })
+
+const withTodos = reduce(twoAgents, {
+  kind: 'todos', at: NOW, agentId: 'main', todos: [{ content: 'step one', status: 'in_progress' }],
+})
+
+test('ascii mode leaves no character above U+007F in any line, tree or detail, at 80 and 120 columns', () => {
+  for (const columns of [80, 120]) {
+    for (const [view, selId] of [['tree', 'main'], ['detail', 'a1'], ['detail', 'main']] as const) {
+      const built = buildPaneView({ ...base, columns, ascii: true, spin: 3, view, selId, session: withTodos })
+      const all = [...built.head, ...built.agentLines.map(entry => entry.line), ...built.tail]
+      all.forEach(line => assert.ok(
+        [...stripCodes(line)].every(char => char.codePointAt(0)! <= 0x7f), `${view} ${columns}: ${stripCodes(line)}`,
+      ))
+    }
+  }
+})
+
+test('no hint offers q quit in the tree or the detail view', () => {
+  for (const view of ['tree', 'detail'] as const) {
+    const built = buildPaneView({ ...base, view, selId: 'a1', session: twoAgents })
+    assert.doesNotMatch(stripCodes([...built.head, ...built.tail].join('\n')), /q quit/)
+  }
+})
+
+test('detail hints describe the prev / next buttons and esc back', () => {
+  const built = buildPaneView({ ...base, view: 'detail', selId: 'a1', session: twoAgents })
+  assert.match(stripCodes(built.head.join('\n')), /◂ ▸ prev \/ next\s+esc back/)
+})
+
+test('detail at 80 columns is clipped to the body and its header shows the status word', () => {
+  const built = buildPaneView({ ...base, columns: 80, view: 'detail', selId: 'a1', session: twoAgents })
+  built.head.forEach(line => assert.ok(visibleLength(line) <= 80, stripCodes(line)))
+  assert.match(stripCodes(built.head[0]), /^agentview › worker · .* · .*running$/)
+})

@@ -23,6 +23,8 @@ export type DetailOpts = {
   /** Spinner frame shown for the live action and a running agent. */
   readonly spin?: string
   readonly ascii?: boolean
+  /** Key hints in the footer; the generator's list when absent. */
+  readonly hints?: ReadonlyArray<readonly [string, string]>
   /** Draw the border; false drops top, bottom and side edges for a host that draws its own. */
   readonly frame?: boolean
 }
@@ -34,7 +36,7 @@ const TITLE_WIDTH = 40
 const TOKEN_BAR_WIDTH = 20
 
 /** Status badge codes and text for the header. (spec `stCell`) */
-const statusBadge = (status: AgentStatus, spin: string): [string, string] => {
+export const statusBadge = (status: AgentStatus, spin: string): [string, string] => {
   switch (status) {
     case 'running': return ['c', spin + ' running']
     case 'waiting': return ['y', '◔ waiting']
@@ -175,7 +177,8 @@ export const renderDetail = (o: DetailOpts): string[] => {
   const bodyRows = Math.max(left.length, right.length)
   for (let i = 0; i < bodyRows; i++) out.push(split(left[i] || '', right[i] || ''))
   out.push(divider('┴'))
-  out.push(line(renderHints([['↑↓', 'prev / next agent'], ['esc', 'back to tree'], ['q', 'quit']])))
+  out.push(line(renderHints(o.hints?.map(([key, label]): [string, string] => [key, label]) ??
+    [['↑↓', 'prev / next agent'], ['esc', 'back to tree'], ['q', 'quit']])))
   if (hasFrame) out.push(bottomBorder(W))
   return o.ascii ? out.map(toAscii) : out
 }

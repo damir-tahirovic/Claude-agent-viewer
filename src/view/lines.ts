@@ -32,11 +32,32 @@ export const fitText = (text: string, width: number): string => {
     : chars.slice(0, Math.max(0, width - 1)).join('') + '…'
 }
 
+/** Cuts a coded line to at most `width` visible characters, keeping the codes of what stays. */
+export const clipLine = (line: string, width: number): string => {
+  if (visibleLength(line) <= width) return line
+  let room = width
+  let out = ''
+  for (const part of line.split(/(\{[a-zA-Z]+\|[^{}]*\})/)) {
+    if (room <= 0) break
+    const group = /^\{([a-zA-Z]+)\|([^{}]*)\}$/.exec(part)
+    const text = [...(group ? group[2] : part)].slice(0, room).join('')
+    room -= [...text].length
+    out += group && text ? `{${group[1]}|${text}}` : text
+  }
+  return out
+}
+
 /** Swaps every box, status and arrow glyph for a single ASCII character. (spec `ascii`) */
 export const toAscii = (line: string): string =>
   line
-    .replace(/[╭╮╰╯├┤┬┴]/g, '+').replace(/[│┃]/g, '|').replace(/─/g, '-').replace(/▸/g, '>')
+    .replace(/[╭╮╰╯├┤┬┴]/g, '+').replace(/[│┃]/g, '|').replace(/─/g, '-').replace(/▸/g, '>').replace(/◂/g, '<')
     .replace(/⠋/g, '*').replace(/◔/g, '!').replace(/[✓]/g, '+').replace(/✗/g, 'x').replace(/█/g, '#')
     .replace(/░/g, '-').replace(/…/g, '~').replace(/·/g, '.').replace(/●/g, '*').replace(/◌/g, '.')
     .replace(/▲/g, '^').replace(/↑/g, '^').replace(/↓/g, 'v').replace(/—/g, '-').replace(/›/g, '>')
     .replace(/→/g, '>')
+
+/**
+ * `toAscii` plus the corner and return glyphs the generator leaves alone. Kept separate so the golden
+ * ascii screens, which still show those corners, stay byte-identical.
+ */
+export const toPlainAscii = (line: string): string => toAscii(line).replace(/[└┘┌┐]/g, '+').replace(/⏎/g, 'Enter')

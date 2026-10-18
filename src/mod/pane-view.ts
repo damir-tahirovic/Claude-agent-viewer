@@ -2,9 +2,9 @@
 import { fmtCost, fmtK } from '../core/format'
 import type { SessionState } from '../core/model'
 import { planOf } from '../core/progress'
-import { renderDetail } from '../view/detail'
+import { renderDetail, statusBadge } from '../view/detail'
 import { renderDialog, windowFor } from '../view/dialog'
-import { colorize, dim, fitText, SPIN } from '../view/lines'
+import { clipLine, colorize, dim, fitText, SPIN, toPlainAscii } from '../view/lines'
 import { buildRows } from '../view/rows'
 
 /** Inputs for one pane render. */
@@ -34,6 +34,10 @@ const MIN_DETAIL_COLUMNS = 90
 /** Lines of the dialog that are not agent rows: header, summary, rules, plan and hints. */
 const CHROME_ROWS = 10
 const MIN_AGENT_ROWS = 3
+const ASCII_SPIN = '*'
+/** Footer hints without `q quit`: the pane is closed with esc, and q does nothing here. */
+const TREE_HINTS: [string, string][] = [['↑↓', 'select'], ['⏎', 'details'], ['esc', 'close']]
+const DETAIL_HINTS: [string, string][] = [['◂ ▸', 'prev / next'], ['esc', 'back']]
 const NO_SUBAGENTS_TEXT = '  ◌ no subagents yet — they appear here as soon as main delegates'
 
 /** HH:MM:SS of an epoch-ms timestamp (UTC), the detail view's clock column. */
@@ -44,7 +48,8 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const { session, selId, now } = opts
   const rows = buildRows(session, now)
   const order = rows.map(row => row.id)
-  const spin = SPIN[opts.spin % SPIN.length]
+  const spin = opts.ascii ? ASCII_SPIN : SPIN[opts.spin % SPIN.length]
+  const finish = (line: string): string => (opts.ascii ? toPlainAscii(line) : line)
   const sessionCost = rows.reduce((sum, row) => sum + row.cost, 0)
   const sessionTokens = rows.reduce((sum, row) => sum + row.i + row.o, 0)
   const selected = Math.max(0, rows.findIndex(row => row.id === selId))
@@ -53,13 +58,15 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   if (opts.view === 'detail' && agent) {
     const parent = agent.parentId ? session.agents[agent.parentId] : undefined
     const header = colorize('B', 'agentview') + dim(' › ') + colorize('B', agent.type) +
-      dim(' · ' + fmtCost(rows[selected].cost))
+      dim(' · ' + fmtCost(rows[selected].cost) + ' · ') + colorize(...statusBadge(agent.status, spin))
     const lines = renderDetail({
       W: Math.max(opts.columns, MIN_DETAIL_COLUMNS), agent, parentName: parent?.type ?? '—',
       todos: session.todos[agent.id], now, clock: clockOf, cost: rows[selected].cost, sessionCost,
-      spin, ascii: opts.ascii, frame: false,
+      spin, ascii: opts.ascii, frame: false, hints: DETAIL_HINTS,
     })
-    return { order, head: [header, ...lines], agentLines: [], tail: [] }
+    // Below 90 columns the detail is cut, not reflowed; the narrow layout waits for Phase 1b.
+    const body = [header, ...lines].map(line => finish(clipLine(line, opts.columns)))
+    return { order, head: body, agentLines: [], tail: [] }
   }
 
   const plan = planOf(session.todos.main)
@@ -68,7 +75,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const width = Math.max(opts.columns, MIN_TREE_COLUMNS)
   const lines = renderDialog({
     W: width, agents: rows, sel: selected,
-    sid: session.sessionId.slice(0, 8), plan, win, spin, ascii: opts.ascii, frame: false,
+    sid: session.sessionId.slice(0, 8), plan, win, spin, ascii: opts.ascii, frame: false, hints: TREE_HINTS,
     after: rows.length === 1 ? [dim(fitText(NO_SUBAGENTS_TEXT, width - 4).trimEnd())] : undefined,
   })
   const [first, last] = win ?? [0, rows.length]
@@ -79,8 +86,8 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
     `${fmtK(sessionTokens)} tok · ${fmtCost(sessionCost)} · plan `) + colorize('B', percent)
   return {
     order,
-    head: [header, ...lines.slice(0, firstRowLine)],
-    agentLines: rows.slice(first, last).map((row, offset) => ({ id: row.id, line: lines[firstRowLine + offset] })),
-    tail: lines.slice(firstRowLine + (last - first)),
+    head: [header, ...lines.slice(0, firstRowLine)].map(finish),
+    agentLines: rows.slice(first, last).map((row, offset) => ({ id: row.id, line: finish(lines[firstRowLine + offset]) })),
+    tail: lines.slice(firstRowLine + (last - first)).map(finish),
   }
 }

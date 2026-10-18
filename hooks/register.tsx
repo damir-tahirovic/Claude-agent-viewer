@@ -6,6 +6,7 @@ import { listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, tu
 import { buildPaneView } from '../src/mod/pane-view'
 import { decideClose, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
+import { toPlainAscii } from '../src/view/lines'
 import { statusFor } from '../src/mod/status-text'
 import type { AgentviewSession, AgentviewUi } from '../types'
 
@@ -230,6 +231,7 @@ export const register: Register = (on, options) => {
       session: current, view: state.view, selId: state.selId, spin: state.spin,
       now: await $.clock.now(), columns: e.props.bodyColumns, rows: e.viewport?.rows ?? 24, ascii: isAscii,
     })
+    const label = (text: string): string => (isAscii ? toPlainAscii(text) : text)
     const step = (offset: number) => async (): Promise<void> => {
       const target = stepId(view.order, state.selId, offset)
       await update($, ui, latest => ({ ...latest, selId: target }))
@@ -250,9 +252,9 @@ export const register: Register = (on, options) => {
         {view.tail.map(paintLine)}
         {state.view === 'detail' && (
           <Box>
-            <Button key={PREV_KEY} plain onPress={step(-1)}><Text dimColor>◂ prev agent</Text></Button>
+            <Button key={PREV_KEY} plain onPress={step(-1)}><Text dimColor>{label('◂ prev agent')}</Text></Button>
             <Text>  </Text>
-            <Button key={NEXT_KEY} plain autoFocus onPress={step(1)}><Text dimColor>next agent ▸</Text></Button>
+            <Button key={NEXT_KEY} plain autoFocus onPress={step(1)}><Text dimColor>{label('next agent ▸')}</Text></Button>
           </Box>
         )}
       </Box>

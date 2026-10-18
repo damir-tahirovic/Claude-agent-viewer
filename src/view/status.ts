@@ -20,12 +20,14 @@ export const statusLine = (
 ): string => {
   const waiting = rows.find(row => row.st === 'waiting')
   if (waiting) {
-    const why = reasons.waitingWhy?.[waiting.id] ?? 'permission'
-    return `◔ ${waiting.name} waiting for ${why} · ${waiting.act} · ${HINT}`
+    // The engine's `waiting` is not necessarily a permission prompt, so name a reason only when given one.
+    const why = reasons.waitingWhy?.[waiting.id]
+    return `◔ ${waiting.name} waiting${why ? ` for ${why}` : ''} · ${waiting.act} · ${HINT}`
   }
   const stuck = rows.find(row => row.st === 'running' && row.stuck)
   if (stuck) {
-    return `! ${stuck.task} on "${stuck.act.replace(/^Bash: /, '')}" for ${fmtT(stuck.secs)} · ${HINT}`
+    const seconds = stuck.actionSecs ?? stuck.secs
+    return `! ${stuck.task || stuck.name} on "${stuck.act.replace(/^Bash: /, '')}" for ${fmtT(seconds)} · ${HINT}`
   }
   const failed = rows.find(row => row.st === 'failed')
   if (failed) return `✗ ${failed.task} failed · ${reasons.failedWhy?.[failed.id] ?? 'error'} · ${HINT}`

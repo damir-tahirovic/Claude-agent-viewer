@@ -7,7 +7,7 @@ const plan = { done: 6, total: 10, cur: 'x' }
 test('waiting wins', () => {
   assert.equal(
     statusLine(specRows(), plan),
-    '◔ reviewer waiting for permission · Bash: rm -rf dist · /agentview',
+    '◔ reviewer waiting · Bash: rm -rf dist · /agentview',
   )
 })
 test('stuck next', () => {
@@ -43,4 +43,9 @@ test('all done with a complete plan', () => {
 test('children done but plan incomplete falls back to counts', () => {
   const r = specRows().map(x => ({ ...x, stuck: undefined, st: x.d ? 'done' as const : x.st }))
   assert.match(statusLine(r, plan), /^⠋ 1 running · /)
+})
+
+test('main stuck names main and the time on the action, not the agent age', () => {
+  const main = { ...specRows()[0], st: 'running' as const, task: '', act: 'Bash: npm test', secs: 900, actionSecs: 200, stuck: 1 as const }
+  assert.equal(statusLine([main], null), '! main on "npm test" for 3m20s · /agentview')
 })
