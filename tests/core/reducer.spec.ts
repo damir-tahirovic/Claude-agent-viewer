@@ -5,10 +5,17 @@ import type { AgentEvent } from '../../src/core/model'
 
 const run = (evs: AgentEvent[]) => evs.reduce(reduce, initialState('s1', 0))
 
-test('main agent exists from the start', () => {
+test('main agent exists from the start and is idle, not running', () => {
   const s = initialState('s1', 5)
-  assert.equal(s.agents.main.status, 'running')
+  assert.equal(s.agents.main.status, 'done')
+  assert.equal(s.agents.main.endedAt, 5)
   assert.equal(s.agents.main.type, 'main')
+})
+
+test('the first main turn.start makes a fresh session running', () => {
+  const s = reduce(initialState('s1', 5), { kind: 'turn', at: 9, agentId: 'main', phase: 'start' })
+  assert.equal(s.agents.main.status, 'running')
+  assert.equal(s.agents.main.endedAt, undefined)
 })
 
 test('subagent start, tool, end', () => {
@@ -57,6 +64,7 @@ test('waiting, then the next tool.start returns to running', () => {
 
 test('tick marks silent running subagents unknown after 60s, never main', () => {
   const s = run([
+    { kind: 'turn', at: 0, agentId: 'main', phase: 'start' },
     { kind: 'agent.start', at: 0, id: 'a1', type: 'worker', description: '' },
     { kind: 'tick', at: 60_001 },
   ])

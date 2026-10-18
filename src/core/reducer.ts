@@ -15,11 +15,11 @@ const node = (id: string, at: number, overrides: Partial<AgentNode> = {}): Agent
   ...overrides,
 })
 
-/** Fresh session with only the main agent, running. */
+/** Fresh session with only the main agent, idle as between turns; the first turn or tool call revives it. */
 export const initialState = (sessionId: string, at: number): SessionState => ({
   sessionId,
   startedAt: at,
-  agents: { [MAIN]: node(MAIN, at, { type: 'main' }) },
+  agents: { [MAIN]: node(MAIN, at, { type: 'main', status: 'done', endedAt: at }) },
   todos: {},
 })
 

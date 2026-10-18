@@ -7,12 +7,18 @@ import { statusFor } from '../../src/mod/status-text'
 const AT = 1_700_000_000_000
 const fold = (events: AgentEvent[]) => events.reduce(reduce, initialState('s', AT))
 
-test('a session with only main still shows the running count and the hint', () => {
-  assert.match(statusFor(initialState('s', AT), AT), /^⠋ 1 running · 0 tok · —   \/agentview$/)
+test('a session with only main shows the running count and the hint during a turn', () => {
+  const state = fold([{ kind: 'turn', at: AT, agentId: 'main', phase: 'start' }])
+  assert.match(statusFor(state, AT), /^⠋ 1 running · 0 tok · —   \/agentview$/)
+})
+
+test('a fresh session at the prompt counts no running agent', () => {
+  assert.match(statusFor(initialState('s', AT), AT), /^⠋ 0 running · 0 tok · —   \/agentview$/)
 })
 
 test('a silent subagent past 60 s is counted unknown, not running, and never done', () => {
   const state = fold([
+    { kind: 'turn', at: AT, agentId: 'main', phase: 'start' },
     { kind: 'agent.start', id: 'a', type: 'worker', description: 'x', at: AT },
     { kind: 'tick', at: AT + 61_000 },
   ])
