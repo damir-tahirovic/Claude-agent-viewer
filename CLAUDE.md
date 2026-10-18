@@ -58,5 +58,5 @@ tests/      mirrors src/: tests/core, tests/view, tests/mod, tests/fixtures.
 ## Git
 
 - Small commits, one task or one fix each. Conventional Commits: `feat(core): …`, `fix(view): …`, `test: …`, `docs: …`, `chore: …`.
-- End every commit message with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- End every commit message with a `Co-Authored-By:` line naming the model that actually wrote the commit (e.g. `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`).
 - After finishing a plan task, check it off in `../AGENTVIEW.md` §4 with a one-line note, and add a line to §7.
