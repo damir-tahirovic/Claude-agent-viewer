@@ -4,6 +4,7 @@ import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, orderTree, reduce } from '../src/core/reducer'
 import { billingEvent, listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
 import { appendBounded } from '../src/mod/event-batch'
+import { withProgressSuffix } from '../src/mod/spawn-prompt'
 import { openArgsFor, type OpenPresentation } from '../src/mod/open-args'
 import { buildPaneView, roomFor } from '../src/mod/pane-view'
 import { graphColumnsFor, panColumn, panToInclude } from '../src/mod/graph-pane'
@@ -450,7 +451,8 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => next(e))
 
   on('agent.spawn', async ($, e, next) => {
-    const result = await next(e)
+    // Off by default: the spawn then passes through untouched. The record below uses the original input either way.
+    const result = await next(options.trackProgress === true ? { ...e, prompt: withProgressSuffix(e) } : e)
     record($, at => spawnStart(e, result ?? {}, at))
     return result
   }).catch(($, e, next) => next(e))

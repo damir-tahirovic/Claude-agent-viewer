@@ -13,6 +13,12 @@
       "title": "ASCII only",
       "description": "Draw the agentview dialog with ASCII characters only",
       "default": false
+    },
+    "trackProgress": {
+      "type": "boolean",
+      "title": "Track subagent progress",
+      "description": "Ask subagents to keep a todo list so their progress can be shown. Changes subagent behaviour slightly and costs a few tokens.",
+      "default": false
     }
   }
 }

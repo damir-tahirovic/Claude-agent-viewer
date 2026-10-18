@@ -634,3 +634,31 @@ test('at a small bodyRows the first drawn line is the header', async ($, on) => 
   expect(await pane.find({ type: 'Text', text: /^agentview · session/ })).toBeDefined()
   await pane.unmount()
 })
+
+const SUFFIX = 'Track your steps with the TodoWrite tool'
+const SPAWN = { prompt: 'fix the bug', description: 'fix', subagentType: 'general-purpose' } as const
+
+/** Records the prompt the engine's own agent.spawn would receive; registered beneath the plugin. */
+const captureSpawnPrompt = (on: Parameters<Parameters<typeof test>[1]>[1]): { prompt?: string } => {
+  const seen: { prompt?: string } = {}
+  on('agent.spawn', (_$, e) => {
+    seen.prompt = e.prompt
+    return { model: 'sonnet' }
+  })
+  return seen
+}
+
+test('with trackProgress off the spawn prompt passes through unchanged', async ($, on) => {
+  useClock(on)
+  const seen = captureSpawnPrompt(on)
+  await $.agent.spawn(SPAWN)
+  expect(seen.prompt).toBe('fix the bug')
+})
+
+test('with trackProgress on the spawn prompt gets the TodoWrite request', { options: { trackProgress: true } }, async ($, on) => {
+  useClock(on)
+  const seen = captureSpawnPrompt(on)
+  await $.agent.spawn(SPAWN)
+  expect(seen.prompt?.startsWith('fix the bug')).toBe(true)
+  expect(seen.prompt).toContain(SUFFIX)
+})
