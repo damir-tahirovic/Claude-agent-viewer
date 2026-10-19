@@ -215,7 +215,7 @@ Otvara se lista sesija: prvo aktivne (rade ili čekaju), pa skorašnje iz zadnji
 
 Ekran sesije se otvara kao stablo; `g` ili Tab prebacuje na isti graf koji prikazuje plugin. Izabrani prikaz ostaje kad otvorite drugu sesiju ili detalje. Na terminalima užim od 110 kolona graf se slaže u stablo i jednu otvorenu karticu, a `←→` pomjera kolone radnika samo kad su neke skrivene.
 
-**Gustina grafa.** `z` kruži `auto` → `full` → `compact`; podnožje prikazuje trenutnu. U `auto` režimu graf zadržava pune kartice dok god staju sve kolone radnika i visina. Inače kartice radnika postaju kompaktne (tri reda: tip i znak statusa, zatim `<status> <vrijeme>`), onoliko široke da sve kolone stanu, najmanje 14 kolona; ako visina i dalje prelazi, završena podstabla se slažu u čipove, a tek kad ni to ne stane kolone se pomjeraju. Main i izabrani agent uvijek zadržavaju punu karticu. Plugin ima istu prečicu `z`.
+**Gustina grafa.** `z` kruži `auto` → `full` → `compact`; podnožje prikazuje trenutnu. U `auto` režimu graf zadržava pune kartice dok god staju sve kolone radnika i visina. Inače kartice radnika postaju kompaktne (tri reda: znak statusa i vrijeme u okviru, naziv zadatka unutra), onoliko široke da sve kolone stanu, najmanje 14 kolona; ako visina i dalje prelazi, završena podstabla se slažu u čipove, a tek kad ni to ne stane kolone se pomjeraju. Main i izabrani agent uvijek zadržavaju punu karticu. Plugin ima istu prečicu `z`.
 
 Šta prikazuje, a šta ne:
 

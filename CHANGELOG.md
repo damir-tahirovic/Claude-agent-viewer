@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.4.2] - 2026-10-19
 
 ### Added
-- Compact graph cards: with many subagents the worker cards shrink to three rows (type and status glyph, `<status> <time>`) so every worker column fits. `auto` density keeps full cards while they fit and turns compact otherwise, then folds finished subtrees, and pans only below 14 columns per worker; main and the selected agent keep full cards. `z` cycles `auto`, `full` and `compact` in the CLI and the plugin.
+- Compact graph cards: with many subagents the worker cards shrink to three rows (status glyph and time on the border, the task title inside) so every worker column fits. `auto` density keeps full cards while they fit and turns compact otherwise, then folds finished subtrees, and pans only below 14 columns per worker; main and the selected agent keep full cards. `z` cycles `auto`, `full` and `compact` in the CLI and the plugin.
 
 ### Fixed
 - A main turn woken by a notification now shows as running.

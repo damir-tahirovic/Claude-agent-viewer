@@ -215,7 +215,7 @@ It opens on the session list: active sessions (running or waiting) first, then r
 
 The session screen opens as the tree; `g` or Tab switches to the same graph the plugin shows. The chosen view sticks when you open another session or a detail. On terminals narrower than 110 columns the graph folds into the tree plus one expanded card, and `←→` scrolls the worker columns only when some are hidden.
 
-**Graph density.** `z` cycles `auto` → `full` → `compact`; the footer shows the current one. In `auto` the graph keeps full cards while every worker column and the height fit. Otherwise worker cards turn compact (three rows: type and status glyph, then `<status> <time>`), as wide as lets all columns fit, down to 14 columns each; finished subtrees fold into chips if the height still overflows, and only below that width do the columns pan. Main and the selected agent always keep their full card. The plugin has the same `z` hotkey.
+**Graph density.** `z` cycles `auto` → `full` → `compact`; the footer shows the current one. In `auto` the graph keeps full cards while every worker column and the height fit. Otherwise worker cards turn compact (three rows: status glyph and time on the border, the task title inside), as wide as lets all columns fit, down to 14 columns each; finished subtrees fold into chips if the height still overflows, and only below that width do the columns pan. Main and the selected agent always keep their full card. The plugin has the same `z` hotkey.
 
 What it shows, and what it does not:
 
