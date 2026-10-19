@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.1] - 2026-10-19
+
+### Added
+- Graph view in the standalone CLI: `g` or Tab on a session shows the same graph as the plugin, `t` returns to the tree. Arrows select agents and pan worker columns (`h`/`l` too); the chosen view sticks across sessions and the detail.
+
+### Changed
+- The graph fitting logic moved to `src/view/graph/pane.ts` (`src/mod/graph-pane.ts` re-exports it).
+
 ## [0.4.0] - 2026-10-19
 
 ### Added

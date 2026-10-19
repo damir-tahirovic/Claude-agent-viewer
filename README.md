@@ -205,11 +205,14 @@ cd Claude-agent-viewer && npm install && npm install -g .
 
 It opens on the session list: active sessions (running or waiting) first, then recent ones from the last 7 days. `⏎` opens a session as the full-screen tree, `⏎` on an agent opens its detail.
 
-| Screen | ↑↓ | Enter | Esc | q |
-| --- | --- | --- | --- | --- |
-| Session list | select session | open session | nothing | quit |
-| Session | select agent | agent detail | back to the list | quit |
-| Detail | previous / next agent | nothing | back to the session | quit |
+| Screen | ↑↓ | ←→ | Enter | Tab / `t` / `g` | Esc | q |
+| --- | --- | --- | --- | --- | --- | --- |
+| Session list | select session | nothing | open session | nothing | nothing | quit |
+| Session (tree) | select agent | nothing | agent detail | `g` graph | back to the list | quit |
+| Session (graph) | select agent | scroll worker columns (also `h` / `l`) | agent detail | `t` tree, Tab toggles | back to the list | quit |
+| Detail | previous / next agent | nothing | nothing | nothing | back to the session | quit |
+
+The session screen opens as the tree; `g` or Tab switches to the same graph the plugin shows. The chosen view sticks when you open another session or a detail. On terminals narrower than 110 columns the graph folds into the tree plus one expanded card, and `←→` scrolls the worker columns only when some are hidden.
 
 What it shows, and what it does not:
 

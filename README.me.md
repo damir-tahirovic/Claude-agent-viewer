@@ -205,11 +205,14 @@ cd Claude-agent-viewer && npm install && npm install -g .
 
 Otvara se lista sesija: prvo aktivne (rade ili čekaju), pa skorašnje iz zadnjih 7 dana. `⏎` otvara sesiju kao stablo preko cijelog ekrana, `⏎` na agentu otvara njegove detalje.
 
-| Ekran | ↑↓ | Enter | Esc | q |
-| --- | --- | --- | --- | --- |
-| Lista sesija | izbor sesije | otvori sesiju | ništa | izlaz |
-| Sesija | izbor agenta | detalji agenta | nazad na listu | izlaz |
-| Detalji | prethodni / sljedeći agent | ništa | nazad na sesiju | izlaz |
+| Ekran | ↑↓ | ←→ | Enter | Tab / `t` / `g` | Esc | q |
+| --- | --- | --- | --- | --- | --- | --- |
+| Lista sesija | izbor sesije | ništa | otvori sesiju | ništa | ništa | izlaz |
+| Sesija (stablo) | izbor agenta | ništa | detalji agenta | `g` graf | nazad na listu | izlaz |
+| Sesija (graf) | izbor agenta | pomjeranje kolona radnika (i `h` / `l`) | detalji agenta | `t` stablo, Tab prebacuje | nazad na listu | izlaz |
+| Detalji | prethodni / sljedeći agent | ništa | ništa | ništa | nazad na sesiju | izlaz |
+
+Ekran sesije se otvara kao stablo; `g` ili Tab prebacuje na isti graf koji prikazuje plugin. Izabrani prikaz ostaje kad otvorite drugu sesiju ili detalje. Na terminalima užim od 110 kolona graf se slaže u stablo i jednu otvorenu karticu, a `←→` pomjera kolone radnika samo kad su neke skrivene.
 
 Šta prikazuje, a šta ne:
 
