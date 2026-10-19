@@ -316,7 +316,10 @@ export const createWatcher = (options: WatcherOptions) => {
     const previousLabels = `${session.cwd}\n${session.title}`
     session.cwd ??= batch.cwd
     if (batch.title !== undefined) session.title = batch.title
-    session.lastAt = Math.max(session.lastAt, batch.lastAt ?? 0, ...events.map(event => event.at))
+    // A loop, not Math.max(...events): a first read of a long transcript has more events than a call takes arguments.
+    let lastAt = Math.max(session.lastAt, batch.lastAt ?? 0)
+    for (const event of events) if (event.at > lastAt) lastAt = event.at
+    session.lastAt = lastAt
     return state !== before || previousLabels !== `${session.cwd}\n${session.title}`
   }
 
