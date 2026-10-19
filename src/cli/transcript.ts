@@ -5,16 +5,16 @@ import { MAIN, type AgentEvent, type Todo, type Tokens } from '../core/model'
 
 /** What the parser remembers between records of one file. */
 export type ParseState = {
-  /** Assistant message ids whose usage was already counted (one API response spans several records). */
-  readonly seenMessageIds: ReadonlySet<string>
-  /** Tool name by tool_use id, so a tool_result knows which tool it answers. */
+  /** Id of the last assistant message; records of one API response are consecutive, so usage counts on a change. */
+  readonly lastMessageId?: string
+  /** Name by tool_use id of calls whose result matters (Agent, Task, TaskCreate, TaskUpdate); removed on result. */
   readonly toolNames: Readonly<Record<string, string>>
   /** Input of TaskCreate / TaskUpdate calls by tool_use id; their task events need it at result time. */
   readonly taskInputs: Readonly<Record<string, unknown>>
 }
 
 /** Fresh parser state for a file that has not been read yet. */
-export const initialParseState = (): ParseState => ({ seenMessageIds: new Set(), toolNames: {}, taskInputs: {} })
+export const initialParseState = (): ParseState => ({ lastMessageId: undefined, toolNames: {}, taskInputs: {} })
 
 type Json = Readonly<Record<string, unknown>>
 
@@ -45,36 +45,46 @@ const toTokens = (usage: Json): Tokens => ({
   cacheWrite: count(usage.cache_creation_input_tokens),
 })
 
+const TRACKED_TOOLS: ReadonlyArray<string> = ['Agent', 'Task', 'TaskCreate', 'TaskUpdate']
+
 const isAgentTool = (tool: string | undefined): boolean => tool === 'Agent' || tool === 'Task'
 
 /** Events for an assistant record: tool starts, todos, usage once per message id, and a heartbeat. */
 const assistantEvents = (state: ParseState, record: Json, agentId: string, at: number): { state: ParseState; events: AgentEvent[] } => {
   const message = isRecord(record.message) ? record.message : {}
   const events: AgentEvent[] = []
-  const toolNames: Record<string, string> = { ...state.toolNames }
-  const taskInputs: Record<string, unknown> = { ...state.taskInputs }
+  // Copied lazily: most calls are untracked, and copying per record would make long files quadratic.
+  let toolNames = state.toolNames as Record<string, string>
+  let taskInputs = state.taskInputs as Record<string, unknown>
+  let areMapsCopied = false
   const blocks: ReadonlyArray<unknown> = Array.isArray(message.content) ? message.content : []
   for (const block of blocks) {
     if (!isRecord(block) || block.type !== 'tool_use') continue
     const toolUseId = asString(block.id)
     const tool = asString(block.name)
     if (toolUseId === undefined || tool === undefined) continue
-    toolNames[toolUseId] = tool
     events.push({ kind: 'tool.start', at, agentId, toolUseId, tool, input: block.input })
-    if (tool === 'TaskCreate' || tool === 'TaskUpdate') taskInputs[toolUseId] = block.input
+    if (TRACKED_TOOLS.includes(tool)) {
+      if (!areMapsCopied) {
+        toolNames = { ...toolNames }
+        taskInputs = { ...taskInputs }
+        areMapsCopied = true
+      }
+      toolNames[toolUseId] = tool
+      if (tool === 'TaskCreate' || tool === 'TaskUpdate') taskInputs[toolUseId] = block.input
+    }
     if (tool === 'TodoWrite') {
       const todos = isRecord(block.input) ? toTodos(block.input.todos) : null
       if (todos) events.push({ kind: 'todos', at, agentId, todos })
     }
   }
   const messageId = asString(message.id)
-  const isNewMessage = messageId !== undefined && !state.seenMessageIds.has(messageId)
-  const seenMessageIds = isNewMessage ? new Set([...state.seenMessageIds, messageId]) : state.seenMessageIds
+  const isNewMessage = messageId !== undefined && messageId !== state.lastMessageId
   if (isNewMessage && isRecord(message.usage)) {
     events.push({ kind: 'usage', at, agentId, model: asString(message.model), tokens: toTokens(message.usage) })
   }
   events.push({ kind: 'heartbeat', at, agentId })
-  return { state: { seenMessageIds, toolNames, taskInputs }, events }
+  return { state: { lastMessageId: isNewMessage ? messageId : state.lastMessageId, toolNames, taskInputs }, events }
 }
 
 /** Task list change from a finished TaskCreate / TaskUpdate; the id of a created task is the engine's own. */
@@ -93,33 +103,53 @@ const taskEvents = (tool: string | undefined, input: unknown, result: unknown, a
   return []
 }
 
+/** First text block of a content list that holds no tool_result (a prompt with an image, say); else undefined. */
+const listPromptText = (content: unknown): string | undefined => {
+  if (!Array.isArray(content)) return undefined
+  const blocks = content as ReadonlyArray<unknown>
+  if (blocks.some(block => isRecord(block) && block.type === 'tool_result')) return undefined
+  for (const block of blocks) {
+    if (isRecord(block) && block.type === 'text' && typeof block.text === 'string') return block.text
+  }
+  return undefined
+}
+
 /** Events for a user record: a main prompt starts a turn; tool_result blocks end tools. */
 const userEvents = (state: ParseState, record: Json, agentId: string, at: number): { state: ParseState; events: AgentEvent[] } => {
   const message = isRecord(record.message) ? record.message : {}
   const content = message.content
-  if (typeof content === 'string') {
+  const promptText = typeof content === 'string' ? content : listPromptText(content)
+  if (promptText !== undefined) {
     // isMeta and system-injected text (<task-notification>, <command-name>) are not something the user typed.
-    const isPrompt = record.isMeta !== true && !content.startsWith('<')
+    const isPrompt = record.isMeta !== true && !promptText.startsWith('<')
     const events: AgentEvent[] = isPrompt && agentId === MAIN ? [{ kind: 'turn', at, agentId: MAIN, phase: 'start' }] : []
     return { state, events }
   }
   if (!Array.isArray(content)) return { state, events: [] }
   const events: AgentEvent[] = []
+  let toolNames = state.toolNames
+  let taskInputs = state.taskInputs
   for (const block of content as ReadonlyArray<unknown>) {
     if (!isRecord(block) || block.type !== 'tool_result') continue
     const toolUseId = asString(block.tool_use_id)
     if (toolUseId === undefined) continue
     const ok = block.is_error !== true
-    const tool = state.toolNames[toolUseId]
+    const tool = toolNames[toolUseId]
     events.push({ kind: 'tool.end', at, agentId, toolUseId, ok })
     const result = record.toolUseResult
     // Only a completed Agent result is an end; async_launched means the agent keeps running.
     if (isAgentTool(tool) && isRecord(result) && result.status === 'completed' && typeof result.agentId === 'string') {
       events.push({ kind: 'agent.end', at, id: result.agentId, ok })
     }
-    if (ok) events.push(...taskEvents(tool, state.taskInputs[toolUseId], result, agentId, at))
+    if (ok) events.push(...taskEvents(tool, taskInputs[toolUseId], result, agentId, at))
+    if (tool !== undefined) {
+      const { [toolUseId]: _name, ...restNames } = toolNames
+      const { [toolUseId]: _input, ...restInputs } = taskInputs
+      toolNames = restNames
+      taskInputs = restInputs
+    }
   }
-  return { state, events }
+  return { state: toolNames === state.toolNames ? state : { ...state, toolNames, taskInputs }, events }
 }
 
 const NOTIFICATION_ID = /<task-id>([^<]+)<\/task-id>/

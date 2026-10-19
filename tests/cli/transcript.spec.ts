@@ -219,7 +219,7 @@ test('unknown record types and non-object records are skipped', () => {
 test('parseRecord does not mutate the input state', () => {
   const state = initialParseState()
   parseRecord(state, assistant(1, 'm1', [toolUse('t1', 'Read', {})]), 'main')
-  assert.equal(state.seenMessageIds.size, 0)
+  assert.equal(state.lastMessageId, undefined)
   assert.deepEqual(state.toolNames, {})
 })
 
@@ -284,4 +284,35 @@ test('a fixture reduces to main plus one subagent with tokens summed once per me
   assert.equal(state.agents.main.tokens.output, 10)
   assert.equal(state.agents.a1.tokens.input, 10)
   assert.equal(state.agents.a1.toolCount, 1)
+})
+
+test('parsing 5000 records where every tool is Read leaves toolNames empty', () => {
+  let state = initialParseState()
+  for (let index = 0; index < 5000; index += 1) {
+    state = parseRecord(state, assistant(index, `m${index}`, [toolUse(`t${index}`, 'Read', {})]), 'main').state
+    state = parseRecord(state, userResult(index, `t${index}`), 'main').state
+  }
+  assert.deepEqual(state.toolNames, {})
+  assert.deepEqual(state.taskInputs, {})
+})
+
+test('a tracked tool is forgotten once its result arrives', () => {
+  let state = initialParseState()
+  state = parseRecord(state, assistant(1, 'm1', [toolUse('t1', 'TaskCreate', { subject: 'x' })]), 'main').state
+  assert.deepEqual(Object.keys(state.toolNames), ['t1'])
+  state = parseRecord(state, userResult(2, 't1', { toolUseResult: { task: { id: '1' } } }), 'main').state
+  assert.deepEqual(state.toolNames, {})
+  assert.deepEqual(state.taskInputs, {})
+})
+
+test('a user content list with a text block starts a main turn', () => {
+  const content = [{ type: 'text', text: 'what is in this picture' }, { type: 'image', source: {} }]
+  const events = parse([{ type: 'user', timestamp: iso(0), message: { role: 'user', content } }])
+  assert.deepEqual(events, [{ kind: 'turn', at: T0, agentId: 'main', phase: 'start' }])
+})
+
+test('a content list prompt that is meta or system-injected does not start a turn', () => {
+  const list = (text: string) => [{ type: 'text', text }]
+  assert.deepEqual(parse([{ type: 'user', isMeta: true, timestamp: iso(0), message: { content: list('hi') } }]), [])
+  assert.deepEqual(parse([{ type: 'user', timestamp: iso(0), message: { content: list('<command-name>x') } }]), [])
 })
