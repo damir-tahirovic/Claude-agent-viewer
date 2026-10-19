@@ -1,0 +1,29 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [20, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      # The CLI must start and print a snapshot on a machine with no Claude Code sessions.
+      - name: CLI snapshot
+        run: |
+          mkdir -p "$RUNNER_TEMP/projects"
+          AGENTVIEW_PROJECTS_DIR="$RUNNER_TEMP/projects" LC_ALL=C.UTF-8 node bin/agentview.js | tee out.txt
+          grep -q "no Claude Code sessions found" out.txt
