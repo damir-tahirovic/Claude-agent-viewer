@@ -160,6 +160,7 @@ U fullscreen prikazu Claude Code kači plugin panele pored transkripta. agentvie
 | --- | --- |
 | `↑` `↓` | Izbor agenta |
 | `⏎` | Otvara detalje izabranog agenta |
+| `a` | Prebacuje između svih agenata i samo aktivnih |
 | `t` / `g` | Prelazak na prikaz stabla ili grafa |
 | `Esc` | Zatvara dijalog |
 
@@ -171,6 +172,7 @@ U fullscreen prikazu Claude Code kači plugin panele pored transkripta. agentvie
 | `d` | Otvara detalje izabranog agenta |
 | `h` / `l` | Pomjera kolone radnika ulijevo ili udesno (vidljivo samo kad se neke kolone ne mogu prikazati) |
 | `z` | Mijenja gustinu kartica: auto, puna, kompaktna |
+| `a` | Prebacuje između svih agenata i samo aktivnih |
 | `t` / `g` | Prelazak na prikaz stabla ili grafa |
 | `Esc` | Zatvara dijalog |
 
@@ -209,11 +211,13 @@ Otvara se lista sesija: prvo aktivne (rade ili čekaju), pa skorašnje iz zadnji
 | Ekran | ↑↓ | ←→ | Enter | Tab / `t` / `g` | Esc | q |
 | --- | --- | --- | --- | --- | --- | --- |
 | Lista sesija | izbor sesije | ništa | otvori sesiju | ništa | ništa | izlaz |
-| Sesija (stablo) | izbor agenta | ništa | detalji agenta | `g` graf | nazad na listu | izlaz |
-| Sesija (graf) | izbor agenta | pomjeranje kolona radnika (i `h` / `l`) | detalji agenta | `t` stablo, Tab prebacuje; `z` mijenja gustinu | nazad na listu | izlaz |
+| Sesija (stablo) | izbor agenta | ništa | detalji agenta | `g` graf; `a` svi / aktivni agenti | nazad na listu | izlaz |
+| Sesija (graf) | izbor agenta | pomjeranje kolona radnika (i `h` / `l`) | detalji agenta | `t` stablo, Tab prebacuje; `z` mijenja gustinu; `a` svi / aktivni agenti | nazad na listu | izlaz |
 | Detalji | prethodni / sljedeći agent | ništa | ništa | ništa | nazad na sesiju | izlaz |
 
 Ekran sesije se otvara kao stablo; `g` ili Tab prebacuje na isti graf koji prikazuje plugin. Izabrani prikaz ostaje kad otvorite drugu sesiju ili detalje. Na terminalima užim od 110 kolona graf se slaže u stablo i jednu otvorenu karticu, a `←→` pomjera kolone radnika samo kad su neke skrivene.
+
+**Samo aktivni agenti.** Duga sesija skupi mnogo završenih subagenata. `a` (u CLI-ju, a u pluginu dugme `show all` / `show active`) sakriva svakog subagenta koji je završio prije više od 60 sekundi; agenti koji rade, čekaju ili su nepoznati ostaju, kao i roditelj svakog vidljivog agenta. Oznaka kaže koliko ih je sakriveno. Zbirovi u zaglavlju i dalje broje sve agente. Izbor se pamti kao prikaz i gustina.
 
 **Gustina grafa.** `z` kruži `auto` → `full` → `compact`; podnožje prikazuje trenutnu. U `auto` režimu graf zadržava pune kartice dok god staju sve kolone radnika i visina. Inače kartice radnika postaju kompaktne (tri reda: znak statusa i vrijeme u okviru, naziv zadatka unutra), onoliko široke da sve kolone stanu, najmanje 14 kolona; ako visina i dalje prelazi, završena podstabla se slažu u čipove, a tek kad ni to ne stane kolone se pomjeraju. Main i izabrani agent uvijek zadržavaju punu karticu. Plugin ima istu prečicu `z`.
 

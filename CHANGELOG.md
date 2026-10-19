@@ -3,6 +3,14 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.4] - 2026-10-19
+
+### Added
+- Active-agents filter: `a` in the CLI (tree and graph) and a `show all` / `show active` button in the plugin hide subagents that finished more than 60 seconds ago, so new ones are not crowded out. Running, waiting and unknown agents and the parents of visible ones stay; the label counts the hidden ones. Header totals still cover every agent. The redraw continues only while a finished agent is about to expire.
+
+### Changed
+- The plugin's tree and graph views reserve one more row for the filter button.
+
 ## [0.4.3] - 2026-10-19
 
 ### Fixed

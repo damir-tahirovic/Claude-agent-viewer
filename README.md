@@ -160,6 +160,7 @@ In fullscreen, Claude Code docks plugin panes beside the transcript. agentview a
 | --- | --- |
 | `↑` `↓` | Select an agent |
 | `⏎` | Open the details of the selected agent |
+| `a` | Toggle between all agents and only active ones |
 | `t` / `g` | Switch to the tree or the graph view |
 | `Esc` | Close the dialog |
 
@@ -171,6 +172,7 @@ In fullscreen, Claude Code docks plugin panes beside the transcript. agentview a
 | `d` | Open the details of the selected agent |
 | `h` / `l` | Pan the worker columns left or right (shown only when some columns do not fit) |
 | `z` | Cycle the card density: auto, full, compact |
+| `a` | Toggle between all agents and only active ones |
 | `t` / `g` | Switch to the tree or the graph view |
 | `Esc` | Close the dialog |
 
@@ -209,13 +211,15 @@ It opens on the session list: active sessions (running or waiting) first, then r
 | Screen | ↑↓ | ←→ | Enter | Tab / `t` / `g` | Esc | q |
 | --- | --- | --- | --- | --- | --- | --- |
 | Session list | select session | nothing | open session | nothing | nothing | quit |
-| Session (tree) | select agent | nothing | agent detail | `g` graph | back to the list | quit |
-| Session (graph) | select agent | scroll worker columns (also `h` / `l`) | agent detail | `t` tree, Tab toggles; `z` cycles the density | back to the list | quit |
+| Session (tree) | select agent | nothing | agent detail | `g` graph; `a` all / active agents | back to the list | quit |
+| Session (graph) | select agent | scroll worker columns (also `h` / `l`) | agent detail | `t` tree, Tab toggles; `z` cycles the density; `a` all / active agents | back to the list | quit |
 | Detail | previous / next agent | nothing | nothing | nothing | back to the session | quit |
 
 The session screen opens as the tree; `g` or Tab switches to the same graph the plugin shows. The chosen view sticks when you open another session or a detail. On terminals narrower than 110 columns the graph folds into the tree plus one expanded card, and `←→` scrolls the worker columns only when some are hidden.
 
 **Graph density.** `z` cycles `auto` → `full` → `compact`; the footer shows the current one. In `auto` the graph keeps full cards while every worker column and the height fit. Otherwise worker cards turn compact (three rows: status glyph and time on the border, the task title inside), as wide as lets all columns fit, down to 14 columns each; finished subtrees fold into chips if the height still overflows, and only below that width do the columns pan. Main and the selected agent always keep their full card. The plugin has the same `z` hotkey.
+
+**Active agents only.** A long session piles up finished subagents. `a` (in the CLI, and the `show all` / `show active` button in the plugin) hides every subagent that finished more than 60 seconds ago; running, waiting and unknown agents stay, and so does every parent of a visible agent. The label says how many are hidden. The session totals in the header still count every agent. The choice sticks like the view and the density.
 
 What it shows, and what it does not:
 
