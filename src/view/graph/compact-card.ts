@@ -15,13 +15,7 @@ export type CompactCardOpts = {
 export const COMPACT_CARD_HEIGHT = 3
 /** Narrowest card that still shows a glyph, one name character and a time. */
 const MIN_CARD_WIDTH = 6
-/** From this width the type is set off from the border by a space on each side. */
-const ROOMY_CARD_WIDTH = 12
 
-const STATUS_WORD: Record<RowStatus, string> = {
-  running: 'running', waiting: 'waiting', done: 'done', failed: 'failed', unknown: 'unknown',
-}
-const SHORT_WORD: Record<RowStatus, string> = { running: 'run', waiting: 'wait', done: 'done', failed: 'fail', unknown: '?' }
 /** Glyph and color codes, the same as the status line of the full card. */
 const glyphOf = (status: RowStatus, spin: string): readonly [string, string] => {
   switch (status) {
@@ -53,22 +47,22 @@ export const drawCompactCard = (
   canvas.put(x + cardWidth - 1, y + 1, '│', borderCodes)
 
   const [glyph, glyphCodes] = glyphOf(row.st, opts.spin ?? SPIN[0])
-  canvas.put(x + cardWidth - 3, y, glyph, glyphCodes)
-  // Padding around the type only where there is room for it; the nested cards are the narrowest.
-  const gap = cardWidth >= ROOMY_CARD_WIDTH ? ' ' : ''
-  canvas.text(x + 1, y, gap + fitNoPad(row.task || row.name, cardWidth - 5 - 2 * gap.length) + gap, 'B')
-
   const isStuck = !!row.stuck && row.st === 'running'
   const time = fmtT(row.secs) + (isStuck ? '!' : '')
-  // Longest wording that fits, first with a space of padding inside each border, then flush to it.
-  const fits = (text: string, inner: number): boolean => text.length + 1 + time.length <= inner
-  const word = [2, 1].flatMap(pad => [STATUS_WORD[row.st], SHORT_WORD[row.st]].map(each => [each, pad] as const))
-    .find(([each, pad]) => fits(each, cardWidth - 2 * pad)) ?? [SHORT_WORD[row.st], 1] as const
-  const [text, pad] = word
-  const inner = cardWidth - 2 * pad
-  const room = inner - time.length - 1
-  if (room > 1) canvas.text(x + pad, y + 1, fitNoPad(text, room), glyphCodes)
-  // A time wider than the card is cut at the left edge of the text, never over the border.
-  canvas.text(x + pad + Math.max(0, inner - time.length), y + 1, time, isStuck ? 'y' : 'd')
+  // Glyph and time sit on the border, set off by spaces while the card is wide enough for them.
+  const gap = 3 + time.length + 4 <= cardWidth ? ' ' : ''
+  canvas.put(x + 1 + gap.length, y, glyph, glyphCodes)
+  if (gap) {
+    canvas.put(x + 1, y, ' ')
+    canvas.put(x + 3, y, ' ')
+    canvas.put(x + cardWidth - 2, y, ' ')
+  }
+  const timeStart = x + cardWidth - 1 - gap.length - time.length
+  if (timeStart > x + 2 + gap.length) {
+    canvas.text(timeStart, y, time, isStuck ? 'y' : 'd')
+    if (gap) canvas.put(timeStart - 1, y, ' ')
+  }
+  // The task title takes the whole body row; it tells same-type agents apart.
+  canvas.text(x + 1, y + 1, fitNoPad(row.task || row.name, cardWidth - 2), row.st === 'done' ? 'd' : '')
   return COMPACT_CARD_HEIGHT
 }

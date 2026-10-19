@@ -32,7 +32,7 @@ test('auto picks compact cards when twelve workers do not fit full at 200 column
   const text = plain(graph.lines)
   for (let index = 0; index < 12; index++) assert.ok(text.includes(`T-w${index}`), `T-w${index} missing`)
   assert.equal(graph.hiddenColumns, undefined)
-  assert.match(text, /run +1m12s/)
+  assert.match(text, /⠋ ─+ 1m12s ╮/)
 })
 
 test('auto keeps every worker visible at 120 columns as far as 14-wide columns allow', () => {
@@ -124,5 +124,15 @@ test('compact cards of the same type are told apart by their task', () => {
   assert.ok(text.includes('Sl w0'))
   assert.ok(text.includes('Sl w1'))
   const empty = rows.map(each => (each.id === 'w0' ? { ...each, task: '' } : each))
-  assert.ok(plain(linesOf(empty, 200).lines).includes('genera…'))
+  assert.ok(plain(linesOf(empty, 200).lines).includes('general-pur…'))
+})
+
+test('compact cards carry glyph and time on the top row and the task on the full body row', () => {
+  const rows = manyRows(12, 0).map(each => (each.d === 1 ? { ...each, task: 'Sleeper 01 short ' + each.id } : each))
+  const lines = plain(linesOf(rows, 200).lines).split('\n')
+  const top = lines.find(line => /╭ ⠋ ─+ 1m12s ╮/.test(line)) as string
+  assert.ok(top, 'glyph left, time right on the top border')
+  const body = lines[lines.indexOf(top) + 1]
+  assert.ok(body.includes('│Sleeper 01 '), 'at least 11 characters of the task: ' + body)
+  assert.ok(!body.includes('run'), 'no status word on the body row')
 })
