@@ -3,10 +3,13 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.2.3] - 2026-10-18
+## [0.2.3] - 2026-10-19
 
 ### Fixed
 - Pane content sized to the pane's real height, so the top is never cut off; the inline pane asks for more rows in graph view.
+
+### Documentation
+- Troubleshooting note for a GPU fault in Tabby's WebGL renderer on AMD GPUs that freezes the screen; it is not caused by agentview.
 
 ## [0.2.2] - 2026-10-18
 

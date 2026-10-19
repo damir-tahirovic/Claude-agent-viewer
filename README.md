@@ -243,6 +243,10 @@ Nothing leaves your machine. The plugin makes no network calls and has no runtim
 - The `waiting` status comes from the engine's agent list, so it is not always a permission prompt.
 - Costs are estimates from list prices.
 
+## Troubleshooting
+
+- **Screen breaks into blocks and the terminal freezes (Tabby on AMD GPUs).** This is a GPU fault in the terminal's WebGL renderer, not in agentview: the kernel log shows `amdgpu: [gfxhub] page fault ... Process tabby` followed by a GPU ring reset. A large, colorful pane can make it more likely. Switch Tabby to the non-WebGL renderer (Settings → Terminal → Frontend → `xterm`, or `terminal.frontend: xterm` in `~/.config/tabby/config.yaml`) and restart Tabby. If it still happens, enable Settings → Window → "Disable GPU acceleration". Measured: an open pane with no work writes 0 bytes per second to the terminal.
+
 ## Development
 
 ```bash

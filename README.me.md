@@ -243,6 +243,10 @@ Ništa ne napušta vaš računar. Plugin ne šalje mrežne pozive i nema runtime
 - Status `waiting` dolazi iz engine-ove liste agenata, pa nije uvijek zahtjev za dozvolu.
 - Troškovi su procjene iz cjenovnika.
 
+## Rješavanje problema
+
+- **Ekran se raspadne u kockice i terminal se zamrzne (Tabby na AMD grafičkim karticama).** To je greška GPU-a u WebGL rendereru terminala, ne u agentviewu: kernel log pokazuje `amdgpu: [gfxhub] page fault ... Process tabby`, pa reset GPU-a. Veliki šareni prozor to čini vjerovatnijim. Prebacite Tabby na renderer bez WebGL-a (Settings → Terminal → Frontend → `xterm`, ili `terminal.frontend: xterm` u `~/.config/tabby/config.yaml`) i restartujte Tabby. Ako se i dalje dešava, uključite Settings → Window → "Disable GPU acceleration". Izmjereno: otvoren prozor bez posla piše 0 bajtova u sekundi na terminal.
+
 ## Razvoj
 
 ```bash
