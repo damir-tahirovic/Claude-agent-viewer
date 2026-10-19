@@ -7,11 +7,22 @@
   "private": true,
   "scripts": {
     "test": "node --import tsx --test tests/*/*.spec.ts tests/*/*/*.spec.ts",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "build": "node scripts/build-cli.mjs",
+    "prepare": "npm run build"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "@types/node": "^20.0.0"
-  }
+  },
+  "bin": {
+    "agentview": "bin/agentview.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
 }
