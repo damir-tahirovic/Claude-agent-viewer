@@ -18,6 +18,8 @@ export type ParseState = {
   readonly toolNames: Readonly<Record<string, string>>
   /** Input of TaskCreate / TaskUpdate calls by tool_use id; their task events need it at result time. */
   readonly taskInputs: Readonly<Record<string, unknown>>
+  /** Main is between a turn start and its turn_duration; a turn woken by a notification has no user prompt. */
+  readonly isMainTurnOpen?: true
 }
 
 /** Fresh parser state for a file that has not been read yet. */
@@ -111,7 +113,7 @@ const assistantEvents = (state: ParseState, record: Json, agentId: string, at: n
   }
   events.push({ kind: 'heartbeat', at, agentId })
   return {
-    state: { lastMessageId: messageId ?? state.lastMessageId, pendingUsage, toolNames, taskInputs },
+    state: { ...state, lastMessageId: messageId ?? state.lastMessageId, pendingUsage, toolNames, taskInputs },
     events,
   }
 }
@@ -151,8 +153,8 @@ const userEvents = (state: ParseState, record: Json, agentId: string, at: number
   if (promptText !== undefined) {
     // isMeta and system-injected text (<task-notification>, <command-name>) are not something the user typed.
     const isPrompt = record.isMeta !== true && !promptText.startsWith('<')
-    const events: AgentEvent[] = isPrompt && agentId === MAIN ? [{ kind: 'turn', at, agentId: MAIN, phase: 'start' }] : []
-    return { state, events }
+    if (!isPrompt || agentId !== MAIN) return { state, events: [] }
+    return { state: { ...state, isMainTurnOpen: true }, events: [{ kind: 'turn', at, agentId: MAIN, phase: 'start' }] }
   }
   if (!Array.isArray(content)) return { state, events: [] }
   const events: AgentEvent[] = []
@@ -215,14 +217,20 @@ export const parseRecord = (
   const at = Date.parse(record.timestamp)
   if (Number.isNaN(at)) return none
   switch (record.type) {
-    case 'assistant':
-      return assistantEvents(state, record, agentId, at)
+    case 'assistant': {
+      const result = assistantEvents(state, record, agentId, at)
+      if (agentId !== MAIN || state.isMainTurnOpen) return result
+      // No prompt opened this turn (a task-notification woke main), yet main is answering: the turn runs.
+      const start: AgentEvent = { kind: 'turn', at, agentId: MAIN, phase: 'start' }
+      return { state: { ...result.state, isMainTurnOpen: true }, events: [start, ...result.events] }
+    }
     case 'user':
       return endMessage(state, userEvents(withoutPending(state), record, agentId, at))
     case 'system': {
       const turnEvents: AgentEvent[] =
         record.subtype === 'turn_duration' && agentId === MAIN ? [{ kind: 'turn', at, agentId: MAIN, phase: 'end' }] : []
-      return endMessage(state, { state: withoutPending(state), events: turnEvents })
+      const closed = turnEvents.length > 0 ? { ...withoutPending(state), isMainTurnOpen: undefined } : withoutPending(state)
+      return endMessage(state, { state: closed, events: turnEvents })
     }
     case 'queue-operation':
       return { state, events: notificationEvents(record, at) }

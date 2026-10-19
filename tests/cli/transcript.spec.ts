@@ -364,7 +364,7 @@ test('a system record ends a message that has no final record', () => {
 })
 
 test('usage events come before the events of the record that ended the message', () => {
-  const events = parse([streamed(1, 'm1', null, 16), streamed(2, 'm2', 'end_turn', 7)])
+  const events = parse([streamed(1, 'm1', null, 16), streamed(2, 'm2', 'end_turn', 7)], 'a1')
   const kinds = events.map(event => event.kind)
   assert.deepEqual(kinds, ['heartbeat', 'usage', 'usage', 'heartbeat'])
   assert.equal(ofKind(events, 'usage')[0].isOutputKnown, false)
@@ -384,4 +384,25 @@ test('a message pending at the end of the text stays pending until the next pars
 test('records of an already finished message id give no second usage', () => {
   const events = parse([streamed(1, 'm1', 'end_turn', 50), streamed(2, 'm1', 'end_turn', 50)])
   assert.equal(ofKind(events, 'usage').length, 1)
+})
+
+test('a main assistant record after the turn ended starts a new turn (a turn woken by a notification)', () => {
+  const events = parse([
+    { type: 'system', subtype: 'turn_duration', timestamp: iso(9), durationMs: 9000 },
+    assistant(12, 'm2', [toolUse('t2', 'Bash', { command: 'ls' })]),
+  ])
+  assert.deepEqual(ofKind(events, 'turn').map(event => [event.phase, event.at]), [['end', T0 + 9000], ['start', T0 + 12_000]])
+})
+
+test('a main assistant record inside a running turn does not start another one', () => {
+  const events = parse([
+    { type: 'user', timestamp: iso(1), message: { role: 'user', content: 'fix it' } },
+    assistant(2, 'm1', [toolUse('t1', 'Read', {})]),
+    assistant(3, 'm2', [toolUse('t2', 'Read', {})]),
+  ])
+  assert.equal(ofKind(events, 'turn').length, 1)
+})
+
+test('a subagent assistant record never starts a main turn', () => {
+  assert.equal(ofKind(parse([assistant(2, 'm1', [])], 'a1'), 'turn').length, 0)
 })
