@@ -118,7 +118,7 @@ test('graph mode draws cards, the pane header first and the real controls as the
   assert.match(stripCodes(built.head[0]), /^agentview · session abcdef12/)
   assert.match(stripCodes(built.head.join('\n')), /╔═ main/)
   assert.equal(built.agentLines.length, 0)
-  assert.match(stripCodes(built.tail.join('\n')), /p\/n select {3}d details {3}t\/g view {3}esc close/)
+  assert.match(stripCodes(built.tail.join('\n')), /p\/n select {3}d details {3}t\/g view {3}z density {3}esc close/)
   assert.doesNotMatch(stripCodes(built.head.join('\n')), /tab tree|live/)
 })
 
@@ -180,16 +180,16 @@ test('the graph has no frame corners or border columns', () => {
 
 test('workers that do not fit hide behind a range and the pan moves the first column', () => {
   const session = withWorkers(5)
-  const first = buildPaneView({ ...graphBase, columns: 110, session })
+  const first = buildPaneView({ ...graphBase, columns: 110, density: 'full', session })
   assert.deepEqual(first.hiddenColumns, { total: 5, visible: 2, first: 0 })
   assert.match(stripCodes(first.tail.join('\n')), /◂ workers 1–2 of 5 ▸/)
   assert.match(stripCodes(first.head.join('\n')), /task 1/)
   assert.doesNotMatch(stripCodes(first.head.join('\n')), /task 3/)
-  const panned = buildPaneView({ ...graphBase, columns: 110, graphCol: 2, session })
+  const panned = buildPaneView({ ...graphBase, columns: 110, graphCol: 2, density: 'full', session })
   assert.match(stripCodes(panned.tail.join('\n')), /workers 3–4 of 5/)
   assert.match(stripCodes(panned.head.join('\n')), /task 3/)
   assert.doesNotMatch(stripCodes(panned.head.join('\n')), /task 1\b/)
-  assert.equal(buildPaneView({ ...graphBase, columns: 110, graphCol: 99, session }).hiddenColumns?.first, 3)
+  assert.equal(buildPaneView({ ...graphBase, columns: 110, graphCol: 99, density: 'full', session }).hiddenColumns?.first, 3)
 })
 
 test('a wide enough graph hides no columns and shows no range', () => {
@@ -205,8 +205,8 @@ test('finished subtrees fold into chips when the graph is taller than the viewpo
     session = reduce(session, { kind: 'agent.end', id, ok: true, at: NOW })
   }
   session = reduce(session, { kind: 'agent.end', id: 'w1', ok: true, at: NOW })
-  const roomy = buildPaneView({ ...graphBase, columns: 160, rows: 60, session })
-  const tight = buildPaneView({ ...graphBase, columns: 160, rows: 18, session })
+  const roomy = buildPaneView({ ...graphBase, columns: 160, rows: 60, density: 'full', session })
+  const tight = buildPaneView({ ...graphBase, columns: 160, rows: 18, density: 'full', session })
   assert.ok(tight.head.length < roomy.head.length)
   assert.match(stripCodes(tight.head.join('\n')), /task 2/)
   assert.doesNotMatch(stripCodes(tight.head.join('\n')), /╭─ helper/)
@@ -254,7 +254,7 @@ test('detail view wins over graph mode', () => {
 })
 
 test('the graph hint adds h/l columns only when columns are hidden', () => {
-  const hidden = buildPaneView({ ...graphBase, columns: 110, session: withWorkers(5) })
+  const hidden = buildPaneView({ ...graphBase, columns: 110, density: 'full', session: withWorkers(5) })
   assert.match(stripCodes(hidden.tail.join('\n')), /esc close {3}h\/l columns/)
   const shown = buildPaneView({ ...graphBase, columns: 160, session: withWorkers(3) })
   assert.doesNotMatch(stripCodes(shown.tail.join('\n')), /h\/l/)

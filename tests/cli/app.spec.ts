@@ -27,7 +27,7 @@ const SESSIONS = [S1, S2, S3]
 
 const opts: RenderOpts = { home: '/home/u', ascii: false, spin: '⠋', clock: () => '12:00:00', dayStart: 0 }
 const at = (partial: Partial<AppState> & Pick<AppState, 'screen'>): AppState =>
-  ({ mode: 'tree', graphCol: 0, ...partial })
+  ({ mode: 'tree', graphCol: 0, density: 'auto', ...partial })
 const key = (app: AppState, pressed: Parameters<typeof handleKey>[1], sessions = SESSIONS) =>
   handleKey(app, pressed, sessions, NOW)
 
@@ -276,12 +276,12 @@ test('hasLiveAgents is false for a stale session', () => {
   assert.equal(hasLiveAgents([stale], initialAppState(), UNKNOWN_AFTER_MS + 5000), false)
 })
 
-// Graph mode: a session with six workers, so 120 columns hide some worker columns.
+// Graph mode: a session with six workers, so 120 columns hide some worker columns at full density.
 const BIG = session('hhhhhhhh-8', 30, [
   mainTurn, ...['w1', 'w2', 'w3', 'w4', 'w5', 'w6'].map((id, index) => spawn(id, 2 + index)),
 ])
 const graphApp = (partial: Partial<AppState> = {}): AppState =>
-  at({ screen: 'session', sessionId: 'hhhhhhhh-8', mode: 'graph', agentId: 'main', ...partial })
+  at({ screen: 'session', sessionId: 'hhhhhhhh-8', mode: 'graph', agentId: 'main', density: 'full', ...partial })
 const keyAt = (app: AppState, pressed: Parameters<typeof handleKey>[1], columns: number) =>
   handleKey(app, pressed, [BIG], NOW, columns) as AppState
 
@@ -354,7 +354,7 @@ test('graph: left and right do nothing when every column shows or the graph is n
 })
 
 test('graph: switching to graph pans to the selected agent', () => {
-  const app = at({ screen: 'session', sessionId: 'hhhhhhhh-8', agentId: 'w6' })
+  const app = at({ screen: 'session', sessionId: 'hhhhhhhh-8', agentId: 'w6', density: 'full' })
   assert.equal(keyAt(app, 'g', 120).graphCol, 4)
 })
 
@@ -381,10 +381,10 @@ test('graph screen title has the session id and the project path', () => {
 
 test('graph footer hints: scroll only when columns are hidden', () => {
   const hidden = renderApp(graphApp(), [BIG], NOW, 120, 40, opts).lines.map(stripCodes)
-  assert.ok(hidden[39].includes('↑↓ select  ←→ scroll  ⏎ details  tab tree  esc sessions  q quit'), hidden[39])
+  assert.ok(hidden[39].includes('↑↓ select  ←→ scroll  ⏎ details  tab tree  z density: full  esc sessions  q quit'), hidden[39])
   assert.ok(hidden[39].includes('◂ workers 1–2 of 6 ▸'), hidden[39])
   const all = renderApp(graphApp({ sessionId: 'aaaaaaaa-1' }), [S1], NOW, 200, 40, opts).lines.map(stripCodes)
-  assert.ok(all[39].includes('↑↓ select  ⏎ details  tab tree  esc sessions  q quit'), all[39])
+  assert.ok(all[39].includes('↑↓ select  ⏎ details  tab tree  z density: full  esc sessions  q quit'), all[39])
   assert.ok(!all[39].includes('scroll'))
 })
 
@@ -402,4 +402,29 @@ test('narrow graph at 80 columns shows the selected agent as a card', () => {
 test('hasLiveAgents stays true on the graph screen while an agent runs', () => {
   assert.equal(hasLiveAgents([BIG], graphApp(), NOW), true)
   assert.equal(hasLiveAgents([S2], graphApp({ sessionId: 'bbbbbbbb-2' }), NOW), false)
+})
+
+test('z cycles the graph density auto, full, compact, auto and the choice sticks', () => {
+  const auto = graphApp({ density: 'auto' })
+  const full = keyAt(auto, 'z', 120)
+  const compact = keyAt(full, 'z', 120)
+  assert.deepEqual([full.density, compact.density, keyAt(compact, 'z', 120).density], ['full', 'compact', 'auto'])
+  assert.equal((keyAt(compact, 'esc', 120) as AppState).density, 'compact')
+  assert.equal(initialAppState().density, 'auto')
+})
+
+test('z pans to the selection when full density hides columns', () => {
+  const app = graphApp({ density: 'auto', agentId: 'w6' })
+  assert.equal(keyAt(app, 'z', 120).graphCol, 4)
+  assert.equal(keyAt(graphApp({ density: 'full', agentId: 'w6', graphCol: 4 }), 'z', 120).graphCol, 0)
+})
+
+test('parseKeys reads z', () => {
+  assert.deepEqual(parseKeys('z'), ['z'])
+})
+
+test('auto density shows all six workers at 120 columns and the footer names the density', () => {
+  const text = renderApp(graphApp({ density: 'auto' }), [BIG], NOW, 120, 40, opts).lines.map(stripCodes)
+  assert.ok(!text.join('\n').includes('workers 1'), text.join('\n'))
+  assert.ok(text[39].includes('z density: auto'), text[39])
 })

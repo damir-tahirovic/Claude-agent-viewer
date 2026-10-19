@@ -7,7 +7,7 @@ import { appendBounded } from '../src/mod/event-batch'
 import { withProgressSuffix } from '../src/mod/spawn-prompt'
 import { openArgsFor, type OpenPresentation } from '../src/mod/open-args'
 import { buildPaneView, roomFor } from '../src/mod/pane-view'
-import { graphColumnsFor, panColumn, panToInclude } from '../src/mod/graph-pane'
+import { graphColumnsFor, nextDensity, panColumn, panToInclude } from '../src/mod/graph-pane'
 import { decideClose, nextWindow, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
 import { toPlainAscii } from '../src/view/lines'
@@ -32,6 +32,7 @@ const NEXT_KEY = '>next<'
 const GRAPH_PREV_KEY = '<graph-prev>'
 const GRAPH_NEXT_KEY = '>graph-next<'
 const GRAPH_DETAILS_KEY = '<graph-details>'
+const DENSITY_KEY = '<graph-density>'
 const PAN_LEFT_KEY = '<pan-left>'
 const PAN_RIGHT_KEY = '>pan-right<'
 const TREE_MODE_KEY = 'tree'
@@ -310,7 +311,7 @@ export const register: Register = (on, options) => {
     const rows = e.props.scroll?.bodyRows ?? e.viewport?.rows ?? DEFAULT_PANE_ROWS
     latestPlacement = e.props.placement
     const view = buildPaneView({
-      session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol, spin: state.spin,
+      session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol, density: state.density, spin: state.spin,
       now, columns, rows, ascii: isAscii, win: state.win,
     })
     latestRoom = roomFor(rows, view.isToggleBeside ? 0 : 1)
@@ -318,7 +319,7 @@ export const register: Register = (on, options) => {
     const step = (offset: number) => async (): Promise<void> => {
       const target = stepId(view.order, state.selId, offset)
       // Not view.hiddenColumns: the detail view draws no graph, so it has none.
-      const columns = graphColumnsFor(view.outline, e.props.bodyColumns)
+      const columns = graphColumnsFor(view.outline, e.props.bodyColumns, state.density)
       await update($, ui, latest => ({
         ...latest,
         selId: target,
@@ -328,7 +329,7 @@ export const register: Register = (on, options) => {
       }))
     }
     const setMode = (mode: 'tree' | 'graph') => async (): Promise<void> => {
-      const columns = graphColumnsFor(view.outline, e.props.bodyColumns)
+      const columns = graphColumnsFor(view.outline, e.props.bodyColumns, state.density)
       // The selection may have moved in the tree while the graph was away; bring its column into view.
       await update($, ui, latest => ({
         ...latest,
@@ -345,6 +346,14 @@ export const register: Register = (on, options) => {
           logOnce($, 'setMode resize', err)
         }
       }
+    }
+    const cycleDensity = async (): Promise<void> => {
+      await update($, ui, latest => {
+        const density = nextDensity(latest.density ?? 'auto')
+        const shown = graphColumnsFor(view.outline, e.props.bodyColumns, density)
+        // Other columns hide at the new density; keep the selection's column in view.
+        return { ...latest, density, graphCol: shown ? panToInclude(view.outline, latest.selId, latest.graphCol, shown.visible) : 0 }
+      })
     }
     const pan = (offset: number) => async (): Promise<void> => {
       const columns = view.hiddenColumns
@@ -391,6 +400,10 @@ export const register: Register = (on, options) => {
             <Button key={GRAPH_PREV_KEY} plain hotkey="p" onPress={step(-1)}><Text dimColor>{label('◂ prev')}</Text></Button>
             <Text>  </Text>
             <Button key={GRAPH_NEXT_KEY} plain hotkey="n" onPress={step(1)}><Text dimColor>{label('next ▸')}</Text></Button>
+            <Text>  </Text>
+            <Button key={DENSITY_KEY} plain hotkey="z" onPress={cycleDensity}>
+              <Text dimColor>{label(`z density: ${state.density ?? 'auto'}`)}</Text>
+            </Button>
             <Text>  </Text>
             <Button
               key={GRAPH_DETAILS_KEY}

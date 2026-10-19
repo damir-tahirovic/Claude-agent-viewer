@@ -69,6 +69,8 @@ export type AgentviewUi = {
   readonly mode: 'tree' | 'graph'
   /** First visible worker column of the wide graph. */
   readonly graphCol: number
+  /** Card density of the graph, cycled by the `z` hotkey; absent (an older saved state) means auto. */
+  readonly density?: 'auto' | 'full' | 'compact'
   readonly win?: readonly [number, number]
   readonly spin: number
   /** Bumped once a second while only non-running agents are live, so their elapsed time redraws. */

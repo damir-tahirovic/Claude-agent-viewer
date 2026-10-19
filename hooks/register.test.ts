@@ -271,6 +271,7 @@ test('the pan buttons appear only with hidden columns and move the worker range'
   await settle()
   const pane = await mountGraphPane($, 110)
   await pane.press({ key: 'graph' })
+  await pane.press({ key: '<graph-density>' }) // auto to full: only full cards pan three workers at 110
   expect(await pane.find({ type: 'Text', text: /workers 1–2 of 3/ })).toBeDefined()
   await pane.press({ key: '>pan-right<' })
   expect(await pane.find({ type: 'Text', text: /workers 2–3 of 3/ })).toBeDefined()
@@ -287,10 +288,31 @@ test('next steps pan the graph to the selected worker and the footer hotkeys are
   await settle()
   const pane = await mountGraphPane($, 110)
   await pane.press({ key: 'graph' })
+  await pane.press({ key: '<graph-density>' }) // auto to full: only full cards pan three workers at 110
   expect(await pane.find({ type: 'Text', text: /workers 1–2 of 3/ })).toBeDefined()
   for (let step = 0; step < 3; step++) await pane.press({ key: '>graph-next<' })
   expect(await pane.find({ type: 'Text', text: /workers 2–3 of 3/ })).toBeDefined()
   expect(await pane.find({ type: 'Text', text: /p\/n select {3}d details/ })).toBeDefined()
+  await pane.unmount()
+})
+
+test('the z button cycles the density and auto compacts three workers at 110 columns', async ($, on) => {
+  useClock(on)
+  on('tool.call', readTool)
+  for (const id of ['sub1', 'sub2', 'sub3']) await $.tool.call({ tool: 'Read', file_path: '/tmp/' + id, agentId: id })
+  await settle()
+  const pane = await mountGraphPane($, 110)
+  await pane.press({ key: 'graph' })
+  expect(await pane.find({ type: 'Text', text: /z density: auto/ })).toBeDefined()
+  expect(await pane.find({ key: '>pan-right<' })).toBeUndefined()
+  await pane.press({ key: '<graph-density>' })
+  expect(await pane.find({ type: 'Text', text: /z density: full/ })).toBeDefined()
+  expect(await pane.find({ type: 'Text', text: /workers 1–2 of 3/ })).toBeDefined()
+  await pane.press({ key: '<graph-density>' })
+  expect(await pane.find({ type: 'Text', text: /z density: compact/ })).toBeDefined()
+  expect(await pane.find({ key: '>pan-right<' })).toBeUndefined()
+  await pane.press({ key: '<graph-density>' })
+  expect(await pane.find({ type: 'Text', text: /z density: auto/ })).toBeDefined()
   await pane.unmount()
 })
 
@@ -318,6 +340,7 @@ test('a worker selected in the tree stays visible when the graph opens', async (
   // The kit cannot raise a ui.focus with an element, so the selection moves through the graph's own next
   // Button; panning back and returning to the tree leaves worker 3 selected with the first columns shown.
   await pane.press({ key: 'graph' })
+  await pane.press({ key: '<graph-density>' })
   for (let step = 0; step < 3; step++) await pane.press({ key: '>graph-next<' })
   await pane.press({ key: '<pan-left>' })
   expect(await pane.find({ type: 'Text', text: /workers 1–2 of 3/ })).toBeDefined()
@@ -342,6 +365,7 @@ test('stepping in the detail view of a graph pans the graph to the new agent', a
   await settle()
   const pane = await mountGraphPane($, 110)
   await pane.press({ key: 'graph' })
+  await pane.press({ key: '<graph-density>' })
   await pane.press({ key: '<graph-details>' })
   // main -> sub1 -> sub2 -> sub3 by stepping in the detail view, where the pan Buttons are not drawn.
   for (let step = 0; step < 3; step++) await pane.press({ key: '>next<' })

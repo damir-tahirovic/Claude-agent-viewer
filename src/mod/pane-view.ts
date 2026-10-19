@@ -8,7 +8,7 @@ import { renderDialog, windowFor } from '../view/dialog'
 import { clipLine, colorize, dim, fitText, SPIN, toPlainAscii, visibleLength } from '../view/lines'
 import { buildRows } from '../view/rows'
 import { buildGraphLines } from './graph-pane'
-import type { GraphColumns } from './graph-pane'
+import type { GraphColumns, GraphDensity } from './graph-pane'
 
 /** Inputs for one pane render. */
 export type PaneViewOpts = {
@@ -18,6 +18,8 @@ export type PaneViewOpts = {
   readonly mode?: 'tree' | 'graph'
   /** First visible worker column of a wide graph. */
   readonly graphCol?: number
+  /** Card density of the graph; absent means auto. */
+  readonly density?: GraphDensity
   readonly selId: string
   readonly spin: number
   readonly now: number
@@ -123,7 +125,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
 
   if (opts.mode === 'graph') {
     const graph = buildGraphLines({
-      rows, selectedId: rows[selected]?.id ?? 'main', graphCol: opts.graphCol ?? 0, plan,
+      rows, selectedId: rows[selected]?.id ?? 'main', graphCol: opts.graphCol ?? 0, density: opts.density, plan,
       sessionId: session.sessionId.slice(0, 8), spin, columns: opts.columns, paneRows: opts.rows,
       chromeLines: GRAPH_CHROME_ROWS + toggleRows, ascii: opts.ascii, billing: session.billing,
     })
