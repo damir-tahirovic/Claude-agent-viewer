@@ -1,6 +1,6 @@
 // Session list model for the standalone CLI: turns session states into the rows `renderSessions` draws.
 import { planOf } from '../core/progress'
-import { MAIN, type SessionState } from '../core/model'
+import { MAIN, UNKNOWN_AFTER_MS, type SessionState } from '../core/model'
 import { buildRows, type RowStatus } from '../view/rows'
 import type { SessionListItem } from '../view/sessions'
 
@@ -25,13 +25,21 @@ export const projectLabel = (cwd: string, home: string): string => {
   return cwd.startsWith(base + '/') ? '~' + cwd.slice(base.length) : cwd
 }
 
+/** A running or waiting main silent past the limit is unknown: a killed process sends no end event. */
+export const markStaleMain = (state: SessionState, lastAt: number, now: number): SessionState => {
+  const main = state.agents[MAIN]
+  const isLive = main !== undefined && (main.status === 'running' || main.status === 'waiting')
+  if (!isLive || now - lastAt <= UNKNOWN_AFTER_MS) return state
+  return { ...state, agents: { ...state.agents, [MAIN]: { ...main, status: 'unknown' } } }
+}
+
 /** One session as a list row; agent statuses come from `buildRows` so the rules match the dialog. */
 export const summarizeSession = (
   state: SessionState,
   info: { readonly project: string; readonly lastAt: number },
   now: number,
 ): SessionListItem => {
-  const rows = buildRows(state, now)
+  const rows = buildRows(markStaleMain(state, info.lastAt, now), now)
   const count = (status: RowStatus): number => rows.filter(row => row.st === status).length
   const running = count('running')
   const waiting = count('waiting')

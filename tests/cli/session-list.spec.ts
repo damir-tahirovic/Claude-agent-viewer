@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { fmtAgo, groupSessions, projectLabel, summarizeSession } from '../../src/cli/session-list'
+import { fmtAgo, groupSessions, markStaleMain, projectLabel, summarizeSession } from '../../src/cli/session-list'
 import type { AgentEvent, SessionState } from '../../src/core/model'
+import { UNKNOWN_AFTER_MS } from '../../src/core/model'
 import { initialState, reduce } from '../../src/core/reducer'
 import type { SessionListItem } from '../../src/view/sessions'
 
@@ -134,4 +135,25 @@ test('groupSessions keeps input order for equal starts', () => {
     { item: item('c', 'done'), startedAt: 1 },
   ])
   assert.deepEqual(groups.recent.map(s => s.id), ['a', 'b', 'c'])
+})
+
+test('markStaleMain turns a silent running main into unknown', () => {
+  const state = markStaleMain(build([mainTurn]), 0, UNKNOWN_AFTER_MS + 1)
+  assert.equal(state.agents.main.status, 'unknown')
+})
+
+test('markStaleMain keeps a fresh running main as the same object', () => {
+  const state = build([mainTurn])
+  assert.equal(markStaleMain(state, 0, UNKNOWN_AFTER_MS), state)
+})
+
+test('markStaleMain keeps a done main as the same object', () => {
+  const state = build([])
+  assert.equal(markStaleMain(state, 0, UNKNOWN_AFTER_MS * 10), state)
+})
+
+test('a stale running session lists as unknown with no heartbeat', () => {
+  const item = summarizeSession(build([mainTurn]), { project: 'p', lastAt: 0 }, UNKNOWN_AFTER_MS + 1)
+  assert.equal(item.status, 'unknown')
+  assert.equal(item.act, 'no heartbeat')
 })
