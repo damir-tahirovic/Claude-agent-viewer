@@ -3,6 +3,11 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.3] - 2026-10-19
+
+### Fixed
+- The plugin's density button read `z: z density: auto`; it now reads `z: density auto`.
+
 ## [0.4.2] - 2026-10-19
 
 ### Added

@@ -402,7 +402,7 @@ export const register: Register = (on, options) => {
             <Button key={GRAPH_NEXT_KEY} plain hotkey="n" onPress={step(1)}><Text dimColor>{label('next ▸')}</Text></Button>
             <Text>  </Text>
             <Button key={DENSITY_KEY} plain hotkey="z" onPress={cycleDensity}>
-              <Text dimColor>{label(`z density: ${state.density ?? 'auto'}`)}</Text>
+              <Text dimColor>{label(`density ${state.density ?? 'auto'}`)}</Text>
             </Button>
             <Text>  </Text>
             <Button
