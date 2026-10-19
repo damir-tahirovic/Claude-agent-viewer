@@ -21,6 +21,8 @@ export type DetailOpts = {
   readonly cost?: number
   /** Whole-session cost in USD; enables the "% of session cost" note. */
   readonly sessionCost?: number
+  /** Whole-session input + output tokens; enables the "% of session tokens" note. Absent when the total is not exact. */
+  readonly sessionTokens?: number
   /** Spinner frame shown for the live action and a running agent. */
   readonly spin?: string
   readonly ascii?: boolean
@@ -170,12 +172,16 @@ export const renderDetail = (o: DetailOpts): string[] => {
   const cost = o.cost ?? costOf(agent.model, tokens)
   const hasCost = showsCost(o.billing)
   const share = o.sessionCost ? dim(`   ${Math.round(cost / o.sessionCost * 100)}% of session cost`) : ''
+  const hasTokenShare = !isOutputPartial && o.sessionTokens !== undefined && o.sessionTokens > 0
+  const tokenShare = hasTokenShare
+    ? dim(`   ${Math.round((tokens.input + tokens.output) / (o.sessionTokens as number) * 100)}% of session tokens`)
+    : ''
   const right = [
     dim('TOKENS'),
     tokenRow('input', tokens.input), tokenRow('output', tokens.output, !isOutputPartial),
     tokenRow('cache read', tokens.cacheRead), tokenRow('cache write', tokens.cacheWrite),
     '',
-    fitText('in + out', 12) + padLeft(isOutputPartial ? '—' : withThousands(tokens.input + tokens.output), 7),
+    fitText('in + out', 12) + padLeft(isOutputPartial ? '—' : withThousands(tokens.input + tokens.output), 7) + tokenShare,
     ...(hasCost ? [fitText('cost', 12) + padLeft(fmtCost(cost), 7) + share] : []),
     ...(o.todos?.length ? todoLines(o.todos) : []),
   ]

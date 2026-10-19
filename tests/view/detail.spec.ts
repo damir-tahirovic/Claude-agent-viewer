@@ -90,3 +90,19 @@ test('a partial-output agent shows a dash and an empty bar for output, and a das
   assert.match(totalLine, /in \+ out\s+—/)
   assert.ok(!totalLine.includes('9,300'))
 })
+
+const shareText = (extra: Partial<typeof opts> & { sessionTokens?: number }, own: AgentNode = agent): string =>
+  renderDetail({ ...opts, ...extra, agent: own }).map(stripCodes).join('\n')
+
+test('the in + out line shows the share of the session tokens', () => {
+  assert.match(shareText({ sessionTokens: 93_000 }), /in \+ out +9,300 +10% of session tokens/)
+})
+
+test('the token share is hidden when the agent output is partial', () => {
+  assert.doesNotMatch(shareText({ sessionTokens: 93_000 }, { ...agent, isOutputPartial: true }), /of session tokens/)
+})
+
+test('the token share is hidden when the session total is absent or zero', () => {
+  assert.doesNotMatch(shareText({}), /of session tokens/)
+  assert.doesNotMatch(shareText({ sessionTokens: 0 }), /of session tokens/)
+})

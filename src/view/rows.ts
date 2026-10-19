@@ -73,3 +73,7 @@ export const buildRows = (state: SessionState, now: number): Row[] =>
       ...(agent.status === 'failed' ? { err: 'error' } : {}),
     }
   })
+
+/** Input + output over all rows, or undefined when any row's output is partial and the sum is not exact. */
+export const exactSessionTokens = (rows: ReadonlyArray<Row>): number | undefined =>
+  rows.some(row => row.outputPartial) ? undefined : rows.reduce((sum, row) => sum + row.i + row.o, 0)

@@ -7,7 +7,7 @@ import { planOf, progressOf, progressPercent } from '../core/progress'
 import { renderDetail, statusBadge } from '../view/detail'
 import { renderDialog, windowFor } from '../view/dialog'
 import { clipLine, colorize, dim, fitText, SPIN, toPlainAscii, visibleLength } from '../view/lines'
-import { buildRows } from '../view/rows'
+import { buildRows, exactSessionTokens } from '../view/rows'
 import { buildGraphLines } from './graph-pane'
 import type { GraphColumns, GraphDensity } from './graph-pane'
 
@@ -120,7 +120,8 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
     const lines = renderDetail({
       W: Math.max(opts.columns, MIN_DETAIL_COLUMNS), agent, parentName: parent?.type ?? '—',
       todos: session.todos[agent.id], now, clock: clockOf, cost: rows[selected].cost, sessionCost,
-      spin, ascii: opts.ascii, frame: false, hints: DETAIL_HINTS, billing: session.billing,
+      sessionTokens: exactSessionTokens(allRows), spin, ascii: opts.ascii, frame: false,
+      hints: DETAIL_HINTS, billing: session.billing,
     })
     // Below 90 columns the detail is cut, not reflowed; a narrow detail layout is not designed yet.
     const all = [header, ...lines].map(line => finish(clipLine(line, opts.columns)))

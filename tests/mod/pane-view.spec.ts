@@ -435,3 +435,20 @@ test('the detail view ignores the filter and steps through every agent', () => {
   assert.deepEqual(view.order, ['main', 'w1', 'w2', 'w3'])
   assert.equal(view.hiddenCount, 0)
 })
+
+const usage = (agentId: string, isOutputKnown?: false): AgentEvent => ({
+  kind: 'usage', at: NOW, agentId, tokens: { input: 1000, output: isOutputKnown === false ? 0 : 1000, cacheRead: 0, cacheWrite: 0 },
+  ...(isOutputKnown === false ? { isOutputKnown } : {}),
+})
+
+test('the detail shows the agent share of the session tokens', () => {
+  const session = [usage('main'), usage('main'), usage('a1')].reduce(reduce, twoAgents)
+  const view = buildPaneView({ ...base, columns: 120, session, view: 'detail', selId: 'a1' })
+  assert.match(stripCodes(view.head.join('\n')), /in \+ out +2,000 +33% of session tokens/)
+})
+
+test('the detail hides the token share when any agent of the session has partial output', () => {
+  const session = [usage('main', false), usage('a1')].reduce(reduce, twoAgents)
+  const view = buildPaneView({ ...base, columns: 120, session, view: 'detail', selId: 'a1' })
+  assert.doesNotMatch(stripCodes(view.head.join('\n')), /of session tokens/)
+})

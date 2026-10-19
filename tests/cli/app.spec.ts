@@ -528,3 +528,20 @@ test('hasLiveAgents goes false once every finished agent has expired', () => {
   assert.equal(hasLiveAgents([quiet], app, 100 + KEEP_FINISHED_MS), false)
   assert.equal(hasLiveAgents([quiet], app, 100 + KEEP_FINISHED_MS - 1), true)
 })
+
+const usageEvent = (agentId: string, isOutputKnown?: false): AgentEvent => ({
+  kind: 'usage', at: 5, agentId, tokens: { input: 1000, output: isOutputKnown === false ? 0 : 1000, cacheRead: 0, cacheWrite: 0 },
+  ...(isOutputKnown === false ? { isOutputKnown } : {}),
+})
+const detailText = (events: ReadonlyArray<AgentEvent>): string =>
+  renderApp(at({ screen: 'detail', sessionId: 'dddddddd-4', agentId: 'a' }),
+    [session('dddddddd-4', 10, [spawn('a'), ...events])], NOW, 120, 40, opts).lines.map(stripCodes).join('\n')
+
+test('the detail screen shows the agent share of the session tokens', () => {
+  assert.match(detailText([usageEvent('main'), usageEvent('main'), usageEvent('a')]),
+    /in \+ out +2,000 +33% of session tokens/)
+})
+
+test('the detail screen hides the token share when any agent has partial output', () => {
+  assert.doesNotMatch(detailText([usageEvent('main', false), usageEvent('a')]), /of session tokens/)
+})

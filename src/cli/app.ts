@@ -6,7 +6,7 @@ import { planOf } from '../core/progress'
 import { renderDetail } from '../view/detail'
 import { renderDialog, windowFor } from '../view/dialog'
 import { clipLine, dim, toPlainAscii } from '../view/lines'
-import { buildRows, type Row } from '../view/rows'
+import { buildRows, exactSessionTokens, type Row } from '../view/rows'
 import { renderSessions, type SessionListItem } from '../view/sessions'
 import { filterLabel, hiddenColumnsOf, panGraph, renderGraphScreen } from './graph-screen'
 import { nextDensity, panToInclude } from '../view/graph/pane'
@@ -344,7 +344,8 @@ export const renderApp = (
   const lines = agent === undefined ? [] : renderDetail({
     W: Math.max(columns, MIN_DETAIL_COLUMNS), agent, parentName: parent?.type ?? '—',
     todos: state.todos[agent.id], now, clock: opts.clock, cost: agents[selected].cost,
-    spin, ascii: false, hints: DETAIL_HINTS, billing: { kind: 'unknown' },
+    // The detail screen lists every agent, so these rows are the whole session.
+    sessionTokens: exactSessionTokens(agents), spin, ascii: false, hints: DETAIL_HINTS, billing: { kind: 'unknown' },
   })
   // Below 90 columns the detail is cut, not reflowed (same limit as the plugin).
   return { lines: finish(lines.map(line => clipLine(line, columns))), app: { ...current, agentId } }
