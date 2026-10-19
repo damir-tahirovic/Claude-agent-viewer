@@ -201,3 +201,24 @@ test('the PLAN column keeps every line the same width, framed or not', () => {
 test('below the medium tier the PLAN column is left out to keep the other columns', () => {
   assert.ok(!planLines(progRows(), 80).some(line => line.includes('PLAN')))
 })
+
+const partialRows: Row[] = manyAgents.slice(0, 2).map((row, index) => (index === 1 ? { ...row, o: 0, outputPartial: 1 as const } : row))
+
+test('a partial-output agent shows a dash in TOK and IN/OUT, and the header total gets a plus', () => {
+  const lines = renderDialog({ W: 160, agents: partialRows, plan }).map(stripCodes)
+  const partialLine = lines.find(line => line.includes('migrate db schema')) as string
+  assert.match(partialLine, /—\s+4\.3k\/—/)
+  const mainLine = lines.find(line => line.includes('migrate webshop')) as string
+  assert.match(mainLine, /49\.5k\s+41\.2k\/8\.3k/)
+  assert.match(lines[0], /53\.8k\+ tok/)
+})
+
+test('the header total has no plus when every output is known', () => {
+  assert.doesNotMatch(stripCodes(renderDialog({ W: 120, agents: manyAgents.slice(0, 2), plan })[0]), /\+ tok/)
+})
+
+test('a partial-output dialog keeps every line within the width at 80, 120 and 160 columns', () => {
+  for (const W of [80, 120, 160]) {
+    for (const line of renderDialog({ W, agents: partialRows, plan })) assert.equal(visibleLength(line), W)
+  }
+})

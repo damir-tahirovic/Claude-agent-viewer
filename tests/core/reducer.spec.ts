@@ -322,3 +322,19 @@ test('task.set for an unknown id changes nothing', () => {
   const start = run([{ kind: 'task.add', at: 1, agentId: 'a1', id: '7', content: 'x' }])
   assert.equal(reduce(start, { kind: 'task.set', at: 2, id: '99', status: 'completed' }), start)
 })
+
+test('a usage event with unknown output marks the agent as output-partial, and the flag is sticky', () => {
+  const tokens = { input: 5, output: 0, cacheRead: 1, cacheWrite: 1 }
+  const partial = reduce(initialState('s', 0), { kind: 'usage', at: 1, agentId: 'main', tokens, isOutputKnown: false })
+  assert.equal(partial.agents.main.isOutputPartial, true)
+  const after = reduce(partial, { kind: 'usage', at: 2, agentId: 'main', tokens: { ...tokens, output: 9 } })
+  assert.equal(after.agents.main.isOutputPartial, true)
+  assert.equal(after.agents.main.tokens.output, 9)
+})
+
+test('a usage event with known output leaves the flag absent', () => {
+  const state = reduce(initialState('s', 0), {
+    kind: 'usage', at: 1, agentId: 'main', tokens: { input: 5, output: 3, cacheRead: 0, cacheWrite: 0 },
+  })
+  assert.equal('isOutputPartial' in state.agents.main, false)
+})

@@ -106,7 +106,9 @@ export const drawCard = (
     position += [...text].length
   }
   const hasCost = showsCost(opts.billing)
-  const tokenText = opts.isRich ? `in ${fmtK(row.i)} · out ${fmtK(row.o)}` : `${fmtK(row.i + row.o)} tok`
+  const tokenText = opts.isRich
+    ? `in ${fmtK(row.i)} · out ${row.outputPartial ? '—' : fmtK(row.o)}`
+    : `${row.outputPartial ? '—' : fmtK(row.i + row.o)} tok`
   segment(hasCost ? tokenText + ' · ' : tokenText, 'd')
   if (hasCost) segment(fmtCost(row.cost) + (isCostly ? '▲' : ''), isCostly ? 'yB' : 'd')
   segment(` · ${row.calls} calls`, 'd')

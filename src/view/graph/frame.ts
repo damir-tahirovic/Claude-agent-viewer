@@ -7,15 +7,16 @@ import { SPIN } from '../lines'
 import type { Row, RowStatus } from '../rows'
 import { Canvas } from './canvas'
 
-export type GraphTotals = Record<RowStatus, number> & { tok: number; cost: number; n: number; costed: number }
+export type GraphTotals = Record<RowStatus, number> & { tok: number; isTokPartial: boolean; cost: number; n: number; costed: number }
 
 /** Sums tokens, cost and per-status counts. (graph spec `totals`) */
 export const graphTotals = (rows: ReadonlyArray<Row>): GraphTotals => {
   const totals: GraphTotals = {
-    tok: 0, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: rows.length, costed: 0,
+    tok: 0, isTokPartial: false, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: rows.length, costed: 0,
   }
   rows.forEach(row => {
     totals.tok += row.i + row.o
+    if (row.outputPartial) totals.isTokPartial = true
     totals.cost += row.cost
     if (row.cost > 0) totals.costed += 1
     totals[row.st] += 1
@@ -72,7 +73,7 @@ export const frameGraph = (width: number, opts: FrameOpts, body: (canvas: Canvas
     canvas.put(width - 1, r, '│', 'd')
   }
   const percent = opts.plan ? Math.round(opts.plan.done / opts.plan.total * 100) + '%' : '—'
-  const rightText = `${fmtK(totals.tok)} tok · ${costSlot(opts.billing, totals.cost)} · plan `
+  const rightText = `${fmtK(totals.tok)}${totals.isTokPartial ? '+' : ''} tok · ${costSlot(opts.billing, totals.cost)} · plan `
   const rightLength = [...rightText].length + [...percent].length
   canvas.runs(2, 0, [
     [' agentview', 'B'], [' · session ', 'd'], [opts.sessionId || '7f3a9c2e', ''], [' ', ''],

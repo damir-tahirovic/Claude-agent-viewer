@@ -91,3 +91,12 @@ test('a subagent with a todo list carries its progress; main and list-less agent
   assert.equal(rows[0].prog, undefined)
   assert.equal(buildRows(state, 5000)[1].prog, undefined)
 })
+
+test('a partial-output agent gives outputPartial 1 and others have no such field', () => {
+  const partialState = reduce(state, {
+    kind: 'usage', at: 3000, agentId: 'w', tokens: { input: 5, output: 0, cacheRead: 0, cacheWrite: 0 }, isOutputKnown: false,
+  })
+  const rows = buildRows(partialState, 5000)
+  assert.equal(rows[1].outputPartial, 1)
+  assert.equal('outputPartial' in rows[0], false)
+})

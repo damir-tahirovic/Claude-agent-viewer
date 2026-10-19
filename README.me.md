@@ -122,7 +122,7 @@ Mockupi prikazuju dizajn. U pluginu su savjeti u podnožju oni navedeni u odjelj
 ## Zahtjevi
 
 - Claude Code 2.1.302 ili noviji. agentview koristi mod API, a 2.1.302 je verzija na kojoj je napravljen i testiran.
-- Node.js 20 ili noviji treba samo za razvoj, ne i za korišćenje plugina.
+- Node.js 20 ili noviji za samostalni CLI i za razvoj; sam plugin ne treba Node.js.
 
 ## Instalacija
 
@@ -188,6 +188,38 @@ U fullscreen prikazu Claude Code kači plugin panele pored transkripta. agentvie
 4. Plan je završen i svi pomoćni agenti su gotovi: `✓ all 7 agents done · 52.3k tok · ~$1.10 · 100%`.
 5. Inače sažetak: `⠋ 4 running · 52.3k tok · 60%   /agentview`.
 
+## Samostalni CLI
+
+`agentview` radi i samostalno, u drugom terminalu, i prati sve Claude Code sesije na računaru. Čita transcript fajlove u `~/.claude/projects` (samo čitanje), pa mu ne treba plugin i radi za sesije pokrenute bilo gdje.
+
+```bash
+npx github:damir-tahirovic/Claude-agent-viewer
+```
+
+Ili ga instalirajte jednom i pokrećite sa `agentview`:
+
+```bash
+git clone https://github.com/damir-tahirovic/Claude-agent-viewer.git
+cd Claude-agent-viewer && npm install && npm install -g .
+```
+
+Otvara se lista sesija: prvo aktivne (rade ili čekaju), pa skorašnje iz zadnjih 7 dana. `⏎` otvara sesiju kao stablo preko cijelog ekrana, `⏎` na agentu otvara njegove detalje.
+
+| Ekran | ↑↓ | Enter | Esc | q |
+| --- | --- | --- | --- | --- |
+| Lista sesija | izbor sesije | otvori sesiju | ništa | izlaz |
+| Sesija | izbor agenta | detalji agenta | nazad na listu | izlaz |
+| Detalji | prethodni / sljedeći agent | ništa | nazad na sesiju | izlaz |
+
+Šta prikazuje, a šta ne:
+
+- **Nema cijene.** Transcript ne kaže da li se sesija plaća API ključem ili pretplatom, pa CLI nikad ne prikazuje `~$`; mjesto za cijenu je `—`.
+- **Output tokeni subagenata su često `—`.** Transcript bilježi potrošnju tokena dok odgovor još stiže. Input i cache su tada već tačni, a output nije; tačan konačni broj se upiše samo za neke odgovore (skoro uvijek za glavnog agenta, rijetko za subagente). agentview broji output samo iz konačnog zapisa. Kad agent ima odgovor bez njega, njegov output i in + out su `—`, a svaki zbir koji ga uključuje završava sa `+` (npr. `75.8k+`, znači "najmanje"). Plugin unutar sesije dobija tačne brojeve od Claude Code-a i prikazuje ih.
+- **`unknown`** znači da nema novog zapisa duže od 60 sekundi dok je agent radio, npr. zatvoren ili ubijen Claude Code proces.
+- Potrošnja resursa: jednom u sekundi provjeri veličine fajlova, čita samo nove bajtove i ponovo crta samo promijenjene redove. Kad ništa ne radi, ne piše ništa na terminal (miran ekran osvježi starost sesija jednom u minuti).
+
+Opcije: `AGENTVIEW_ASCII=1` crta samo ASCII znakovima (bira se i automatski kad locale nije UTF-8). `AGENTVIEW_PROJECTS_DIR` čita transcripte iz drugog foldera. Kad izlaz nije terminal (`agentview | cat`), ispiše jedan snimak liste sesija i završi.
+
 ## Šta brojevi znače
 
 - **TOK** je zbir ulaznih i izlaznih tokena agenta. Cache tokeni se u njemu ne broje; prikaz detalja ih pokazuje odvojeno.
@@ -246,7 +278,7 @@ Ništa ne napušta vaš računar. Plugin ne šalje mrežne pozive i nema runtime
 
 ## Ograničenja
 
-- Radi samo unutar Claude Code sesije u kojoj je instaliran. Samostalni CLI za sve sesije je planiran (Faza 2).
+- Plugin radi samo unutar Claude Code sesije u kojoj je instaliran; za praćenje svih sesija koristite [samostalni CLI](#samostalni-cli).
 - Pluginovi ne mogu promijeniti Tab i strelice, zato prikaz grafa i prebacivanje prikaza koriste slovne prečice.
 - U širokom grafu agenti ugniježđeni dublje od unuka nisu nacrtani; za duboke hijerarhije koristite prikaz stabla (`t`).
 - Prikaz detalja se ispod 90 kolona siječe, a ne preslaže.
@@ -271,7 +303,6 @@ Prikaz se testira prema zlatnim (golden) fajlovima u `docs/design/golden/`, nast
 
 ## Plan razvoja
 
-- Faza 2: samostalni `agentview` CLI koji prati sve sesije.
 - Objava na npm.
 - Pravi uski raspored za prikaz detalja.
 

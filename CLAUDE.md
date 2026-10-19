@@ -16,12 +16,13 @@ Project tracker (Bosnian): the maintainer's local tracker, outside the repositor
 ```
 hooks/      engine wiring only: register hooks, call adapters, read/write atoms. No logic.
 src/mod/    translation between engine events and our AgentEvent; painting lines as <Text>.
+src/cli/    standalone CLI: transcript parsing, session list, app state (pure) and watcher/main (Node).
 src/view/   pure rendering: state → rows → lines in the "{codes|text}" format.
 src/core/   pure domain: model, reducer, summaries, formatting, cost, progress.
 tests/      mirrors src/: tests/core, tests/view, tests/mod, tests/fixtures.
 ```
 
-- `src/core` imports nothing outside `src/core`. `src/view` imports only `src/core` and `src/view`. `src/mod` may import `src/core` and `src/view`. Only `hooks/` imports `claude-code`.
+- `src/core` imports nothing outside `src/core`. `src/view` imports only `src/core` and `src/view`. `src/mod` and `src/cli` may import `src/core` and `src/view`; `src/cli` never imports `src/mod`. Only `src/cli/watcher.ts` and `src/cli/main.ts` use Node APIs. Only `hooks/` imports `claude-code`.
 - `src/core` and `src/view` never use Node APIs, globals like `Date.now()`, or randomness. Time is always passed in as an argument (`at`, `now`).
 - One responsibility per file. A file over ~250 lines is a signal to split it.
 - One exported concept per name: the same term always means the same thing (`agent`, `row`, `line`, `event`, `tokens`). No synonym rotation.

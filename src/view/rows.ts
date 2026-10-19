@@ -29,6 +29,8 @@ export type Row = {
   /** Seconds on the current action; absent when no tool is running. */
   readonly actionSecs?: number
   readonly stuck?: 1
+  /** 1 when the agent's output count is not exact (see AgentNode.isOutputPartial); views show a dash for it. */
+  readonly outputPartial?: 1
   /** Done and total of the agent's own todo list; only subagents with a list carry it. */
   readonly prog?: Progress
   /** Error text of a failed agent; the graph card shows it, and falls back to `exit 1` when absent (the live view sets `error`). */
@@ -64,6 +66,7 @@ export const buildRows = (state: SessionState, now: number): Row[] =>
       secs: Math.max(0, Math.round((endedAt - agent.startedAt) / 1000)),
       cost: costOf(agent.model, agent.tokens),
       ...(agent.current ? { actionSecs: Math.max(0, Math.round((now - agent.current.since) / 1000)) } : {}),
+      ...(agent.isOutputPartial ? { outputPartial: 1 as const } : {}),
       ...(isStuck ? { stuck: 1 as const } : {}),
       ...(progress ? { prog: progress } : {}),
       // The engine reports no exit code, so a failed agent gets a plain word instead of an invented one.

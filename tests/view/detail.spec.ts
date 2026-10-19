@@ -81,3 +81,12 @@ test('frame false drops borders and keeps every line W minus 2 wide', () => {
   assert.equal(lines.length, frameOf('2').length - 2)
   lines.forEach(line => assert.equal([...line].length, 118))
 })
+
+test('a partial-output agent shows a dash and an empty bar for output, and a dash for in + out', () => {
+  const lines = renderDetail({ ...opts, agent: { ...agent, isOutputPartial: true } }).map(stripCodes)
+  const outputLine = lines.find(line => line.includes('output')) as string
+  assert.match(outputLine, /output\s+—\s+░{20}/)
+  const totalLine = lines.find(line => line.includes('in + out')) as string
+  assert.match(totalLine, /in \+ out\s+—/)
+  assert.ok(!totalLine.includes('9,300'))
+})

@@ -120,6 +120,7 @@ export const reduce = (state: SessionState, event: AgentEvent): SessionState => 
       return withAgent(state, event.agentId, event.at, agent => ({
         ...alive(agent, event.at),
         model: event.model ?? agent.model,
+        ...(event.isOutputKnown === false ? { isOutputPartial: true as const } : {}),
         tokens: {
           input: agent.tokens.input + event.tokens.input,
           output: agent.tokens.output + event.tokens.output,

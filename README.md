@@ -122,7 +122,7 @@ The mockups show the design. In the plugin the footer hints are the ones listed 
 ## Requirements
 
 - Claude Code 2.1.302 or newer. agentview uses the mod API, and 2.1.302 is the version it was built and tested on.
-- Node.js 20 or newer is needed only for development, not to use the plugin.
+- Node.js 20 or newer for the standalone CLI and for development; the plugin itself needs no Node.js.
 
 ## Install
 
@@ -188,6 +188,38 @@ In fullscreen, Claude Code docks plugin panes beside the transcript. agentview a
 4. The plan is complete and every helper agent is done: `✓ all 7 agents done · 52.3k tok · ~$1.10 · 100%`.
 5. Otherwise a summary: `⠋ 4 running · 52.3k tok · 60%   /agentview`.
 
+## Standalone CLI
+
+`agentview` also runs on its own, in a second terminal, and watches every Claude Code session on the machine. It reads the transcript files in `~/.claude/projects` (read-only), so it needs no plugin and works for sessions started anywhere.
+
+```bash
+npx github:damir-tahirovic/Claude-agent-viewer
+```
+
+Or install it once and run `agentview`:
+
+```bash
+git clone https://github.com/damir-tahirovic/Claude-agent-viewer.git
+cd Claude-agent-viewer && npm install && npm install -g .
+```
+
+It opens on the session list: active sessions (running or waiting) first, then recent ones from the last 7 days. `⏎` opens a session as the full-screen tree, `⏎` on an agent opens its detail.
+
+| Screen | ↑↓ | Enter | Esc | q |
+| --- | --- | --- | --- | --- |
+| Session list | select session | open session | nothing | quit |
+| Session | select agent | agent detail | back to the list | quit |
+| Detail | previous / next agent | nothing | back to the session | quit |
+
+What it shows, and what it does not:
+
+- **No cost.** A transcript does not say whether a session is billed by API key or by a plan, so the CLI never shows `~$`; the cost slot is `—`.
+- **Output tokens of subagents are often `—`.** A transcript stores token usage while the answer is still streaming. Input and cache counts are already exact then, but the output count is not; the exact final count is written only for some answers (almost always for the main agent, rarely for subagents). agentview counts output only from the final record. When an agent has an answer without one, its output and in + out show `—`, and any total that includes it ends with `+` (for example `75.8k+`, meaning "at least"). The plugin inside a session gets exact counts from Claude Code and shows them.
+- **`unknown`** means no new record for more than 60 seconds while the agent was running, for example a closed or killed Claude Code process.
+- Resource use: it checks file sizes once per second, reads only new bytes, and redraws only lines that changed. With nothing running it writes nothing to the terminal (an idle screen refreshes its ages once a minute).
+
+Options: `AGENTVIEW_ASCII=1` draws with ASCII only (also chosen automatically when the locale is not UTF-8). `AGENTVIEW_PROJECTS_DIR` reads transcripts from another folder. When the output is not a terminal (`agentview | cat`), it prints one snapshot of the session list and exits.
+
 ## What the numbers mean
 
 - **TOK** is input plus output tokens of the agent. Cache tokens are not counted in it; the detail view shows them separately.
@@ -246,7 +278,7 @@ Nothing leaves your machine. The plugin makes no network calls and has no runtim
 
 ## Limitations
 
-- It works only inside the Claude Code session where it is installed. A standalone CLI for all sessions is planned (Phase 2).
+- The plugin works only inside the Claude Code session where it is installed; use the [standalone CLI](#standalone-cli) to watch all sessions.
 - Plugins cannot rebind Tab and the arrow keys, so the graph view and the view switch use letter hotkeys.
 - In the wide graph, agents nested deeper than grandchildren are not drawn; use the tree view (`t`) for deep hierarchies.
 - The detail view is clipped, not reflowed, below 90 columns.
@@ -271,7 +303,6 @@ The view is tested against golden fixtures in `docs/design/golden/`, produced fr
 
 ## Roadmap
 
-- Phase 2: a standalone `agentview` CLI that watches all sessions.
 - Publish to npm.
 - A proper narrow layout for the detail view.
 
