@@ -146,7 +146,7 @@ export const drawChip = (
     const count = ` +${hiddenCount}`
     canvas.runs(x + 2, y + 1, [
       ['✓ ', 'g'],
-      [fitNoPad(row.name, Math.max(0, width - 6 - count.length)), 'd'],
+      [fitNoPad(row.task || row.name, Math.max(0, width - 6 - count.length)), 'd'],
       [count, 'd'],
     ])
     return 3

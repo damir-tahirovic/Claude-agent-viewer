@@ -56,7 +56,7 @@ export const drawCompactCard = (
   canvas.put(x + cardWidth - 3, y, glyph, glyphCodes)
   // Padding around the type only where there is room for it; the nested cards are the narrowest.
   const gap = cardWidth >= ROOMY_CARD_WIDTH ? ' ' : ''
-  canvas.text(x + 1, y, gap + fitNoPad(row.name, cardWidth - 5 - 2 * gap.length) + gap, 'B')
+  canvas.text(x + 1, y, gap + fitNoPad(row.task || row.name, cardWidth - 5 - 2 * gap.length) + gap, 'B')
 
   const isStuck = !!row.stuck && row.st === 'running'
   const time = fmtT(row.secs) + (isStuck ? '!' : '')

@@ -7,7 +7,7 @@ import type { Row } from '../../../src/view/rows'
 import { graphBaseRows, graphPlan } from '../../fixtures/graph-fixtures'
 
 const row = (id: string, d: number, name: string, st: Row['st'] = 'running'): Row => ({
-  id, d, name, task: 'task of ' + id, model: 'sonnet-5-5', st, act: 'Edit a.ts', i: 1000, o: 200, cr: 0, cw: 0,
+  id, d, name, task: 'T-' + id, model: 'sonnet-5-5', st, act: 'Edit a.ts', i: 1000, o: 200, cr: 0, cw: 0,
   calls: 3, secs: 72, cost: 0.01,
 })
 
@@ -30,9 +30,8 @@ const plain = (lines: ReadonlyArray<string>): string => lines.map(stripCodes).jo
 test('auto picks compact cards when twelve workers do not fit full at 200 columns', () => {
   const graph = linesOf(manyRows(12), 200)
   const text = plain(graph.lines)
-  for (let index = 0; index < 12; index++) assert.ok(text.includes(`wrk${index}`), `wrk${index} missing`)
+  for (let index = 0; index < 12; index++) assert.ok(text.includes(`T-w${index}`), `T-w${index} missing`)
   assert.equal(graph.hiddenColumns, undefined)
-  assert.ok(!text.includes('task of w1'), 'compact cards carry no task line')
   assert.match(text, /run +1m12s/)
 })
 
@@ -40,7 +39,7 @@ test('auto keeps every worker visible at 120 columns as far as 14-wide columns a
   const graph = linesOf(manyRows(6), 120)
   assert.equal(graph.hiddenColumns, undefined)
   const text = plain(graph.lines)
-  for (let index = 0; index < 6; index++) assert.ok(text.includes(`wrk${index}`), `wrk${index} missing`)
+  for (let index = 0; index < 6; index++) assert.ok(text.includes(`T-w${index}`), `T-w${index} missing`)
   assert.ok(!text.includes('workers 1'))
 })
 
@@ -61,7 +60,7 @@ test('three workers at 200 columns stay full and identical to the forced full de
 test('auto falls to compact when full cards fit the width but not the height', () => {
   const rows = manyRows(3, 3)
   const tall = linesOf(rows, 200, { paneRows: 14 })
-  assert.ok(!plain(tall.lines).includes('task of w1'))
+  assert.ok(!plain(tall.lines).includes('T-w1'))
   assert.ok(tall.lines.length + 3 <= 14, 'compact cards bring the graph into the pane')
 })
 
@@ -72,21 +71,21 @@ test('forced full density keeps the old panning', () => {
 
 test('forced compact density applies even to few workers', () => {
   const graph = linesOf(graphBaseRows(), 200, { density: 'compact' })
-  assert.ok(!plain(graph.lines).includes('fix login bug'))
+  assert.ok(!plain(graph.lines).includes('Edit src/login.ts'))
 })
 
 test('the selected worker is drawn as a full card inside a compact graph', () => {
   const graph = linesOf(manyRows(12), 200, { selectedId: 'w5' })
   const text = plain(graph.lines)
   assert.match(text, /╔═ wrk5/)
-  assert.ok(text.includes('task of w5'))
-  assert.ok(!text.includes('task of w6'))
+  assert.ok(text.includes('T-w5'))
+  assert.equal(text.split('Edit a.ts').length - 1, 2, 'only main and the selection show an action line')
 })
 
 test('a selected nested agent is drawn full too', () => {
   const text = plain(linesOf(manyRows(12), 200, { selectedId: 's1' }).lines)
   assert.match(text, /╔═ sct1/)
-  assert.ok(text.includes('task of s1'))
+  assert.ok(text.includes('T-s1'))
 })
 
 test('compact graph lines never exceed the pane width', () => {
@@ -109,7 +108,7 @@ test('compact chips fold finished subtrees when the height still overflows', () 
   const unfolded = linesOf(rows, 200)
   const folded = linesOf(rows, 200, { paneRows: unfolded.lines.length + 3 - 2 })
   assert.ok(folded.lines.length < unfolded.lines.length)
-  assert.match(plain(folded.lines), /✓ wrk0 \+1/)
+  assert.match(plain(folded.lines), /✓ T-w0 \+1/)
 })
 
 test('graphColumnsFor follows the density', () => {
@@ -117,4 +116,13 @@ test('graphColumnsFor follows the density', () => {
   assert.equal(graphColumnsFor(outline, 120), undefined)
   assert.deepEqual(graphColumnsFor(outline, 120, 'full'), { visible: 2 })
   assert.deepEqual(graphColumnsFor(manyRows(12).map(({ d }) => ({ d })), 120), { visible: 6 })
+})
+
+test('compact cards of the same type are told apart by their task', () => {
+  const rows = manyRows(12, 0).map(each => (each.d === 1 ? { ...each, name: 'general-purpose', task: 'Sl ' + each.id } : each))
+  const text = plain(linesOf(rows, 200).lines)
+  assert.ok(text.includes('Sl w0'))
+  assert.ok(text.includes('Sl w1'))
+  const empty = rows.map(each => (each.id === 'w0' ? { ...each, task: '' } : each))
+  assert.ok(plain(linesOf(empty, 200).lines).includes('genera…'))
 })
