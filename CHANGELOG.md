@@ -3,7 +3,7 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.4.5] - 2026-10-19
 
 ### Added
 - The agent detail shows `N% of session tokens` next to the `in + out` line, so subscription users see a share too. It is left out when the agent's output or any agent's output in the session is not exact.

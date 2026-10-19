@@ -1,6 +1,6 @@
 {
   "name": "agentview",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Live terminal view of Claude Code agents and subagents: tree, tokens, cost, progress",
   "license": "MIT",
   "type": "module",

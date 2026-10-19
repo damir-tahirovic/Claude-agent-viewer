@@ -1,6 +1,6 @@
 {
   "name": "agentview",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Live terminal view of agents and subagents: tree, tokens, cost, progress",
   "author": { "name": "Damir Tahirovic" },
   "homepage": "https://github.com/damir-tahirovic/Claude-agent-viewer",
