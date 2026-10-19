@@ -28,6 +28,8 @@ export type CardOpts = {
 const SINGLE_FRAME = ['╭', '─', '╮', '│', '╰', '╯'] as const
 const DOUBLE_FRAME = ['╔', '═', '╗', '║', '╚', '╝'] as const
 const PLAN_BAR_WIDTH = 16
+/** Below this width a chip drops the task and the word `done`. */
+const NARROW_CHIP_WIDTH = 30
 
 /** Status line text and its color codes. */
 const statusLine = (row: Row, opts: CardOpts): readonly [string, string] => {
@@ -139,6 +141,16 @@ export const drawChip = (
   canvas.put(x + width - 1, y + 2, '╯', 'd')
   canvas.put(x, y + 1, '│', 'd')
   canvas.put(x + width - 1, y + 1, '│', 'd')
+  if (width < NARROW_CHIP_WIDTH) {
+    // A compact column has no room for the task or the word "done".
+    const count = ` +${hiddenCount}`
+    canvas.runs(x + 2, y + 1, [
+      ['✓ ', 'g'],
+      [fitNoPad(row.name, Math.max(0, width - 6 - count.length)), 'd'],
+      [count, 'd'],
+    ])
+    return 3
+  }
   canvas.runs(x + 2, y + 1, [
     ['✓ ', 'g'],
     [fitNoPad(`${row.name} · ${row.task}`, width - 14), 'd'],

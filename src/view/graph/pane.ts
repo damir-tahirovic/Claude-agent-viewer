@@ -11,13 +11,21 @@ import type { Row } from '../rows'
 export const GRAPH_WIDE_COLUMNS = 110
 /** Columns one worker card needs; fewer fit, the rest are panned. */
 const WORKER_COLUMN_WIDTH = 40
+/** Narrowest column of a compact worker card. */
+const COMPACT_COLUMN_WIDTH = 14
+
+/** Card density the user asked for; `auto` picks full or compact from what fits. */
+export type GraphDensity = 'auto' | 'full' | 'compact'
+/** Next density of the `z` key: auto, full, compact, auto. */
+export const nextDensity = (current: GraphDensity): GraphDensity =>
+  current === 'auto' ? 'full' : current === 'full' ? 'compact' : 'auto'
 /** The frame's two border columns, which the pane drops. */
 const BORDER_COLUMNS = 2
 /** Lines the frame adds below the body: rule, hints and bottom border. */
 const FOOTER_FRAME_LINES = 3
 const WAITING_TEXT = '◔ waiting'
 const GRAPH_HINTS: ReadonlyArray<readonly [string, string]> = [
-  ['p/n', 'select'], ['d', 'details'], ['t/g', 'view'], ['esc', 'close'],
+  ['p/n', 'select'], ['d', 'details'], ['t/g', 'view'], ['z', 'density'], ['esc', 'close'],
 ]
 const COLUMN_HINT: readonly [string, string] = ['h/l', 'columns']
 
@@ -45,6 +53,7 @@ export type GraphLinesOpts = {
   readonly chromeLines: number
   readonly ascii: boolean
   readonly billing?: Billing
+  readonly density?: GraphDensity
 }
 
 /**
@@ -54,10 +63,16 @@ export type GraphLinesOpts = {
 export const graphColumnsFor = (
   rows: ReadonlyArray<{ readonly d: number }>,
   bodyColumns: number,
+  density: GraphDensity = 'auto',
 ): { readonly visible: number } | undefined => {
   if (bodyColumns < GRAPH_WIDE_COLUMNS) return undefined
   const workers = rows.filter(row => row.d === 1).length
-  const visible = Math.max(1, Math.floor((bodyColumns + BORDER_COLUMNS - 4) / WORKER_COLUMN_WIDTH))
+  // Auto turns compact as soon as full cards would pan, so only 14-wide columns can hide workers there.
+  const available = bodyColumns + BORDER_COLUMNS - 4
+  // Compact keeps one full-width column back for the selected agent.
+  const visible = Math.max(1, density === 'full'
+    ? Math.floor(available / WORKER_COLUMN_WIDTH)
+    : Math.floor((available - WORKER_COLUMN_WIDTH) / COMPACT_COLUMN_WIDTH) + 1)
   return workers > visible ? { visible } : undefined
 }
 
@@ -128,7 +143,16 @@ export const buildGraphLines = (opts: GraphLinesOpts): GraphLines => {
     return { lines: clipToPane(narrow, opts), hint: hintLine(undefined) }
   }
   const workers = opts.rows.filter(row => row.d === 1).length
-  const visible = graphColumnsFor(opts.rows, opts.columns)?.visible ?? workers
+  const requested = opts.density ?? 'auto'
+  // Auto: full while the columns and the height fit, else compact (below).
+  const fullFits = graphColumnsFor(opts.rows, opts.columns, 'full') === undefined
+  const tryFull = (): string[] => deframe(renderGraph({
+    ...common, tree: buildGraphTree(opts.rows), density: 'full',
+  }), width)
+  const isCompact = requested === 'compact' ||
+    (requested === 'auto' && !(fullFits && tryFull().length + opts.chromeLines <= opts.paneRows))
+  const density = isCompact ? 'compact' : 'full'
+  const visible = graphColumnsFor(opts.rows, opts.columns, density)?.visible ?? workers
   const hiddenColumns: GraphColumns | undefined = visible < workers
     ? { total: workers, visible, first: panColumn(opts.graphCol, 0, { total: workers, visible, first: 0 }) }
     : undefined
@@ -136,7 +160,7 @@ export const buildGraphLines = (opts: GraphLinesOpts): GraphLines => {
     ? `◂ workers ${hiddenColumns.first + 1}–${hiddenColumns.first + visible} of ${workers} ▸`
     : undefined
   const draw = (collapsed: ReadonlySet<string>): string[] => deframe(renderGraph({
-    ...common, tree: buildGraphTree(opts.rows, collapsed), middle,
+    ...common, tree: buildGraphTree(opts.rows, collapsed), middle, density,
     ...(hiddenColumns ? { columns: visible, firstColumn: hiddenColumns.first } : {}),
   }), width)
   const foldable = foldableIds(buildGraphTree(opts.rows), opts.selectedId)

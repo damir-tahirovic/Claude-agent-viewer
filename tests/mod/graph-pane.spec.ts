@@ -15,8 +15,8 @@ test('graphColumnsFor is undefined when every worker column fits', () => {
 })
 
 test('graphColumnsFor gives the visible column count when workers overflow', () => {
-  assert.deepEqual(graphColumnsFor(workers(3), 110), { visible: 2 })
-  assert.deepEqual(graphColumnsFor(workers(9), 160), { visible: 3 })
+  assert.deepEqual(graphColumnsFor(workers(3), 110, 'full'), { visible: 2 })
+  assert.deepEqual(graphColumnsFor(workers(9), 160, 'full'), { visible: 3 })
 })
 
 test('graphColumnsFor counts only depth-1 rows as worker columns', () => {

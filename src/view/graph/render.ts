@@ -22,6 +22,8 @@ export type GraphOpts = {
   readonly waitingText?: string
   readonly spin?: string
   readonly hasToggle?: boolean
+  /** Card density of the worker columns; absent draws full cards. Main and the selection stay full. */
+  readonly density?: 'full' | 'compact'
   /** How the session is paid for; cost shows only with API billing, the default. */
   readonly billing?: Billing
 }

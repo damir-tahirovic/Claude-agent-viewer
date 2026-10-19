@@ -6,6 +6,7 @@ import { fmtT } from '../../core/format'
 import type { Row } from '../rows'
 import type { Canvas } from './canvas'
 import { drawCard, drawChip } from './card'
+import { drawCompactCard } from './compact-card'
 import { EDGE_CODE, EDGE_JOINT, EDGE_VERTICAL, ACTION_CODE, STATUS_CODE } from './style'
 
 export type GraphNode = {
@@ -53,6 +54,25 @@ export type WideLayoutOpts = {
   readonly firstColumn?: number
   readonly spin?: string
   readonly waitingText?: string
+  /** `compact` draws worker cards as three rows; main and the selected agent stay full. */
+  readonly density?: 'full' | 'compact'
+}
+
+/** Width of a full worker column; a compact column never grows past it, and the selection gets all of it. */
+const FULL_COLUMN_WIDTH = 40
+
+/**
+ * Column widths of the visible workers. Full density shares the width evenly. Compact density gives the
+ * column holding the selection a full column, so its card is drawn in full, and shares the rest.
+ */
+const columnWidthsOf = (
+  kids: ReadonlyArray<GraphNode>, available: number, isCompact: boolean, selectedId: string | undefined,
+): number[] => {
+  if (!isCompact) return kids.map(() => Math.floor(available / Math.max(kids.length, 1)))
+  const selectedIndex = kids.findIndex(kid => flattenGraph(kid).some(node => node.row.id === selectedId))
+  const wide = selectedIndex < 0 ? 0 : FULL_COLUMN_WIDTH
+  const shared = Math.min(FULL_COLUMN_WIDTH, Math.floor((available - wide) / Math.max(kids.length - (wide ? 1 : 0), 1)))
+  return kids.map((_, index) => (index === selectedIndex ? wide : shared))
 }
 
 /**
@@ -64,8 +84,12 @@ export const layoutWide = (canvas: Canvas, root: GraphNode, opts: WideLayoutOpts
   const first = opts.firstColumn || 0
   const kids = root.kids.slice(first, first + (opts.columns || root.kids.length))
   const count = kids.length
-  const columnWidth = Math.floor((width - 4) / Math.max(count, 1))
-  const centers = kids.map((_, i) => 2 + columnWidth * i + Math.floor(columnWidth / 2))
+  const isCompact = opts.density === 'compact'
+  const columnWidths = columnWidthsOf(kids, width - 4, isCompact, opts.selectedId)
+  // Capped compact columns sit in the middle instead of hugging the left edge.
+  const left = 2 + (isCompact ? Math.floor((width - 4 - columnWidths.reduce((sum, each) => sum + each, 0)) / 2) : 0)
+  const starts = columnWidths.map((_, i) => left + columnWidths.slice(0, i).reduce((sum, each) => sum + each, 0))
+  const centers = kids.map((_, i) => starts[i] + Math.floor(columnWidths[i] / 2))
   const mainCenter = count ? Math.floor((centers[0] + centers[count - 1]) / 2) : Math.floor(width / 2)
   const cardOpts = (node: GraphNode) => ({
     isSelected: opts.selectedId === node.row.id,
@@ -100,16 +124,21 @@ export const layoutWide = (canvas: Canvas, root: GraphNode, opts: WideLayoutOpts
     canvas.put(mainCenter, 10, '│', 'd')
   }
 
+  const drawNode = (node: GraphNode, x: number, y: number, cardWidth: number): number =>
+    isCompact && opts.selectedId !== node.row.id
+      ? drawCompactCard(canvas, x, y, cardWidth, node.row, cardOpts(node))
+      : drawCard(canvas, x, y, cardWidth, node.row, cardOpts(node))
+
   let lastY = 12
   kids.forEach((kid, index) => {
     const row = kid.row
-    const x = 2 + columnWidth * index + 1
-    const cardWidth = columnWidth - 2
+    const x = starts[index] + 1
+    const cardWidth = columnWidths[index] - 2
     const y = 12
     canvas.put(centers[index], 11, EDGE_VERTICAL[row.st], EDGE_CODE[row.st])
     const height = kid.isCollapsed
       ? drawChip(canvas, x, y, cardWidth, row, flattenGraph(kid).length - 1)
-      : drawCard(canvas, x, y, cardWidth, row, cardOpts(kid))
+      : drawNode(kid, x, y, cardWidth)
     lastY = Math.max(lastY, y + height - 1)
     if (kid.isCollapsed || !kid.kids.length) return
     const trunk = x + 2
@@ -126,7 +155,7 @@ export const layoutWide = (canvas: Canvas, root: GraphNode, opts: WideLayoutOpts
       const joint = EDGE_JOINT[grandRow.st]
       canvas.put(trunk, crossing, isLast ? joint[1] : joint[0], EDGE_CODE[grandRow.st])
       canvas.put(trunk + 1, crossing, joint[2], EDGE_CODE[grandRow.st])
-      const grandHeight = drawCard(canvas, trunk + 2, grandY, cardWidth - 4, grandRow, cardOpts(grand))
+      const grandHeight = drawNode(grand, trunk + 2, grandY, cardWidth - 4)
       from = crossing + 1
       grandY += grandHeight
       lastY = Math.max(lastY, grandY - 1)
