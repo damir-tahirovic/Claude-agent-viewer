@@ -635,7 +635,7 @@ test('at a small bodyRows the first drawn line is the header', async ($, on) => 
   await pane.unmount()
 })
 
-const SUFFIX = 'Track your steps with the TodoWrite tool'
+const SUFFIX = 'If you have a TodoWrite or TaskCreate tool, track your steps with it'
 const SPAWN = { prompt: 'fix the bug', description: 'fix', subagentType: 'general-purpose' } as const
 
 /** Records the prompt the engine's own agent.spawn would receive; registered beneath the plugin. */

@@ -6,8 +6,8 @@ test('the suffix is appended to the prompt', () => {
   assert.equal(withProgressSuffix({ prompt: 'do it' }), 'do it' + PROGRESS_SUFFIX)
 })
 
-test('the suffix is neutral and names TodoWrite', () => {
-  assert.match(PROGRESS_SUFFIX, /^\n\nTrack your steps with the TodoWrite tool/)
+test('the suffix is conditional, since some Claude Code builds give agents no todo tool', () => {
+  assert.match(PROGRESS_SUFFIX, /^\n\nIf you have a TodoWrite or TaskCreate tool, track your steps with it/)
 })
 
 test('a resumed run keeps its prompt, since the engine ignores a rewrite there', () => {
