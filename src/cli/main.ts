@@ -65,6 +65,8 @@ export const run = (options: RunOptions = {}): void => {
   let painted: string[] = []
   let isClosed = false
   let lastDrawAt = 0
+  // True when the previous tick redrew because something was live; the tick after it draws once more.
+  let wasLive = false
   const rawBefore = stdin.isRaw
 
   const size = () => ({ columns: stdout.columns || DEFAULT_COLUMNS, rows: stdout.rows || DEFAULT_ROWS })
@@ -109,7 +111,9 @@ export const run = (options: RunOptions = {}): void => {
     // The spinner and clocks only move while something is running; an idle screen writes nothing.
     const isLive = hasLiveAgents(watcher.sessions(), app, now)
     if (isLive) spinIndex = (spinIndex + 1) % SPIN.length
-    if (isLive || hasChanged || now - lastDrawAt >= IDLE_REFRESH_MS) redraw()
+    // One last redraw after the live state ends: an agent that expires from the active filter leaves no event.
+    if (isLive || wasLive || hasChanged || now - lastDrawAt >= IDLE_REFRESH_MS) redraw()
+    wasLive = isLive
   }, TICK_MS)
 
   const restore = (): void => {

@@ -80,7 +80,7 @@ const crowded = Array.from({ length: 19 }, (_, i): AgentEvent => ({
 })).reduce(reduce, initialState('abcdef123456', NOW))
 
 test('20 rows in a pane with room for 8 show the stored window with more-above and more-below lines', () => {
-  const built = buildPaneView({ ...base, rows: 18, selId: 'w6', win: [4, 12], session: crowded })
+  const built = buildPaneView({ ...base, rows: 19, selId: 'w6', win: [4, 12], session: crowded })
   assert.equal(built.agentLines.length, 8)
   assert.deepEqual(built.agentLines.map(entry => entry.id), ['w3', 'w4', 'w5', 'w6', 'w7', 'w8', 'w9', 'w10'])
   assert.match(stripCodes(built.head.join('\n')), /↑ 4 more above/)
@@ -88,7 +88,7 @@ test('20 rows in a pane with room for 8 show the stored window with more-above a
 })
 
 test('a stored window out of bounds is clamped', () => {
-  const built = buildPaneView({ ...base, rows: 18, selId: 'w18', win: [99, 107], session: crowded })
+  const built = buildPaneView({ ...base, rows: 19, selId: 'w18', win: [99, 107], session: crowded })
   assert.deepEqual(built.agentLines.map(entry => entry.id).slice(-1), ['w18'])
   assert.equal(built.agentLines.length, 8)
   assert.doesNotMatch(stripCodes(built.tail.join('\n')), /more below/)
@@ -206,7 +206,7 @@ test('finished subtrees fold into chips when the graph is taller than the viewpo
   }
   session = reduce(session, { kind: 'agent.end', id: 'w1', ok: true, at: NOW })
   const roomy = buildPaneView({ ...graphBase, columns: 160, rows: 60, density: 'full', session })
-  const tight = buildPaneView({ ...graphBase, columns: 160, rows: 18, density: 'full', session })
+  const tight = buildPaneView({ ...graphBase, columns: 160, rows: 19, density: 'full', session })
   assert.ok(tight.head.length < roomy.head.length)
   assert.match(stripCodes(tight.head.join('\n')), /task 2/)
   assert.doesNotMatch(stripCodes(tight.head.join('\n')), /╭─ helper/)
@@ -391,4 +391,47 @@ test('the tree shows the PLAN column only when a subagent has a list', () => {
   const tree = (session: SessionState): string => stripCodes(buildPaneView({ ...base, columns: 120, session }).head.join('\n'))
   assert.match(tree(listed), /PLAN/)
   assert.ok(!tree(twoAgents).includes('PLAN'))
+})
+
+// Active filter: w1 finished long ago, w2 finished a second ago, w3 running.
+const mixedSession = (): SessionState => {
+  let session = apiState('abcdef123456')
+  for (const id of ['w1', 'w2', 'w3']) {
+    session = reduce(session, { kind: 'agent.start', id, parentId: 'main', type: 'worker', description: id, at: NOW - 600_000 })
+  }
+  session = reduce(session, { kind: 'agent.end', id: 'w1', ok: true, at: NOW - 300_000 })
+  return reduce(session, { kind: 'agent.end', id: 'w2', ok: true, at: NOW - 1000 })
+}
+
+test('filter active lists main, recently finished and running agents only', () => {
+  const view = buildPaneView({ ...base, session: mixedSession(), filter: 'active' })
+  assert.deepEqual(view.order, ['main', 'w2', 'w3'])
+  assert.equal(view.hiddenCount, 1)
+})
+
+test('filter all and an absent filter list every agent', () => {
+  assert.deepEqual(buildPaneView({ ...base, session: mixedSession() }).order, ['main', 'w1', 'w2', 'w3'])
+  assert.equal(buildPaneView({ ...base, session: mixedSession(), filter: 'all' }).hiddenCount, 0)
+})
+
+test('the header totals stay those of the whole session under the active filter', () => {
+  const session = reduce(mixedSession(), {
+    kind: 'usage', at: NOW, agentId: 'w1', model: 'claude-opus-5-5', tokens: { input: 5000, output: 0, cacheRead: 0, cacheWrite: 0 },
+  })
+  const header = (filter: 'all' | 'active') =>
+    stripCodes(buildPaneView({ ...base, session, filter }).head[0])
+  assert.match(header('active'), /5\.0k tok/)
+  assert.equal(header('active'), header('all'))
+})
+
+test('the graph under the active filter drops the hidden agent and counts it', () => {
+  const view = buildPaneView({ ...graphBase, session: mixedSession(), filter: 'active' })
+  assert.deepEqual(view.order, ['main', 'w2', 'w3'])
+  assert.equal(view.hiddenCount, 1)
+})
+
+test('the detail view ignores the filter and steps through every agent', () => {
+  const view = buildPaneView({ ...base, session: mixedSession(), view: 'detail', selId: 'w1', filter: 'active' })
+  assert.deepEqual(view.order, ['main', 'w1', 'w2', 'w3'])
+  assert.equal(view.hiddenCount, 0)
 })

@@ -1,4 +1,5 @@
 // Pane content as coded lines: the tree dialog or one agent's detail, without the host's own frame.
+import { activeOnly, type AgentFilter } from '../core/active'
 import { costSlot, showsCost } from '../core/billing'
 import { fmtCost, fmtK } from '../core/format'
 import type { SessionState } from '../core/model'
@@ -20,6 +21,8 @@ export type PaneViewOpts = {
   readonly graphCol?: number
   /** Card density of the graph; absent means auto. */
   readonly density?: GraphDensity
+  /** Which agents the tree and graph list; absent means all. The detail and the header totals ignore it. */
+  readonly filter?: AgentFilter
   readonly selId: string
   readonly spin: number
   readonly now: number
@@ -43,13 +46,15 @@ export type PaneView = {
   readonly outline: ReadonlyArray<{ readonly id: string; readonly d: number }>
   /** Worker columns of the graph when some are hidden; the pan Buttons need them. */
   readonly hiddenColumns?: GraphColumns
+  /** Agents the active filter leaves out of the tree and graph; 0 under `all` and in the detail. */
+  readonly hiddenCount: number
 }
 
 // Below 60 columns the dialog switches to its narrow mode; 50 is the narrowest width the hint and plan lines fit.
 const MIN_TREE_COLUMNS = 50
 const MIN_DETAIL_COLUMNS = 90
-/** Lines of the dialog that are not agent rows: header, summary, rules, plan and hints. */
-const CHROME_ROWS = 10
+/** Lines of the dialog that are not agent rows: header, summary, rules, plan and hints, plus the filter Button row. */
+const CHROME_ROWS = 11
 const MIN_AGENT_ROWS = 3
 const ASCII_SPIN = '*'
 /** Footer hints without `q quit`: the pane is closed with esc, and q does nothing here. */
@@ -77,19 +82,31 @@ const MIN_DETAIL_ROWS = 4
 /** Width of the `tree` and `graph` toggle Buttons side by side. */
 const TOGGLE_WIDTH = 14
 const TOGGLE_GAP = 2
-/** Graph chrome besides the header: the hint line and the footer Buttons row. */
-const GRAPH_CHROME_ROWS = 3
+/** Graph chrome besides the header: the hint line, the footer Buttons row and the filter Button row. */
+const GRAPH_CHROME_ROWS = 4
+
+/** Depth of every agent the tree and graph would list under `filter`, for panning to the selection after a toggle. */
+export const outlineFor = (
+  session: SessionState,
+  filter: AgentFilter,
+  now: number,
+): ReadonlyArray<{ readonly id: string; readonly d: number }> =>
+  buildRows(filter === 'active' ? activeOnly(session, now).state : session, now).map(row => ({ id: row.id, d: row.d }))
 
 /** Builds the pane for the tree view or the detail of the selected agent. */
 export const buildPaneView = (opts: PaneViewOpts): PaneView => {
   const { session, selId, now } = opts
-  const rows = buildRows(session, now)
+  const allRows = buildRows(session, now)
+  // The detail steps through every agent; the filter only narrows the tree and the graph.
+  const filtered = opts.view === 'tree' && opts.filter === 'active' ? activeOnly(session, now) : undefined
+  const rows = filtered ? buildRows(filtered.state, now) : allRows
+  const hiddenCount = filtered?.hiddenCount ?? 0
   const order = rows.map(row => row.id)
   const outline = rows.map(row => ({ id: row.id, d: row.d }))
   const spin = opts.ascii ? ASCII_SPIN : SPIN[opts.spin % SPIN.length]
   const finish = (line: string): string => (opts.ascii ? toPlainAscii(line) : line)
-  const sessionCost = rows.reduce((sum, row) => sum + row.cost, 0)
-  const sessionTokens = rows.reduce((sum, row) => sum + row.i + row.o, 0)
+  const sessionCost = allRows.reduce((sum, row) => sum + row.cost, 0)
+  const sessionTokens = allRows.reduce((sum, row) => sum + row.i + row.o, 0)
   const selected = Math.max(0, rows.findIndex(row => row.id === selId))
   const agent = session.agents[rows[selected]?.id ?? '']
 
@@ -112,7 +129,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
     const body = all.length <= room
       ? all
       : [...all.slice(0, room - 1), finish(clipLine(dim(`  … ${all.length - room + 1} more lines`), opts.columns))]
-    return { order, outline, isToggleBeside: true, head: body, agentLines: [], tail: [] }
+    return { order, outline, isToggleBeside: true, head: body, agentLines: [], tail: [], hiddenCount }
   }
 
   const plan = planOf(session.todos.main)
@@ -135,6 +152,7 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
       agentLines: [],
       tail: [finish(clipLine(graph.hint, opts.columns))],
       hiddenColumns: graph.hiddenColumns,
+      hiddenCount,
     }
   }
 
@@ -157,5 +175,6 @@ export const buildPaneView = (opts: PaneViewOpts): PaneView => {
     head: [header, ...lines.slice(0, firstRowLine)].map(finish),
     agentLines: rows.slice(first, last).map((row, offset) => ({ id: row.id, line: finish(lines[firstRowLine + offset]) })),
     tail: lines.slice(firstRowLine + (last - first)).map(finish),
+    hiddenCount,
   }
 }

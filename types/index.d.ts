@@ -71,6 +71,8 @@ export type AgentviewUi = {
   readonly graphCol: number
   /** Card density of the graph, cycled by the `z` hotkey; absent (an older saved state) means auto. */
   readonly density?: 'auto' | 'full' | 'compact'
+  /** Which agents the tree and graph list, toggled by the `a` hotkey; absent (an older saved state) means all. */
+  readonly filter?: 'all' | 'active'
   readonly win?: readonly [number, number]
   readonly spin: number
   /** Bumped once a second while only non-running agents are live, so their elapsed time redraws. */

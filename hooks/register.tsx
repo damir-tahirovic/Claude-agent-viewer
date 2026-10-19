@@ -1,12 +1,13 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
+import { hasPendingExpiry } from '../src/core/active'
 import type { AgentEvent, SessionState } from '../src/core/model'
 import { initialState, orderTree, reduce } from '../src/core/reducer'
 import { billingEvent, listStatus, spawnStart, stepUsage, toolEnd, toolStart, turnComplete, turnStart } from '../src/mod/adapter'
 import { appendBounded } from '../src/mod/event-batch'
 import { withProgressSuffix } from '../src/mod/spawn-prompt'
 import { openArgsFor, type OpenPresentation } from '../src/mod/open-args'
-import { buildPaneView, roomFor } from '../src/mod/pane-view'
+import { buildPaneView, outlineFor, roomFor } from '../src/mod/pane-view'
 import { graphColumnsFor, nextDensity, panColumn, panToInclude } from '../src/mod/graph-pane'
 import { decideClose, nextWindow, stepId, type CloseDecision } from '../src/mod/pane-keys'
 import { COLOR_OF_CODE, runs } from '../src/mod/paint'
@@ -23,6 +24,10 @@ export const ui = atom(
   { open: false, view: 'tree', selId: 'main', mode: 'tree', graphCol: 0, spin: 0 } as AgentviewUi,
 )
 
+/** Label of the filter Button: what the list shows now, and how many agents that leaves out. */
+const filterLabel = (filter: 'all' | 'active', hiddenCount: number): string =>
+  `show ${filter}` + (hiddenCount > 0 ? ` · ${hiddenCount} hidden` : '')
+
 const PANE_ID = 'agentview'
 const SPIN_FRAMES = 10
 /** Keys of the detail view's two step Buttons; agent ids never collide with these. */
@@ -33,6 +38,7 @@ const GRAPH_PREV_KEY = '<graph-prev>'
 const GRAPH_NEXT_KEY = '>graph-next<'
 const GRAPH_DETAILS_KEY = '<graph-details>'
 const DENSITY_KEY = '<graph-density>'
+const FILTER_KEY = '<agent-filter>'
 const PAN_LEFT_KEY = '<pan-left>'
 const PAN_RIGHT_KEY = '>pan-right<'
 const TREE_MODE_KEY = 'tree'
@@ -150,13 +156,16 @@ const recordBilling = ($: EngineInterface, hasCompletedTurn: boolean): void => {
 
 /**
  * Redraws once a second while the pane is open and an agent has not ended, since elapsed time keeps moving for
- * waiting and unknown agents too. The spinner frame moves only while an agent runs; otherwise `redraw` is bumped.
+ * waiting and unknown agents too, and while the active filter still has a finished agent to hide.
+ * The spinner frame moves only while an agent runs; otherwise `redraw` is bumped.
  */
 const advanceSpinner = async ($: EngineInterface): Promise<void> => {
   const [state, current] = await Promise.all([read($, ui), read($, session)])
   if (!state.open) return
   const agents = Object.values(current?.agents ?? {})
-  if (!agents.some(agent => agent.endedAt === undefined)) return
+  // One poll early, so the poll in which the keep window ends still redraws and hides the agent.
+  const isExpiring = state.filter === 'active' && current !== null && hasPendingExpiry(current as SessionState, (await $.clock.now()) - POLL_MS)
+  if (!isExpiring && !agents.some(agent => agent.endedAt === undefined)) return
   const isRunning = agents.some(agent => agent.status === 'running')
   await update($, ui, latest => (isRunning
     ? { ...latest, spin: (latest.spin + 1) % SPIN_FRAMES }
@@ -311,7 +320,7 @@ export const register: Register = (on, options) => {
     const rows = e.props.scroll?.bodyRows ?? e.viewport?.rows ?? DEFAULT_PANE_ROWS
     latestPlacement = e.props.placement
     const view = buildPaneView({
-      session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol, density: state.density, spin: state.spin,
+      session: current, view: state.view, selId: state.selId, mode: state.mode, graphCol: state.graphCol, density: state.density, filter: state.filter, spin: state.spin,
       now, columns, rows, ascii: isAscii, win: state.win,
     })
     latestRoom = roomFor(rows, view.isToggleBeside ? 0 : 1)
@@ -355,6 +364,16 @@ export const register: Register = (on, options) => {
         return { ...latest, density, graphCol: shown ? panToInclude(view.outline, latest.selId, latest.graphCol, shown.visible) : 0 }
       })
     }
+    const toggleFilter = async (): Promise<void> => {
+      await update($, ui, latest => {
+        const filter = latest.filter === 'active' ? 'all' : 'active'
+        const outline = outlineFor(current as SessionState, filter, now)
+        // A selection the new list hides falls back to the first row; its column stays in view.
+        const selId = outline.some(entry => entry.id === latest.selId) ? latest.selId : (outline[0]?.id ?? latest.selId)
+        const shown = graphColumnsFor(outline, e.props.bodyColumns, latest.density)
+        return { ...latest, filter, selId, graphCol: shown ? panToInclude(outline, selId, latest.graphCol, shown.visible) : 0 }
+      })
+    }
     const pan = (offset: number) => async (): Promise<void> => {
       const columns = view.hiddenColumns
       if (columns) await update($, ui, latest => ({ ...latest, graphCol: panColumn(latest.graphCol, offset, columns) }))
@@ -395,6 +414,11 @@ export const register: Register = (on, options) => {
           </Button>
         ))}
         {view.tail.map(paintLine)}
+        {state.view === 'tree' && (
+          <Button key={FILTER_KEY} plain hotkey="a" onPress={toggleFilter}>
+            <Text dimColor>{label(filterLabel(state.filter ?? 'all', view.hiddenCount))}</Text>
+          </Button>
+        )}
         {state.view === 'tree' && isGraph && (
           <Box>
             <Button key={GRAPH_PREV_KEY} plain hotkey="p" onPress={step(-1)}><Text dimColor>{label('◂ prev')}</Text></Button>
