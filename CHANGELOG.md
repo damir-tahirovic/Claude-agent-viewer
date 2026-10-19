@@ -3,6 +3,15 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-10-19
+
+### Added
+- Standalone `agentview` CLI (`npx github:damir-tahirovic/Claude-agent-viewer`): watches every session from the transcript files in `~/.claude/projects`, with the session list, the full-screen session tree and the agent detail. No dependencies; redraws only changed lines and writes nothing while idle.
+
+### Notes
+- The CLI never shows cost: a transcript does not say how the session is billed.
+- Output tokens that a transcript stores only as a streaming snapshot are shown as `—`, and totals that include them end with `+`.
+
 ## [0.3.0] - 2026-10-19
 
 ### Added
