@@ -3,10 +3,17 @@ import { MAIN, type AgentEvent, type Todo, type Tokens } from '../core/model'
 // Pure: turns Claude Code transcript records (JSONL) into AgentEvent. No Node APIs, no clock.
 // Transcript records have no published types, so every shape is read as `unknown` and narrowed here.
 
+type PendingUsage = { readonly at: number; readonly agentId: string; readonly model?: string; readonly tokens: Tokens }
+
 /** What the parser remembers between records of one file. */
 export type ParseState = {
   /** Id of the last assistant message; records of one API response are consecutive, so usage counts on a change. */
   readonly lastMessageId?: string
+  /**
+   * Usage of the current message while no record of it has a stop_reason. Streaming snapshots carry exact input and
+   * cache counts but a too-low output count, so it is emitted only when the message ends (output unknown).
+   */
+  readonly pendingUsage?: PendingUsage
   /** Name by tool_use id of calls whose result matters (Agent, Task, TaskCreate, TaskUpdate); removed on result. */
   readonly toolNames: Readonly<Record<string, string>>
   /** Input of TaskCreate / TaskUpdate calls by tool_use id; their task events need it at result time. */
@@ -14,7 +21,7 @@ export type ParseState = {
 }
 
 /** Fresh parser state for a file that has not been read yet. */
-export const initialParseState = (): ParseState => ({ lastMessageId: undefined, toolNames: {}, taskInputs: {} })
+export const initialParseState = (): ParseState => ({ lastMessageId: undefined, pendingUsage: undefined, toolNames: {}, taskInputs: {} })
 
 type Json = Readonly<Record<string, unknown>>
 
@@ -49,6 +56,14 @@ const TRACKED_TOOLS: ReadonlyArray<string> = ['Agent', 'Task', 'TaskCreate', 'Ta
 
 const isAgentTool = (tool: string | undefined): boolean => tool === 'Agent' || tool === 'Task'
 
+/** The usage event of a message that ended without a final record: exact input and cache, output unknown. */
+const flushPending = (state: ParseState): AgentEvent[] => {
+  const pending = state.pendingUsage
+  if (!pending) return []
+  const { at, agentId, model, tokens } = pending
+  return [{ kind: 'usage', at, agentId, model, tokens: { ...tokens, output: 0 }, isOutputKnown: false }]
+}
+
 /** Events for an assistant record: tool starts, todos, usage once per message id, and a heartbeat. */
 const assistantEvents = (state: ParseState, record: Json, agentId: string, at: number): { state: ParseState; events: AgentEvent[] } => {
   const message = isRecord(record.message) ? record.message : {}
@@ -80,11 +95,25 @@ const assistantEvents = (state: ParseState, record: Json, agentId: string, at: n
   }
   const messageId = asString(message.id)
   const isNewMessage = messageId !== undefined && messageId !== state.lastMessageId
-  if (isNewMessage && isRecord(message.usage)) {
-    events.push({ kind: 'usage', at, agentId, model: asString(message.model), tokens: toTokens(message.usage) })
+  // A different message id ends the pending one, which never got a final record.
+  if (isNewMessage) events.unshift(...flushPending(state))
+  const isFinal = message.stop_reason !== null && message.stop_reason !== undefined
+  let pendingUsage = isNewMessage ? undefined : state.pendingUsage
+  if (messageId !== undefined && isRecord(message.usage) && (isNewMessage || pendingUsage !== undefined)) {
+    const tokens = toTokens(message.usage)
+    const model = asString(message.model)
+    if (isFinal) {
+      events.push({ kind: 'usage', at, agentId, model, tokens })
+      pendingUsage = undefined
+    } else {
+      pendingUsage = { at, agentId, model, tokens }
+    }
   }
   events.push({ kind: 'heartbeat', at, agentId })
-  return { state: { lastMessageId: isNewMessage ? messageId : state.lastMessageId, toolNames, taskInputs }, events }
+  return {
+    state: { lastMessageId: messageId ?? state.lastMessageId, pendingUsage, toolNames, taskInputs },
+    events,
+  }
 }
 
 /** Task list change from a finished TaskCreate / TaskUpdate; the id of a created task is the engine's own. */
@@ -165,6 +194,16 @@ const notificationEvents = (record: Json, at: number): AgentEvent[] => {
   return [{ kind: 'agent.end', at, id, ok: status === 'completed' }]
 }
 
+const withoutPending = (state: ParseState): ParseState =>
+  state.pendingUsage === undefined ? state : { ...state, pendingUsage: undefined }
+
+/** Puts the usage of a message ended by this record before the record's own events. */
+const endMessage = (
+  before: ParseState,
+  result: { state: ParseState; events: AgentEvent[] },
+): { state: ParseState; events: AgentEvent[] } =>
+  before.pendingUsage === undefined ? result : { state: result.state, events: [...flushPending(before), ...result.events] }
+
 /** Parses one transcript record; unknown shapes and records without a valid timestamp give no events. */
 export const parseRecord = (
   state: ParseState,
@@ -179,11 +218,12 @@ export const parseRecord = (
     case 'assistant':
       return assistantEvents(state, record, agentId, at)
     case 'user':
-      return userEvents(state, record, agentId, at)
-    case 'system':
-      return record.subtype === 'turn_duration' && agentId === MAIN
-        ? { state, events: [{ kind: 'turn', at, agentId: MAIN, phase: 'end' }] }
-        : none
+      return endMessage(state, userEvents(withoutPending(state), record, agentId, at))
+    case 'system': {
+      const turnEvents: AgentEvent[] =
+        record.subtype === 'turn_duration' && agentId === MAIN ? [{ kind: 'turn', at, agentId: MAIN, phase: 'end' }] : []
+      return endMessage(state, { state: withoutPending(state), events: turnEvents })
+    }
     case 'queue-operation':
       return { state, events: notificationEvents(record, at) }
     default:

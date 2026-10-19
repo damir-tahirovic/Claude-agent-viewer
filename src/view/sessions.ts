@@ -11,6 +11,8 @@ export type SessionListItem = {
   readonly id: string
   readonly agents: string
   readonly tok: number
+  /** True when some agent's output is unknown, so `tok` is a lower bound and shows a plus. */
+  readonly isTokPartial?: true
   readonly cost: number
   readonly plan: string
   readonly act: string
@@ -25,6 +27,8 @@ export type SessionListOpts = {
   selId?: string
   /** Tokens across all listed sessions, shown in the title bar. */
   totalTok: number
+  /** True when the total includes a session with unknown output; the title shows a plus. */
+  isTotalPartial?: boolean
   totalCost: number
   /** False when the cost is unknown: the COST column is dropped and the title shows a dash. */
   hasCost: boolean
@@ -82,7 +86,7 @@ export const renderSessions = (o: SessionListOpts): string[] => {
       case 'pj': return colorize(dm, fitText(s.project, w))
       case 'id': return dim(fitText(s.id, w))
       case 'ag': return colorize(dm, fitText(s.agents, w))
-      case 'tok': return colorize(dm, padLeft(fmtK(s.tok), w))
+      case 'tok': return colorize(dm, padLeft(fmtK(s.tok) + (s.isTokPartial ? '+' : ''), w))
       case 'cost': return colorize(dm, padLeft(fmtCost(s.cost), w))
       case 'plan': return colorize(dm, padLeft(s.plan, w))
       case 'act': return colorize(ACT_CODES[s.status] ?? 'd', fitText(s.act, w))
@@ -100,7 +104,7 @@ export const renderSessions = (o: SessionListOpts): string[] => {
   out.push(topBorder(
     W,
     colorize('B', 'agentview') + dim(` · ${all.length} sessions · ${o.active.length} active`),
-    dim(`${fmtTotal(o.totalTok)} tok today · ${o.hasCost ? fmtCost(o.totalCost) : '—'}`),
+    dim(`${fmtTotal(o.totalTok)}${o.isTotalPartial ? '+' : ''} tok today · ${o.hasCost ? fmtCost(o.totalCost) : '—'}`),
   ))
   out.push(rule(W, true))
   const heads = columns.map(c => c.r ? padLeft(c.h, c.w as number) : fitText(c.h, c.w as number)).join('  ')

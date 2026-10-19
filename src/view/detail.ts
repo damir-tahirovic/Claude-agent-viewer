@@ -163,18 +163,19 @@ export const renderDetail = (o: DetailOpts): string[] => {
 
   const tokens = agent.tokens
   const largest = Math.max(tokens.input, tokens.output, tokens.cacheRead, tokens.cacheWrite, 1)
-  const tokenRow = (label: string, count: number): string =>
-    fitText(label, 12) + padLeft(withThousands(count), 7) + ' ' +
-    progressBar(count, largest, TOKEN_BAR_WIDTH, 'b')
+  const isOutputPartial = agent.isOutputPartial === true
+  const tokenRow = (label: string, count: number, isKnown = true): string =>
+    fitText(label, 12) + padLeft(isKnown ? withThousands(count) : '—', 7) + ' ' +
+    progressBar(isKnown ? count : 0, largest, TOKEN_BAR_WIDTH, 'b')
   const cost = o.cost ?? costOf(agent.model, tokens)
   const hasCost = showsCost(o.billing)
   const share = o.sessionCost ? dim(`   ${Math.round(cost / o.sessionCost * 100)}% of session cost`) : ''
   const right = [
     dim('TOKENS'),
-    tokenRow('input', tokens.input), tokenRow('output', tokens.output),
+    tokenRow('input', tokens.input), tokenRow('output', tokens.output, !isOutputPartial),
     tokenRow('cache read', tokens.cacheRead), tokenRow('cache write', tokens.cacheWrite),
     '',
-    fitText('in + out', 12) + padLeft(withThousands(tokens.input + tokens.output), 7),
+    fitText('in + out', 12) + padLeft(isOutputPartial ? '—' : withThousands(tokens.input + tokens.output), 7),
     ...(hasCost ? [fitText('cost', 12) + padLeft(fmtCost(cost), 7) + share] : []),
     ...(o.todos?.length ? todoLines(o.todos) : []),
   ]

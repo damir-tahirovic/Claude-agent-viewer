@@ -39,13 +39,13 @@ type Column = {
   p?: number
   h: string
 }
-type Totals = Record<RowStatus, number> & { tok: number; cost: number; n: number; costed: number }
+type Totals = Record<RowStatus, number> & { tok: number; isTokPartial: boolean; cost: number; n: number; costed: number }
 
 /** Sums tokens, cost and per-status counts. (spec `totals`) */
 const totalsOf = (agents: Row[]): Totals => {
   // `costed`: agents with a nonzero estimated cost; an unknown model counts as 0.
-  const t: Totals = { tok: 0, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: agents.length, costed: 0 }
-  agents.forEach(x => { t.tok += x.i + x.o; t.cost += x.cost; t[x.st]++; if (x.cost > 0) t.costed++ })
+  const t: Totals = { tok: 0, isTokPartial: false, cost: 0, running: 0, waiting: 0, done: 0, failed: 0, unknown: 0, n: agents.length, costed: 0 }
+  agents.forEach(x => { t.tok += x.i + x.o; if (x.outputPartial) t.isTokPartial = true; t.cost += x.cost; t[x.st]++; if (x.cost > 0) t.costed++ })
   return t
 }
 
@@ -146,8 +146,8 @@ export const renderDialog = (o: DialogOpts): string[] => {
         // A count too long for the cell falls back to the percent, never to a cut number.
         return colorize(dm, padLeft([...counts].length <= w ? counts : progressPercent(progress) + '%', w))
       }
-      case 'tok': return colorize(dm, padLeft(fmtK(ag.i + ag.o), w))
-      case 'io': return dim(padLeft(fmtK(ag.i) + '/' + fmtK(ag.o), w))
+      case 'tok': return colorize(dm, padLeft(ag.outputPartial ? '—' : fmtK(ag.i + ag.o), w))
+      case 'io': return dim(padLeft(fmtK(ag.i) + '/' + (ag.outputPartial ? '—' : fmtK(ag.o)), w))
       case 'cost':
         return isCostly
           ? colorize('yB', padLeft(fmtCost(ag.cost) + '▲', w))
@@ -161,17 +161,19 @@ export const renderDialog = (o: DialogOpts): string[] => {
     }
   }
 
+  // A total with an unknown output is a lower bound, so it says so with a plus.
+  const totalTok = fmtK(t.tok) + (t.isTokPartial ? '+' : '')
   const out: string[] = []
   const pct = o.plan ? Math.round(o.plan.done / o.plan.total * 100) + '%' : '—'
   const idl = o.sid || '7f3a9c2e'
   const line = (s: string): string => textLine(W, s, hasFrame)
   if (hasFrame) {
     out.push(isNarrow
-      ? topBorder(W, colorize('B', 'agentview'), dim(`${fmtK(t.tok)} tok · plan `) + colorize('B', pct))
+      ? topBorder(W, colorize('B', 'agentview'), dim(`${totalTok} tok · plan `) + colorize('B', pct))
       : topBorder(
         W,
         colorize('B', 'agentview') + dim(' · session ') + idl + (o.path ? dim(' · ') + o.path : ''),
-        dim(`${fmtK(t.tok)} tok · ${costSlot(o.billing, t.cost)} · plan `) + colorize('B', pct),
+        dim(`${totalTok} tok · ${costSlot(o.billing, t.cost)} · plan `) + colorize('B', pct),
       ))
   }
   const summary: [string, string, string, number][] = [

@@ -221,6 +221,8 @@ export const renderApp = (
     const selectedItem = grouped.items[selected === undefined ? -1 : grouped.ids.indexOf(selected)]
     const totalTok = grouped.items.reduce(
       (sum, item) => sum + (grouped.sessionOf(item).lastAt >= opts.dayStart ? item.tok : 0), 0)
+    const isTotalPartial = grouped.items.some(
+      item => item.isTokPartial === true && grouped.sessionOf(item).lastAt >= opts.dayStart)
     // Same capacity as renderSessions uses, so the window it draws is the one remembered here.
     const groupCount = (grouped.active.length ? 1 : 0) + (grouped.recent.length ? 1 : 0)
     const capacity = Math.max(1, rows - LIST_CHROME_LINES - (groupCount + (groupCount === 2 ? 1 : 0) + 2))
@@ -229,7 +231,7 @@ export const renderApp = (
       ? windowFor(grouped.items.length, selIndex, capacity, current.listWin) : undefined
     const lines = renderSessions({
       W: columns, active: grouped.active, recent: grouped.recent, selId: selectedItem?.id,
-      totalTok, totalCost: 0, hasCost: false, spin, ascii: false, minRows: rows, win: listWin,
+      totalTok, isTotalPartial, totalCost: 0, hasCost: false, spin, ascii: false, minRows: rows, win: listWin,
     })
     return { lines: finish(lines), app: { screen: 'list', sessionId: selected, listWin } }
   }

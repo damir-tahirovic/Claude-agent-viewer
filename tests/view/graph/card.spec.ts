@@ -75,3 +75,11 @@ test('a card whose tokens line is full puts the progress on the status line', ()
   assert.ok(text.some(line => line.includes('3/5')))
   assert.ok(!text[5].includes('3/5'))
 })
+
+test('a partial-output card shows a dash for out when rich and for the total when not', () => {
+  for (const [isRich, expected] of [[true, 'in 41.2k · out —'], [false, '— tok']] as const) {
+    const canvas = new Canvas(90, 8)
+    drawCard(canvas, 0, 0, 80, { ...graphBaseRows()[3], i: 41200, o: 0, outputPartial: 1, st: 'running' }, { sessionCost: 0, isRich })
+    assert.ok(canvas.lines(8).map(stripCodes).join('\n').includes(expected), expected)
+  }
+})

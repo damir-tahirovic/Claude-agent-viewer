@@ -157,3 +157,12 @@ test('a stale running session lists as unknown with no heartbeat', () => {
   assert.equal(item.status, 'unknown')
   assert.equal(item.act, 'no heartbeat')
 })
+
+test('a session with a partial-output agent is marked isTokPartial', () => {
+  const state = reduce(build([]), {
+    kind: 'usage', at: 1, agentId: 'main', tokens: { input: 5, output: 0, cacheRead: 0, cacheWrite: 0 }, isOutputKnown: false,
+  })
+  const item = summarizeSession(state, info, 5)
+  assert.equal(item.isTokPartial, true)
+  assert.equal(summarizeSession(build([]), info, 5).isTokPartial, undefined)
+})

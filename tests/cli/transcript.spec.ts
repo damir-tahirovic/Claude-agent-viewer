@@ -14,7 +14,7 @@ const assistant = (offset: number, messageId: string, content: unknown[], extra:
   timestamp: iso(offset),
   sessionId: 's1',
   cwd: '/work/project',
-  message: { id: messageId, model: 'claude-sonnet-5-5', usage, content },
+  message: { id: messageId, model: 'claude-sonnet-5-5', stop_reason: 'end_turn', usage, content },
   ...extra,
 })
 
@@ -315,4 +315,73 @@ test('a content list prompt that is meta or system-injected does not start a tur
   const list = (text: string) => [{ type: 'text', text }]
   assert.deepEqual(parse([{ type: 'user', isMeta: true, timestamp: iso(0), message: { content: list('hi') } }]), [])
   assert.deepEqual(parse([{ type: 'user', timestamp: iso(0), message: { content: list('<command-name>x') } }]), [])
+})
+
+const streamed = (offset: number, messageId: string, stopReason: string | null, output: number) => ({
+  type: 'assistant',
+  timestamp: iso(offset),
+  message: {
+    id: messageId,
+    model: 'claude-sonnet-5-5',
+    stop_reason: stopReason,
+    usage: { input_tokens: 10, output_tokens: output, cache_read_input_tokens: 100, cache_creation_input_tokens: 20 },
+    content: [],
+  },
+})
+
+const userPrompt = (offset: number) => ({
+  type: 'user',
+  timestamp: iso(offset),
+  message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'x' }] },
+})
+
+test('a final record wins over earlier snapshots of the same message id', () => {
+  const events = parse([streamed(1, 'm1', null, 16), streamed(2, 'm1', 'tool_use', 900), streamed(3, 'm2', null, 3)])
+  const usages = ofKind(events, 'usage')
+  assert.equal(usages.length, 1)
+  assert.equal(usages[0].tokens.output, 900)
+  assert.equal(usages[0].isOutputKnown, undefined)
+})
+
+test('a message without a final record gives zero output and isOutputKnown false once the next message starts', () => {
+  const events = parse([streamed(1, 'm1', null, 16), streamed(2, 'm1', null, 20), streamed(3, 'm2', null, 5)])
+  const usages = ofKind(events, 'usage')
+  assert.equal(usages.length, 1)
+  assert.deepEqual(usages[0].tokens, { input: 10, output: 0, cacheRead: 100, cacheWrite: 20 })
+  assert.equal(usages[0].isOutputKnown, false)
+})
+
+test('a user record ends a message that has no final record', () => {
+  const events = parse([streamed(1, 'm1', null, 16), userPrompt(2)])
+  const usages = ofKind(events, 'usage')
+  assert.equal(usages.length, 1)
+  assert.equal(usages[0].isOutputKnown, false)
+})
+
+test('a system record ends a message that has no final record', () => {
+  const events = parse([streamed(1, 'm1', null, 16), { type: 'system', timestamp: iso(2), subtype: 'x' }])
+  assert.equal(ofKind(events, 'usage').length, 1)
+})
+
+test('usage events come before the events of the record that ended the message', () => {
+  const events = parse([streamed(1, 'm1', null, 16), streamed(2, 'm2', 'end_turn', 7)])
+  const kinds = events.map(event => event.kind)
+  assert.deepEqual(kinds, ['heartbeat', 'usage', 'usage', 'heartbeat'])
+  assert.equal(ofKind(events, 'usage')[0].isOutputKnown, false)
+})
+
+test('a message pending at the end of the text stays pending until the next parseLines call', () => {
+  const first = parseLines(initialParseState(), JSON.stringify(streamed(1, 'm1', null, 16)) + '\n', 'a1')
+  assert.equal(ofKind(first.events, 'usage').length, 0)
+  const second = parseLines(first.state, JSON.stringify(streamed(2, 'm1', 'end_turn', 400)) + '\n', 'a1')
+  const usages = ofKind(second.events, 'usage')
+  assert.equal(usages.length, 1)
+  assert.equal(usages[0].tokens.output, 400)
+  const third = parseLines(second.state, JSON.stringify(streamed(3, 'm2', null, 1)) + '\n', 'a1')
+  assert.equal(ofKind(third.events, 'usage').length, 0)
+})
+
+test('records of an already finished message id give no second usage', () => {
+  const events = parse([streamed(1, 'm1', 'end_turn', 50), streamed(2, 'm1', 'end_turn', 50)])
+  assert.equal(ofKind(events, 'usage').length, 1)
 })

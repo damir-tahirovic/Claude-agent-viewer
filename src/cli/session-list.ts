@@ -70,6 +70,7 @@ export const summarizeSession = (
     id: state.sessionId.slice(0, SESSION_ID_LENGTH),
     agents: rows.length + suffix,
     tok: rows.reduce((sum, row) => sum + row.i + row.o, 0),
+    ...(rows.some(row => row.outputPartial) ? { isTokPartial: true as const } : {}),
     // The CLI never shows cost, so there is nothing to sum.
     cost: 0,
     plan: plan ? Math.round(plan.done / plan.total * 100) + '%' : DASH,

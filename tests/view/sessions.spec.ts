@@ -56,3 +56,13 @@ test('ascii swaps box glyphs', () => {
   const lines = renderSessions({ ...base, W: 80, ascii: true })
   assert.ok(lines.every(l => !/[╭│─▸⠋◔✓✗]/.test(l)))
 })
+
+test('a partial session shows a plus after its TOK and the title total', () => {
+  const partial = { ...recent[0], tok: 88400, isTokPartial: true as const }
+  const lines = renderSessions({ ...base, recent: [partial], W: 120, isTotalPartial: true }).map(stripCodes)
+  assert.match(lines[0], /118\.3k\+ tok today/)
+  assert.ok(lines.some(line => line.includes('88.4k+')))
+  for (const line of renderSessions({ ...base, recent: [partial], W: 80, isTotalPartial: true })) {
+    assert.equal(visibleLength(line), 80)
+  }
+})

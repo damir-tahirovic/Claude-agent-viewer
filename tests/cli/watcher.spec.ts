@@ -23,7 +23,7 @@ const assistantLine = (offset: number, messageId: string, input: number, extra: 
     timestamp: iso(offset),
     sessionId: 's1',
     cwd: '/work/project',
-    message: { id: messageId, model: 'claude-sonnet-5-5', usage: usage(input), content: [] },
+    message: { id: messageId, model: 'claude-sonnet-5-5', stop_reason: 'end_turn', usage: usage(input), content: [] },
     ...extra,
   })}\n`
 

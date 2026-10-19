@@ -52,6 +52,8 @@ export type AgentNode = {
   readonly recent: ReadonlyArray<Action>
   readonly toolCount: number
   readonly tokens: Tokens
+  /** True when a usage report arrived without its final output count, so `tokens.output` is a lower bound. */
+  readonly isOutputPartial?: true
 }
 
 /** One usage window of a subscription, as the engine reports it (`five_hour`, `seven_day`, ...). */
@@ -106,6 +108,8 @@ export type AgentEvent =
       readonly agentId: string
       readonly model?: string
       readonly tokens: Tokens
+      /** False when the response never reported its final output count; `tokens.output` is then 0, not a measure. */
+      readonly isOutputKnown?: false
     }
   | { readonly kind: 'todos'; readonly at: number; readonly agentId: string; readonly todos: ReadonlyArray<Todo> }
   | { readonly kind: 'task.add'; readonly at: number; readonly agentId: string; readonly id: string; readonly content: string }
