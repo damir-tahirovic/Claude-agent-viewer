@@ -110,7 +110,7 @@ The mockups show the design. In the plugin the footer hints are the ones listed 
 ## Features
 
 - `/agentview` opens a live dialog inside the session.
-- Tree and graph views of the agents, switched with `t` and `g`.
+- Tree and graph views of the agents, switched with `t` and `g`. With many subagents the graph shrinks worker cards to three rows so the whole tree stays visible.
 - Agent detail: task, recent actions, token breakdown and the agent's todo list.
 - A status line under the prompt that names what needs attention first.
 - Tokens and estimated cost (`~$`) per agent and for the whole session; on a subscription, the plan usage limits instead.
@@ -170,6 +170,7 @@ In fullscreen, Claude Code docks plugin panes beside the transcript. agentview a
 | `p` / `n` | Select the previous or next agent |
 | `d` | Open the details of the selected agent |
 | `h` / `l` | Pan the worker columns left or right (shown only when some columns do not fit) |
+| `z` | Cycle the card density: auto, full, compact |
 | `t` / `g` | Switch to the tree or the graph view |
 | `Esc` | Close the dialog |
 
@@ -209,10 +210,12 @@ It opens on the session list: active sessions (running or waiting) first, then r
 | --- | --- | --- | --- | --- | --- | --- |
 | Session list | select session | nothing | open session | nothing | nothing | quit |
 | Session (tree) | select agent | nothing | agent detail | `g` graph | back to the list | quit |
-| Session (graph) | select agent | scroll worker columns (also `h` / `l`) | agent detail | `t` tree, Tab toggles | back to the list | quit |
+| Session (graph) | select agent | scroll worker columns (also `h` / `l`) | agent detail | `t` tree, Tab toggles; `z` cycles the density | back to the list | quit |
 | Detail | previous / next agent | nothing | nothing | nothing | back to the session | quit |
 
 The session screen opens as the tree; `g` or Tab switches to the same graph the plugin shows. The chosen view sticks when you open another session or a detail. On terminals narrower than 110 columns the graph folds into the tree plus one expanded card, and `←→` scrolls the worker columns only when some are hidden.
+
+**Graph density.** `z` cycles `auto` → `full` → `compact`; the footer shows the current one. In `auto` the graph keeps full cards while every worker column and the height fit. Otherwise worker cards turn compact (three rows: type and status glyph, then `<status> <time>`), as wide as lets all columns fit, down to 14 columns each; finished subtrees fold into chips if the height still overflows, and only below that width do the columns pan. Main and the selected agent always keep their full card. The plugin has the same `z` hotkey.
 
 What it shows, and what it does not:
 
