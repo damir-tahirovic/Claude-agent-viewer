@@ -1,4 +1,5 @@
 // The CLI's full-screen graph: the plugin's graph lines under a title line and above a footer line.
+import type { AgentFilter } from '../core/active'
 import type { SessionState } from '../core/model'
 import { MAIN } from '../core/model'
 import { planOf } from '../core/progress'
@@ -21,6 +22,9 @@ export type GraphScreenOpts = {
   readonly selectedId: string
   readonly graphCol: number
   readonly density: GraphDensity
+  readonly filter: AgentFilter
+  /** Agents the active filter hides, for the footer hint. */
+  readonly hiddenCount: number
   readonly columns: number
   readonly screenRows: number
   /** Project path shown in the title, already shortened; absent when unknown. */
@@ -51,9 +55,21 @@ export const panGraph = (
   return hidden ? panColumn(graphCol, offset, { ...hidden, first: graphCol }) : graphCol
 }
 
+/** Footer label of the `a` key: what the agent list shows now, and how many agents that leaves out. */
+export const filterLabel = (filter: AgentFilter, hiddenCount: number): string =>
+  `show: ${filter}` + (filter === 'active' && hiddenCount > 0 ? ` (${hiddenCount} hidden)` : '')
+
 /** Footer hints, with the scroll hint only while worker columns are hidden. */
-const footer = (columns: GraphColumns | undefined, density: GraphDensity): string => {
-  const hints = [...HINTS.slice(0, -2), ['z', `density: ${density}`] as const, ...HINTS.slice(-2)]
+const footer = (
+  columns: GraphColumns | undefined,
+  density: GraphDensity,
+  filter: AgentFilter,
+  hiddenCount: number,
+): string => {
+  const hints = [
+    ...HINTS.slice(0, -2), ['z', `density: ${density}`] as const, ['a', filterLabel(filter, hiddenCount)] as const,
+    ...HINTS.slice(-2),
+  ]
   const keys = (columns ? [hints[0], SCROLL_HINT, ...hints.slice(1)] : hints)
     .map(([key, label]) => colorize('B', key) + dim(' ' + label)).join('  ')
   return columns ? `${keys}  ${dim(`◂ workers ${columns.first + 1}–${columns.first + columns.visible} of ${columns.total} ▸`)}` : keys
@@ -71,6 +87,6 @@ export const renderGraphScreen = (opts: GraphScreenOpts): { lines: string[]; gra
     (opts.path ? dim(' · ') + opts.path : '')
   const body = [title, ...graph.lines].slice(0, screenRows - 1)
   const lines = Array.from({ length: screenRows }, (_, index) =>
-    clipLine(index === screenRows - 1 ? footer(graph.hiddenColumns, opts.density) : body[index] ?? '', columns))
+    clipLine(index === screenRows - 1 ? footer(graph.hiddenColumns, opts.density, opts.filter, opts.hiddenCount) : body[index] ?? '', columns))
   return { lines, graphCol: graph.hiddenColumns?.first ?? 0 }
 }

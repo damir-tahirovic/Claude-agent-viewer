@@ -1,5 +1,6 @@
 // Pure core of the standalone CLI: screen state, key handling and rendering. The Node loop lives in main.ts.
 // This file must not import `src/mod`; the few small helpers below are copies of the plugin's ideas.
+import { activeOnly, hasPendingExpiry, type AgentFilter } from '../core/active'
 import { MAIN, type SessionState } from '../core/model'
 import { planOf } from '../core/progress'
 import { renderDetail } from '../view/detail'
@@ -7,7 +8,7 @@ import { renderDialog, windowFor } from '../view/dialog'
 import { clipLine, dim, toPlainAscii } from '../view/lines'
 import { buildRows, type Row } from '../view/rows'
 import { renderSessions, type SessionListItem } from '../view/sessions'
-import { hiddenColumnsOf, panGraph, renderGraphScreen } from './graph-screen'
+import { filterLabel, hiddenColumnsOf, panGraph, renderGraphScreen } from './graph-screen'
 import { nextDensity, panToInclude } from '../view/graph/pane'
 import type { GraphDensity } from '../view/graph/pane'
 import { groupSessions, markStaleMain, projectLabel, summarizeSession } from './session-list'
@@ -30,6 +31,8 @@ export type AppState = {
   readonly graphCol: number
   /** Card density of the graph, cycled with `z`; kept like `mode`. */
   readonly density: GraphDensity
+  /** Which agents the session screen lists, toggled with `a`; kept like `mode`. */
+  readonly filter: AgentFilter
   /** Selected session (list) or open session (session, detail). */
   readonly sessionId?: string
   /** Selected agent (session) or shown agent (detail). */
@@ -41,7 +44,7 @@ export type AppState = {
 }
 
 /** A decoded key press. */
-export type Key = 'up' | 'down' | 'enter' | 'esc' | 'q' | 'tab' | 'left' | 'right' | 't' | 'g' | 'z' | 'other'
+export type Key = 'up' | 'down' | 'enter' | 'esc' | 'q' | 'tab' | 'left' | 'right' | 't' | 'g' | 'z' | 'a' | 'other'
 
 /** Options of one render; `dayStart` is local midnight in ms, computed by the caller (no timezone here). */
 export type RenderOpts = {
@@ -65,11 +68,15 @@ const DIALOG_FOOT_LINES = 5
 const SCROLL_HINT_LINES = 2
 // Session list lines outside the sessions (same as renderSessions): top, rule, heads, rule, hints, bottom.
 const LIST_CHROME_LINES = 6
-const SESSION_HINTS: [string, string][] = [['↑↓', 'select'], ['⏎', 'details'], ['tab', 'graph'], ['esc', 'sessions'], ['q', 'quit']]
 const DETAIL_HINTS: [string, string][] = [['↑↓', 'prev / next agent'], ['esc', 'back to tree'], ['q', 'quit']]
 
+/** Session tree hints, with the filter hint naming what the agent list shows now. */
+const sessionHints = (filter: AgentFilter, hiddenCount: number): [string, string][] => [
+  ['↑↓', 'select'], ['⏎', 'details'], ['tab', 'graph'], ['a', filterLabel(filter, hiddenCount)], ['esc', 'sessions'], ['q', 'quit'],
+]
+
 /** The list screen with nothing selected yet. */
-export const initialAppState = (): AppState => ({ screen: 'list', mode: 'tree', graphCol: 0, density: 'auto' })
+export const initialAppState = (): AppState => ({ screen: 'list', mode: 'tree', graphCol: 0, density: 'auto', filter: 'all' })
 
 /** The key for the final byte of an arrow sequence (CSI or SS3). */
 const arrowKey = (final: string | undefined): Key =>
@@ -112,6 +119,7 @@ export const parseKeys = (input: string): Key[] => {
     else if (char === 't') keys.push('t')
     else if (char === 'g') keys.push('g')
     else if (char === 'z') keys.push('z')
+    else if (char === 'a') keys.push('a')
     else keys.push('other')
   }
   return keys
@@ -155,15 +163,23 @@ const listOrder = (sessions: ReadonlyArray<CliSession>, now: number, home: strin
 }
 
 /** Agent rows in tree order for a session, with a silent main shown as unknown like the list does. */
-const agentRows = (session: CliSession, now: number): { state: SessionState; rows: Row[] } => {
-  const state = markStaleMain(session.state, session.lastAt, now)
-  return { state, rows: buildRows(state, now) }
+const agentRows = (
+  session: CliSession,
+  now: number,
+  filter: AgentFilter,
+): { state: SessionState; rows: Row[]; hiddenCount: number } => {
+  const marked = markStaleMain(session.state, session.lastAt, now)
+  const { state, hiddenCount } = filter === 'active' ? activeOnly(marked, now) : { state: marked, hiddenCount: 0 }
+  return { state, rows: buildRows(state, now), hiddenCount }
 }
+
+/** The filter that applies on a screen: the detail always resolves its agent among all of them. */
+const filterOf = (app: AppState): AgentFilter => (app.screen === 'session' ? app.filter : 'all')
 
 /** Falls back to the list when the open session has vanished. */
 const settle = (app: AppState, sessions: ReadonlyArray<CliSession>): AppState =>
   app.screen !== 'list' && !sessions.some(session => session.sessionId === app.sessionId)
-    ? { screen: 'list', mode: app.mode, graphCol: app.graphCol, density: app.density, listWin: app.listWin }
+    ? { screen: 'list', mode: app.mode, graphCol: app.graphCol, density: app.density, filter: app.filter, listWin: app.listWin }
     : app
 
 /**
@@ -187,13 +203,13 @@ export const handleKey = (
     const selected = resolveId(ids, current.sessionId)
     if (step !== 0) return selected === undefined ? current : { ...current, sessionId: stepId(ids, selected, step) }
     if (key === 'enter' && selected !== undefined) {
-      return { screen: 'session', mode: current.mode, graphCol: 0, density: current.density, sessionId: selected, listWin: current.listWin }
+      return { screen: 'session', mode: current.mode, graphCol: 0, density: current.density, filter: current.filter, sessionId: selected, listWin: current.listWin }
     }
     return current
   }
 
   const session = sessions.find(candidate => candidate.sessionId === current.sessionId) as CliSession
-  const { rows: agents } = agentRows(session, now)
+  const { rows: agents } = agentRows(session, now, filterOf(current))
   const order = agents.map(row => row.id)
   const agentId = resolveId(order, current.agentId)
   if (step !== 0) {
@@ -212,6 +228,16 @@ export const handleKey = (
         ? panToInclude(agents, agentId, current.graphCol, hidden.visible) : current.graphCol
       return { ...current, mode, agentId, graphCol }
     }
+    if (key === 'a') {
+      const filter = current.filter === 'all' ? 'active' : 'all'
+      const shown = agentRows(session, now, filter).rows
+      const shownId = resolveId(shown.map(row => row.id), agentId)
+      const hidden = current.mode === 'graph' ? hiddenColumnsOf(shown, columns, current.density) : undefined
+      // Fewer or more agents change the columns; keep the selection's column in view.
+      const graphCol = hidden && shownId !== undefined
+        ? panToInclude(shown, shownId, current.graphCol, hidden.visible) : 0
+      return { ...current, filter, agentId: shownId, graphCol }
+    }
     if (current.mode === 'graph' && key === 'z') {
       const density = nextDensity(current.density)
       const hidden = hiddenColumnsOf(agents, columns, density)
@@ -224,7 +250,7 @@ export const handleKey = (
       return { ...current, agentId, graphCol: panGraph(agents, columns, current.density, current.graphCol, key === 'left' ? -1 : 1) }
     }
     if (key === 'enter') return { ...current, screen: 'detail', agentId }
-    if (key === 'esc') return { screen: 'list', mode: current.mode, graphCol: current.graphCol, density: current.density, sessionId: current.sessionId, listWin: current.listWin }
+    if (key === 'esc') return { screen: 'list', mode: current.mode, graphCol: current.graphCol, density: current.density, filter: current.filter, sessionId: current.sessionId, listWin: current.listWin }
     return current
   }
   return key === 'esc' ? { ...current, screen: 'session', agentId } : current
@@ -235,8 +261,11 @@ export const hasLiveAgents = (sessions: ReadonlyArray<CliSession>, app: AppState
   const current = settle(app, sessions)
   if (current.screen === 'list') return listOrder(sessions, now, '').items.some(item => item.status === 'running')
   const session = sessions.find(candidate => candidate.sessionId === current.sessionId) as CliSession
-  const rows = agentRows(session, now).rows
-  if (current.screen === 'session') return rows.some(row => row.st === 'running')
+  const { state, rows } = agentRows(session, now, filterOf(current))
+  if (current.screen === 'session') {
+    // A finished agent still inside the keep window needs one more redraw when it expires.
+    return rows.some(row => row.st === 'running') || (current.filter === 'active' && hasPendingExpiry(state, now))
+  }
   return rows.find(row => row.id === resolveId(rows.map(r => r.id), current.agentId))?.st === 'running'
 }
 
@@ -280,17 +309,17 @@ export const renderApp = (
       W: columns, active: grouped.active, recent: grouped.recent, selId: selectedItem?.id,
       totalTok, isTotalPartial, totalCost: 0, hasCost: false, spin, ascii: false, minRows: rows, win: listWin,
     })
-    return { lines: finish(lines), app: { screen: 'list', mode: current.mode, graphCol: current.graphCol, density: current.density, sessionId: selected, listWin } }
+    return { lines: finish(lines), app: { screen: 'list', mode: current.mode, graphCol: current.graphCol, density: current.density, filter: current.filter, sessionId: selected, listWin } }
   }
 
   const session = sessions.find(candidate => candidate.sessionId === current.sessionId) as CliSession
-  const { state, rows: agents } = agentRows(session, now)
+  const { state, rows: agents, hiddenCount } = agentRows(session, now, filterOf(current))
   const agentId = resolveId(agents.map(row => row.id), current.agentId)
   const selected = Math.max(0, agents.findIndex(row => row.id === agentId))
 
   if (current.screen === 'session' && current.mode === 'graph') {
     const graph = renderGraphScreen({
-      state, rows: agents, selectedId: agentId ?? MAIN, graphCol: current.graphCol, density: current.density, columns, screenRows: rows,
+      state, rows: agents, selectedId: agentId ?? MAIN, graphCol: current.graphCol, density: current.density, filter: current.filter, hiddenCount, columns, screenRows: rows,
       path: session.cwd === undefined ? undefined : projectLabel(session.cwd, opts.home), spin, ascii: opts.ascii,
     })
     return { lines: finish(graph.lines), app: { ...current, agentId, graphCol: graph.graphCol } }
@@ -304,7 +333,7 @@ export const renderApp = (
     const lines = renderDialog({
       W: columns, agents, sel: selected, sid: session.sessionId.slice(0, SESSION_ID_LENGTH),
       path: session.cwd === undefined ? undefined : projectLabel(session.cwd, opts.home),
-      plan: planOf(state.todos[MAIN]), win: agentWin, spin, ascii: false, hints: SESSION_HINTS,
+      plan: planOf(state.todos[MAIN]), win: agentWin, spin, ascii: false, hints: sessionHints(current.filter, hiddenCount),
       minRows: rows - DIALOG_FOOT_LINES, billing: { kind: 'unknown' },
     })
     return { lines: finish(lines), app: { ...current, agentId, agentWin } }

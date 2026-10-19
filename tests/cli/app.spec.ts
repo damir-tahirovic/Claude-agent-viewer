@@ -5,6 +5,7 @@ import {
   type AppState, type CliSession, type RenderOpts,
 } from '../../src/cli/app'
 import type { AgentEvent } from '../../src/core/model'
+import { KEEP_FINISHED_MS } from '../../src/core/active'
 import { UNKNOWN_AFTER_MS } from '../../src/core/model'
 import { initialState, reduce } from '../../src/core/reducer'
 import { stripCodes, visibleLength } from '../../src/view/lines'
@@ -27,7 +28,7 @@ const SESSIONS = [S1, S2, S3]
 
 const opts: RenderOpts = { home: '/home/u', ascii: false, spin: '⠋', clock: () => '12:00:00', dayStart: 0 }
 const at = (partial: Partial<AppState> & Pick<AppState, 'screen'>): AppState =>
-  ({ mode: 'tree', graphCol: 0, density: 'auto', ...partial })
+  ({ mode: 'tree', graphCol: 0, density: 'auto', filter: 'all', ...partial })
 const key = (app: AppState, pressed: Parameters<typeof handleKey>[1], sessions = SESSIONS) =>
   handleKey(app, pressed, sessions, NOW)
 
@@ -381,10 +382,10 @@ test('graph screen title has the session id and the project path', () => {
 
 test('graph footer hints: scroll only when columns are hidden', () => {
   const hidden = renderApp(graphApp(), [BIG], NOW, 120, 40, opts).lines.map(stripCodes)
-  assert.ok(hidden[39].includes('↑↓ select  ←→ scroll  ⏎ details  tab tree  z density: full  esc sessions  q quit'), hidden[39])
+  assert.ok(hidden[39].includes('↑↓ select  ←→ scroll  ⏎ details  tab tree  z density: full  a show: all  esc sessions  q quit'), hidden[39])
   assert.ok(hidden[39].includes('◂ workers 1–2 of 6 ▸'), hidden[39])
   const all = renderApp(graphApp({ sessionId: 'aaaaaaaa-1' }), [S1], NOW, 200, 40, opts).lines.map(stripCodes)
-  assert.ok(all[39].includes('↑↓ select  ⏎ details  tab tree  z density: full  esc sessions  q quit'), all[39])
+  assert.ok(all[39].includes('↑↓ select  ⏎ details  tab tree  z density: full  a show: all  esc sessions  q quit'), all[39])
   assert.ok(!all[39].includes('scroll'))
 })
 
@@ -427,4 +428,103 @@ test('auto density shows all six workers at 120 columns and the footer names the
   const text = renderApp(graphApp({ density: 'auto' }), [BIG], NOW, 120, 40, opts).lines.map(stripCodes)
   assert.ok(!text.join('\n').includes('workers 1'), text.join('\n'))
   assert.ok(text[39].includes('z density: auto'), text[39])
+})
+
+// Active filter: one old finished worker, one recently finished, one running.
+const finish = (id: string, at: number): AgentEvent => ({ kind: 'agent.end', at, id, ok: true })
+const MIXED = session('iiiiiiii-9', 30, [
+  mainTurn, spawn('old'), spawn('fresh', 3), spawn('busy', 4),
+  finish('old', 10), finish('fresh', NOW - 1000),
+])
+const mixedApp = (partial: Partial<AppState> = {}): AppState =>
+  at({ screen: 'session', sessionId: 'iiiiiiii-9', agentId: 'main', ...partial })
+const mixedKey = (app: AppState, pressed: Parameters<typeof handleKey>[1], now = NOW) =>
+  handleKey(app, pressed, [MIXED], now, 120) as AppState
+const agentIds = (app: AppState): string[] =>
+  renderApp(app, [MIXED], NOW, 120, 40, opts).lines.map(stripCodes).join('\n').match(/old|fresh|busy/g) ?? []
+
+test('parseKeys reads a', () => {
+  assert.deepEqual(parseKeys('a'), ['a'])
+})
+
+test('the filter starts as all', () => {
+  assert.equal(initialAppState().filter, 'all')
+})
+
+test('a toggles the filter on the session screen and the choice sticks', () => {
+  const active = mixedKey(mixedApp(), 'a')
+  assert.equal(active.filter, 'active')
+  assert.equal(mixedKey(active, 'a').filter, 'all')
+  assert.equal((mixedKey(active, 'esc')).filter, 'active')
+})
+
+test('a does nothing on the list screen', () => {
+  assert.deepEqual(key(at({ screen: 'list', sessionId: 'aaaaaaaa-1' }), 'a'), at({ screen: 'list', sessionId: 'aaaaaaaa-1' }))
+})
+
+test('the active filter hides old finished agents from the tree', () => {
+  assert.ok(agentIds(mixedApp()).includes('old'))
+  const ids = agentIds(mixedApp({ filter: 'active' }))
+  assert.ok(!ids.includes('old'))
+  assert.ok(ids.includes('fresh') && ids.includes('busy'))
+})
+
+test('the tree hint names the filter and the hidden count', () => {
+  const all = renderApp(mixedApp(), [MIXED], NOW, 120, 40, opts).lines.map(stripCodes).join('\n')
+  assert.ok(all.includes('a show: all'), all)
+  const active = renderApp(mixedApp({ filter: 'active' }), [MIXED], NOW, 120, 40, opts).lines.map(stripCodes).join('\n')
+  assert.ok(active.includes('a show: active (1 hidden)'), active)
+})
+
+test('the graph footer names the filter and the hidden count', () => {
+  const lines = renderApp(mixedApp({ mode: 'graph', filter: 'active' }), [MIXED], NOW, 140, 40, opts).lines.map(stripCodes)
+  assert.ok(lines[39].includes('a show: active (1 hidden)'), lines[39])
+})
+
+test('no hidden count is shown when nothing is hidden', () => {
+  const lines = renderApp(mixedApp({ filter: 'active' }), [S1], NOW, 120, 40, opts).lines.map(stripCodes).join('\n')
+  assert.ok(!lines.includes('hidden'))
+})
+
+test('toggling keeps the selection while it is visible', () => {
+  assert.equal(mixedKey(mixedApp({ agentId: 'busy' }), 'a').agentId, 'busy')
+})
+
+test('toggling falls back to the first agent when the selection is hidden', () => {
+  assert.equal(mixedKey(mixedApp({ agentId: 'old' }), 'a').agentId, 'main')
+})
+
+test('arrows skip hidden agents under the active filter', () => {
+  const app = mixedApp({ filter: 'active', agentId: 'main' })
+  const order = [mixedKey(app, 'down')]
+  order.push(mixedKey(order[0], 'down'))
+  assert.deepEqual(order.map(state => state.agentId), ['fresh', 'busy'])
+})
+
+test('a toggles in graph mode and re-pans to the selection', () => {
+  const app = graphApp({ agentId: 'w6', graphCol: 4 })
+  const toggled = keyAt(app, 'a', 120)
+  assert.equal(toggled.filter, 'active')
+  assert.equal(toggled.agentId, 'w6')
+  assert.equal(toggled.graphCol, 4)
+})
+
+test('a finished agent expires from the screen with no new event', () => {
+  const later = NOW + KEEP_FINISHED_MS
+  const text = renderApp(mixedApp({ filter: 'active' }), [MIXED], later, 120, 40, opts).lines.map(stripCodes).join('\n')
+  assert.ok(!text.includes('fresh'))
+})
+
+test('hasLiveAgents stays true under the active filter while a finished agent is about to expire', () => {
+  const pending = session('jjjjjjjj-10', 30, [mainTurn, spawn('x'), finish('x', NOW - 1000), { kind: 'turn', at: NOW - 500, agentId: 'main', phase: 'end' }])
+  const app = at({ screen: 'session', sessionId: 'jjjjjjjj-10', filter: 'active' })
+  assert.equal(hasLiveAgents([pending], app, NOW), true)
+  assert.equal(hasLiveAgents([pending], { ...app, filter: 'all' }, NOW), false)
+})
+
+test('hasLiveAgents goes false once every finished agent has expired', () => {
+  const quiet = session('kkkkkkkk-11', 30, [mainTurn, spawn('x'), finish('x', 100), { kind: 'turn', at: 200, agentId: 'main', phase: 'end' }])
+  const app = at({ screen: 'session', sessionId: 'kkkkkkkk-11', filter: 'active' })
+  assert.equal(hasLiveAgents([quiet], app, 100 + KEEP_FINISHED_MS), false)
+  assert.equal(hasLiveAgents([quiet], app, 100 + KEEP_FINISHED_MS - 1), true)
 })
