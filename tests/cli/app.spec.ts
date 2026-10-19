@@ -7,7 +7,7 @@ import {
 import type { AgentEvent } from '../../src/core/model'
 import { UNKNOWN_AFTER_MS } from '../../src/core/model'
 import { initialState, reduce } from '../../src/core/reducer'
-import { stripCodes } from '../../src/view/lines'
+import { stripCodes, visibleLength } from '../../src/view/lines'
 
 const NOW = 1_000_000
 const mainTurn: AgentEvent = { kind: 'turn', at: 1, agentId: 'main', phase: 'start' }
@@ -26,7 +26,8 @@ const S3 = session('cccccccc-3', 5, [mainTurn])
 const SESSIONS = [S1, S2, S3]
 
 const opts: RenderOpts = { home: '/home/u', ascii: false, spin: '⠋', clock: () => '12:00:00', dayStart: 0 }
-const at = (partial: Partial<AppState> & Pick<AppState, 'screen'>): AppState => partial
+const at = (partial: Partial<AppState> & Pick<AppState, 'screen'>): AppState =>
+  ({ mode: 'tree', graphCol: 0, ...partial })
 const key = (app: AppState, pressed: Parameters<typeof handleKey>[1], sessions = SESSIONS) =>
   handleKey(app, pressed, sessions, NOW)
 
@@ -273,4 +274,132 @@ test('hasLiveAgents on detail looks at the shown agent only', () => {
 test('hasLiveAgents is false for a stale session', () => {
   const stale = session('ffffffff-6', 1, [mainTurn], 0)
   assert.equal(hasLiveAgents([stale], initialAppState(), UNKNOWN_AFTER_MS + 5000), false)
+})
+
+// Graph mode: a session with six workers, so 120 columns hide some worker columns.
+const BIG = session('hhhhhhhh-8', 30, [
+  mainTurn, ...['w1', 'w2', 'w3', 'w4', 'w5', 'w6'].map((id, index) => spawn(id, 2 + index)),
+])
+const graphApp = (partial: Partial<AppState> = {}): AppState =>
+  at({ screen: 'session', sessionId: 'hhhhhhhh-8', mode: 'graph', agentId: 'main', ...partial })
+const keyAt = (app: AppState, pressed: Parameters<typeof handleKey>[1], columns: number) =>
+  handleKey(app, pressed, [BIG], NOW, columns) as AppState
+
+test('parseKeys reads tab, left, right, t and g', () => {
+  assert.deepEqual(parseKeys('\t\x1b[D\x1b[C\x1bOD\x1bOCtg'),
+    ['tab', 'left', 'right', 'left', 'right', 't', 'g'])
+  assert.deepEqual(parseKeys('hl'), ['left', 'right'])
+})
+
+test('initial state is the tree mode at column 0', () => {
+  assert.equal(initialAppState().mode, 'tree')
+  assert.equal(initialAppState().graphCol, 0)
+})
+
+test('session: g and t pick the mode, tab toggles it', () => {
+  const app = at({ screen: 'session', sessionId: 'aaaaaaaa-1' })
+  const graph = key(app, 'g') as AppState
+  assert.equal(graph.mode, 'graph')
+  assert.equal((key(graph, 'g') as AppState).mode, 'graph')
+  assert.equal((key(graph, 't') as AppState).mode, 'tree')
+  assert.equal((key(graph, 'tab') as AppState).mode, 'tree')
+  assert.equal((key(app, 'tab') as AppState).mode, 'graph')
+})
+
+test('list and detail ignore the mode keys', () => {
+  const list = at({ screen: 'list', sessionId: 'aaaaaaaa-1' })
+  assert.deepEqual(key(list, 'tab'), list)
+  const detail = at({ screen: 'detail', sessionId: 'aaaaaaaa-1', agentId: 'a' })
+  assert.deepEqual(key(detail, 'g'), detail)
+})
+
+test('mode survives esc to the list and opening another session', () => {
+  const back = key(at({ screen: 'session', sessionId: 'aaaaaaaa-1', mode: 'graph' }), 'esc') as AppState
+  assert.equal(back.screen, 'list')
+  assert.equal(back.mode, 'graph')
+  const reopened = key(back, 'enter') as AppState
+  assert.equal(reopened.screen, 'session')
+  assert.equal(reopened.mode, 'graph')
+})
+
+test('mode survives the detail round trip', () => {
+  const opened = key(at({ screen: 'session', sessionId: 'aaaaaaaa-1', mode: 'graph', agentId: 'a' }), 'enter') as AppState
+  assert.equal(opened.screen, 'detail')
+  const back = key(opened, 'esc') as AppState
+  assert.deepEqual([back.screen, back.mode], ['session', 'graph'])
+})
+
+test('graph: up and down select the previous and next agent, wrapping', () => {
+  assert.equal(keyAt(graphApp(), 'down', 120).agentId, 'w1')
+  assert.equal(keyAt(graphApp(), 'up', 120).agentId, 'w6')
+})
+
+test('graph: moving the selection pans so its worker column shows', () => {
+  const app = graphApp({ agentId: 'w2' })
+  assert.equal(keyAt(app, 'down', 120).graphCol, 1)
+  assert.equal(keyAt(graphApp({ agentId: 'w6', graphCol: 4 }), 'down', 120).graphCol, 4)
+  assert.equal(keyAt(graphApp({ agentId: 'main' }), 'up', 120).graphCol, 4)
+})
+
+test('graph: left and right pan one column, clamped, when columns are hidden', () => {
+  assert.equal(keyAt(graphApp(), 'right', 120).graphCol, 1)
+  assert.equal(keyAt(graphApp({ graphCol: 4 }), 'right', 120).graphCol, 4)
+  assert.equal(keyAt(graphApp({ graphCol: 1 }), 'left', 120).graphCol, 0)
+  assert.equal(keyAt(graphApp(), 'left', 120).graphCol, 0)
+})
+
+test('graph: left and right do nothing when every column shows or the graph is narrow', () => {
+  assert.equal(keyAt(graphApp(), 'right', 300).graphCol, 0)
+  assert.equal(keyAt(graphApp(), 'right', 80).graphCol, 0)
+})
+
+test('graph: switching to graph pans to the selected agent', () => {
+  const app = at({ screen: 'session', sessionId: 'hhhhhhhh-8', agentId: 'w6' })
+  assert.equal(keyAt(app, 'g', 120).graphCol, 4)
+})
+
+test('graph: enter opens the detail and esc goes back to the graph', () => {
+  const detail = keyAt(graphApp({ agentId: 'w3' }), 'enter', 120)
+  assert.deepEqual([detail.screen, detail.agentId], ['detail', 'w3'])
+  assert.deepEqual([keyAt(detail, 'esc', 120).screen, keyAt(detail, 'esc', 120).mode], ['session', 'graph'])
+})
+
+for (const columns of [80, 120, 200]) {
+  test(`graph screen is exactly rows lines and never wider than ${columns} columns`, () => {
+    for (const rows of [24, 40, 60]) {
+      const { lines } = renderApp(graphApp(), [BIG], NOW, columns, rows, opts)
+      assert.equal(lines.length, rows)
+      for (const line of lines) assert.ok(visibleLength(line) <= columns, `${visibleLength(line)} > ${columns}`)
+    }
+  })
+}
+
+test('graph screen title has the session id and the project path', () => {
+  const lines = renderApp(graphApp(), [BIG], NOW, 120, 40, opts).lines.map(stripCodes)
+  assert.match(lines[0], /^agentview · session hhhhhhhh · .*proj/)
+})
+
+test('graph footer hints: scroll only when columns are hidden', () => {
+  const hidden = renderApp(graphApp(), [BIG], NOW, 120, 40, opts).lines.map(stripCodes)
+  assert.ok(hidden[39].includes('↑↓ select  ←→ scroll  ⏎ details  tab tree  esc sessions  q quit'), hidden[39])
+  assert.ok(hidden[39].includes('◂ workers 1–2 of 6 ▸'), hidden[39])
+  const all = renderApp(graphApp({ sessionId: 'aaaaaaaa-1' }), [S1], NOW, 200, 40, opts).lines.map(stripCodes)
+  assert.ok(all[39].includes('↑↓ select  ⏎ details  tab tree  esc sessions  q quit'), all[39])
+  assert.ok(!all[39].includes('scroll'))
+})
+
+test('graph screen at 120 columns shows a window of workers and remembers the clamped column', () => {
+  const result = renderApp(graphApp({ graphCol: 99 }), [BIG], NOW, 120, 40, opts)
+  assert.equal(result.app.graphCol, 4)
+  const text = result.lines.map(stripCodes).join('\n'); assert.ok(text.includes('workers 5–6 of 6'), text)
+})
+
+test('narrow graph at 80 columns shows the selected agent as a card', () => {
+  const text = renderApp(graphApp({ agentId: 'w2' }), [BIG], NOW, 80, 40, opts).lines.map(stripCodes).join('\n')
+  assert.ok(text.includes('╔═ worker'), text)
+})
+
+test('hasLiveAgents stays true on the graph screen while an agent runs', () => {
+  assert.equal(hasLiveAgents([BIG], graphApp(), NOW), true)
+  assert.equal(hasLiveAgents([S2], graphApp({ sessionId: 'bbbbbbbb-2' }), NOW), false)
 })

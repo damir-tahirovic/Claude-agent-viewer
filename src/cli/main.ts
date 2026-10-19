@@ -135,7 +135,7 @@ export const run = (options: RunOptions = {}): void => {
   function onData(chunk: Buffer | string): void {
     const now = Date.now()
     for (const key of parseKeys(String(chunk))) {
-      const next = handleKey(app, key, watcher.sessions(), now)
+      const next = handleKey(app, key, watcher.sessions(), now, size().columns)
       if (next === 'quit') return quit(0)
       app = next
     }

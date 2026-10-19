@@ -7,6 +7,8 @@ import { renderDialog, windowFor } from '../view/dialog'
 import { clipLine, dim, toPlainAscii } from '../view/lines'
 import { buildRows, type Row } from '../view/rows'
 import { renderSessions, type SessionListItem } from '../view/sessions'
+import { hiddenColumnsOf, panGraph, renderGraphScreen } from './graph-screen'
+import { panToInclude } from '../view/graph/pane'
 import { groupSessions, markStaleMain, projectLabel, summarizeSession } from './session-list'
 
 /** One session as the watcher delivers it: its reduced state plus file-level facts. */
@@ -21,6 +23,10 @@ export type CliSession = {
 /** Which screen is open and what is selected; selection is an id, never an index. */
 export type AppState = {
   readonly screen: 'list' | 'session' | 'detail'
+  /** What the session screen shows; kept across sessions and the detail so the user's choice sticks. */
+  readonly mode: 'tree' | 'graph'
+  /** First visible worker column of a wide graph. */
+  readonly graphCol: number
   /** Selected session (list) or open session (session, detail). */
   readonly sessionId?: string
   /** Selected agent (session) or shown agent (detail). */
@@ -32,7 +38,7 @@ export type AppState = {
 }
 
 /** A decoded key press. */
-export type Key = 'up' | 'down' | 'enter' | 'esc' | 'q' | 'other'
+export type Key = 'up' | 'down' | 'enter' | 'esc' | 'q' | 'tab' | 'left' | 'right' | 't' | 'g' | 'other'
 
 /** Options of one render; `dayStart` is local midnight in ms, computed by the caller (no timezone here). */
 export type RenderOpts = {
@@ -56,11 +62,15 @@ const DIALOG_FOOT_LINES = 5
 const SCROLL_HINT_LINES = 2
 // Session list lines outside the sessions (same as renderSessions): top, rule, heads, rule, hints, bottom.
 const LIST_CHROME_LINES = 6
-const SESSION_HINTS: [string, string][] = [['↑↓', 'select'], ['⏎', 'details'], ['esc', 'sessions'], ['q', 'quit']]
+const SESSION_HINTS: [string, string][] = [['↑↓', 'select'], ['⏎', 'details'], ['tab', 'graph'], ['esc', 'sessions'], ['q', 'quit']]
 const DETAIL_HINTS: [string, string][] = [['↑↓', 'prev / next agent'], ['esc', 'back to tree'], ['q', 'quit']]
 
 /** The list screen with nothing selected yet. */
-export const initialAppState = (): AppState => ({ screen: 'list' })
+export const initialAppState = (): AppState => ({ screen: 'list', mode: 'tree', graphCol: 0 })
+
+/** The key for the final byte of an arrow sequence (CSI or SS3). */
+const arrowKey = (final: string | undefined): Key =>
+  final === 'A' ? 'up' : final === 'B' ? 'down' : final === 'C' ? 'right' : final === 'D' ? 'left' : 'other'
 
 /** Splits a raw stdin chunk into keys; unknown input becomes 'other' so it is consumed, not misread. */
 export const parseKeys = (input: string): Key[] => {
@@ -76,12 +86,12 @@ export const parseKeys = (input: string): Key[] => {
         let end = at + 1
         while (end < input.length && !(input[end] >= '@' && input[end] <= '~')) end++
         const final = input[end]
-        keys.push(final === 'A' && end === at + 1 ? 'up' : final === 'B' && end === at + 1 ? 'down' : 'other')
+        keys.push(end === at + 1 ? arrowKey(final) : 'other')
         at = end + 1
       } else if (introducer === 'O') {
         // SS3, sent by terminals in application cursor mode.
         const final = input[at + 1]
-        keys.push(final === 'A' ? 'up' : final === 'B' ? 'down' : 'other')
+        keys.push(arrowKey(final))
         at += 2
       } else {
         keys.push('esc')
@@ -93,6 +103,11 @@ export const parseKeys = (input: string): Key[] => {
     else if (char === 'q' || char === 'Q' || char === '\x03') keys.push('q')
     else if (char === 'k') keys.push('up')
     else if (char === 'j') keys.push('down')
+    else if (char === '\t') keys.push('tab')
+    else if (char === 'h') keys.push('left')
+    else if (char === 'l') keys.push('right')
+    else if (char === 't') keys.push('t')
+    else if (char === 'g') keys.push('g')
     else keys.push('other')
   }
   return keys
@@ -144,7 +159,7 @@ const agentRows = (session: CliSession, now: number): { state: SessionState; row
 /** Falls back to the list when the open session has vanished. */
 const settle = (app: AppState, sessions: ReadonlyArray<CliSession>): AppState =>
   app.screen !== 'list' && !sessions.some(session => session.sessionId === app.sessionId)
-    ? { screen: 'list', listWin: app.listWin }
+    ? { screen: 'list', mode: app.mode, graphCol: app.graphCol, listWin: app.listWin }
     : app
 
 /**
@@ -156,6 +171,8 @@ export const handleKey = (
   key: Key,
   sessions: ReadonlyArray<CliSession>,
   now: number,
+  /** Terminal width, for panning the graph; without it the graph never pans. */
+  columns = 0,
 ): AppState | 'quit' => {
   if (key === 'q') return 'quit'
   const current = settle(app, sessions)
@@ -166,18 +183,36 @@ export const handleKey = (
     const selected = resolveId(ids, current.sessionId)
     if (step !== 0) return selected === undefined ? current : { ...current, sessionId: stepId(ids, selected, step) }
     if (key === 'enter' && selected !== undefined) {
-      return { screen: 'session', sessionId: selected, listWin: current.listWin }
+      return { screen: 'session', mode: current.mode, graphCol: 0, sessionId: selected, listWin: current.listWin }
     }
     return current
   }
 
   const session = sessions.find(candidate => candidate.sessionId === current.sessionId) as CliSession
-  const order = agentRows(session, now).rows.map(row => row.id)
+  const { rows: agents } = agentRows(session, now)
+  const order = agents.map(row => row.id)
   const agentId = resolveId(order, current.agentId)
-  if (step !== 0) return { ...current, agentId: stepId(order, agentId, step) }
+  if (step !== 0) {
+    const target = stepId(order, agentId, step)
+    const hidden = current.screen === 'session' && current.mode === 'graph' ? hiddenColumnsOf(agents, columns) : undefined
+    const graphCol = hidden && target !== undefined
+      ? panToInclude(agents, target, current.graphCol, hidden.visible) : current.graphCol
+    return { ...current, agentId: target, graphCol }
+  }
   if (current.screen === 'session') {
+    if (key === 'tab' || key === 't' || key === 'g') {
+      const mode = key === 'tab' ? (current.mode === 'tree' ? 'graph' : 'tree') : key === 't' ? 'tree' : 'graph'
+      const hidden = mode === 'graph' ? hiddenColumnsOf(agents, columns) : undefined
+      // The selection may have moved while the graph was away; bring its column into view.
+      const graphCol = hidden && agentId !== undefined
+        ? panToInclude(agents, agentId, current.graphCol, hidden.visible) : current.graphCol
+      return { ...current, mode, agentId, graphCol }
+    }
+    if (current.mode === 'graph' && (key === 'left' || key === 'right')) {
+      return { ...current, agentId, graphCol: panGraph(agents, columns, current.graphCol, key === 'left' ? -1 : 1) }
+    }
     if (key === 'enter') return { ...current, screen: 'detail', agentId }
-    if (key === 'esc') return { screen: 'list', sessionId: current.sessionId, listWin: current.listWin }
+    if (key === 'esc') return { screen: 'list', mode: current.mode, graphCol: current.graphCol, sessionId: current.sessionId, listWin: current.listWin }
     return current
   }
   return key === 'esc' ? { ...current, screen: 'session', agentId } : current
@@ -233,13 +268,21 @@ export const renderApp = (
       W: columns, active: grouped.active, recent: grouped.recent, selId: selectedItem?.id,
       totalTok, isTotalPartial, totalCost: 0, hasCost: false, spin, ascii: false, minRows: rows, win: listWin,
     })
-    return { lines: finish(lines), app: { screen: 'list', sessionId: selected, listWin } }
+    return { lines: finish(lines), app: { screen: 'list', mode: current.mode, graphCol: current.graphCol, sessionId: selected, listWin } }
   }
 
   const session = sessions.find(candidate => candidate.sessionId === current.sessionId) as CliSession
   const { state, rows: agents } = agentRows(session, now)
   const agentId = resolveId(agents.map(row => row.id), current.agentId)
   const selected = Math.max(0, agents.findIndex(row => row.id === agentId))
+
+  if (current.screen === 'session' && current.mode === 'graph') {
+    const graph = renderGraphScreen({
+      state, rows: agents, selectedId: agentId ?? MAIN, graphCol: current.graphCol, columns, screenRows: rows,
+      path: session.cwd === undefined ? undefined : projectLabel(session.cwd, opts.home), spin, ascii: opts.ascii,
+    })
+    return { lines: finish(graph.lines), app: { ...current, agentId, graphCol: graph.graphCol } }
+  }
 
   if (current.screen === 'session') {
     const room = rows - DIALOG_HEAD_LINES - DIALOG_FOOT_LINES
