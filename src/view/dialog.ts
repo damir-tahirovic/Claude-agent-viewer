@@ -71,7 +71,7 @@ const treePrefixes = (list: Row[]): string[] => list.map((a, i) => {
 })
 
 /** Status cell codes and text. (spec `stCell`) */
-const statusCell = (st: RowStatus, spin: string): [string, string] => {
+export const statusCell = (st: RowStatus, spin: string): [string, string] => {
   switch (st) {
     case 'running': return ['c', spin + ' running']
     case 'waiting': return ['y', '◔ waiting']
